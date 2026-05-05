@@ -229,31 +229,32 @@ def main():
         now = datetime.now()
         ts  = now.strftime("%H:%M:%S")
 
+        # Observe activity before any guards — so ETA is always written
+        # even when agents are running or cooldown is active
+        last_activity_ts, activity_source = get_last_activity(state)
+        if last_activity_ts > 0:
+            activity_moved = (last_activity_ts - prev_activity_ts) >= check_interval * 0.5
+            source_changed = activity_source != prev_activity_source
+            if activity_moved or source_changed:
+                prev_activity_ts     = last_activity_ts
+                prev_activity_source = activity_source
+                consecutive_idle     = 0  # new activity resets idle streak
+                fire_eta = datetime.fromtimestamp(last_activity_ts + idle_threshold)
+                state["last_activity_source"] = activity_source
+                state["last_activity_ts"]     = datetime.fromtimestamp(last_activity_ts).strftime("%Y-%m-%d %H:%M:%S")
+                state["next_heartbeat_at"]    = fire_eta.strftime("%Y-%m-%d %H:%M:%S")
+                atomic_write(state)
+
         # Guard 1: agents still running
         agents_running = state.get("agents_running", 0)
         if agents_running > 0:
             print(f"[{ts}] HOLD — {agents_running} agent(s) running.")
             continue
 
-        # Guard 2: idle gap — use all available activity signals
-        last_activity_ts, activity_source = get_last_activity(state)
+        # Guard 2: idle gap
         if last_activity_ts == 0:
             continue
         gap = now.timestamp() - last_activity_ts
-
-        # Write activity metadata to state when signal changes or timestamp advances
-        # significantly — lets status panel show ETA and held-by source
-        activity_moved = (last_activity_ts - prev_activity_ts) >= check_interval * 0.5
-        source_changed = activity_source != prev_activity_source
-        if activity_moved or source_changed:
-            prev_activity_ts     = last_activity_ts
-            prev_activity_source = activity_source
-            consecutive_idle     = 0  # new activity resets idle streak
-            fire_eta = datetime.fromtimestamp(last_activity_ts + idle_threshold)
-            state["last_activity_source"] = activity_source
-            state["last_activity_ts"]     = datetime.fromtimestamp(last_activity_ts).strftime("%Y-%m-%d %H:%M:%S")
-            state["next_heartbeat_at"]    = fire_eta.strftime("%Y-%m-%d %H:%M:%S")
-            atomic_write(state)
 
         # Guard 3: cooldown
         last_fired_str = state.get("last_heartbeat_fired")
