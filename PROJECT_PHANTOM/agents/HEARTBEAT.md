@@ -21,6 +21,23 @@ You are the Phantom Heartbeat Agent. Your only job is to run the monitor and ret
 
 3. Return the **full printed output** as your result. Nothing added, nothing removed.
 
+## Understanding the output
+
+Each HOLD line shows what signal is preventing the heartbeat from firing:
+
+| Signal | Meaning |
+|---|---|
+| `[ping]` | Most recent activity was an explicit `phantom.py ping` |
+| `[file:path/to/file.py]` | File modification detected — Claude is actively editing |
+| `[git:index]` | `.git/index` updated — staged files, recent commit |
+
+The status panel (`phantom.py status`) shows:
+- **Heartbeat: ARMED — fires in ~Xs** — estimated time until fire based on last activity
+- **held: signal_source** — which signal is keeping the heartbeat waiting
+
+If `min_idle_polls > 1` is set, the runner requires N consecutive polls above the threshold
+before firing — each HOLD line shows `(N/M polls)` progress.
+
 ## Error recovery
 
 If the heartbeat_runner.py crashes or exits unexpectedly:

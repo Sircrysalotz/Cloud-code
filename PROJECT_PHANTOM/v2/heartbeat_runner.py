@@ -7,6 +7,7 @@ Fires ONLY when ALL of these are true:
   2. agents_running == 0  (not waiting on sub-agents)
   3. cooldown since last_heartbeat_fired >= idle_threshold * cooldown_factor
   4. rounds_remaining > 0
+  5. consecutive_idle >= min_idle_polls  (prevents single-poll false positives)
 
 v2 additions:
   - Poll interval read from state file (check_interval_seconds), not hardcoded
@@ -20,6 +21,12 @@ v3 activity signals:
   - Git index watch — git add/stage operations update .git/index
   - Uses max(ping_timestamp, file_mtime, git_index_mtime) as effective last_active
   - Eliminates false positives when Claude is coding but not pinging
+
+v4 additions:
+  - consecutive_idle / min_idle_polls: requires N back-to-back polls above threshold
+    before firing (configurable in state, default 1 = same as before)
+  - Writes last_activity_source, last_activity_ts, next_heartbeat_at to state
+    when activity signal changes — enables status panel ETA display
 """
 
 import json
@@ -184,13 +191,20 @@ def main():
     watchdog_limit  = check_interval * 3
     workspace       = state.get("workspace_dir", "")
 
+    min_idle_polls = state.get("min_idle_polls", 1)
+
     print(f"Heartbeat v2 active")
     print(f"  Threshold: {idle_threshold}s | Cooldown: {cooldown_window:.0f}s ({cooldown_factor}x) | Poll: {check_interval}s | Rounds: {state.get('rounds_remaining')}")
-    print(f"  Watchdog:  {watchdog_limit}s max per cycle")
+    print(f"  Watchdog:  {watchdog_limit}s max per cycle | Min idle polls: {min_idle_polls}")
     if workspace:
         print(f"  Workspace: {workspace}")
     else:
         print(f"  Workspace: not set — filesystem activity signals disabled")
+
+    # Track across polls (not persisted — runner-local state)
+    prev_activity_ts     = 0.0
+    prev_activity_source = ""
+    consecutive_idle     = 0
 
     while True:
         cycle_start = time.monotonic()
@@ -227,6 +241,20 @@ def main():
             continue
         gap = now.timestamp() - last_activity_ts
 
+        # Write activity metadata to state when signal changes or timestamp advances
+        # significantly — lets status panel show ETA and held-by source
+        activity_moved = (last_activity_ts - prev_activity_ts) >= check_interval * 0.5
+        source_changed = activity_source != prev_activity_source
+        if activity_moved or source_changed:
+            prev_activity_ts     = last_activity_ts
+            prev_activity_source = activity_source
+            consecutive_idle     = 0  # new activity resets idle streak
+            fire_eta = datetime.fromtimestamp(last_activity_ts + idle_threshold)
+            state["last_activity_source"] = activity_source
+            state["last_activity_ts"]     = datetime.fromtimestamp(last_activity_ts).strftime("%Y-%m-%d %H:%M:%S")
+            state["next_heartbeat_at"]    = fire_eta.strftime("%Y-%m-%d %H:%M:%S")
+            atomic_write(state)
+
         # Guard 3: cooldown
         last_fired_str = state.get("last_heartbeat_fired")
         if last_fired_str:
@@ -236,7 +264,14 @@ def main():
                 continue
 
         if gap < idle_threshold:
+            consecutive_idle = 0
             print(f"[{ts}] HOLD — active {gap:.0f}s ago (need {idle_threshold}s) [{activity_source}]")
+            continue
+
+        # Gap exceeded threshold — check consecutive idle requirement
+        consecutive_idle += 1
+        if consecutive_idle < min_idle_polls:
+            print(f"[{ts}] HOLD — idle {gap:.0f}s ({consecutive_idle}/{min_idle_polls} polls) [{activity_source}]")
             continue
 
         # All guards passed — fire
@@ -250,6 +285,7 @@ def main():
         print("=" * 54)
         print("  HEARTBEAT FIRED")
         print(f"  Idle:      {gap:.0f}s (threshold: {idle_threshold}s, drift: +{drift:.0f}s)")
+        print(f"  Polls:     {consecutive_idle} consecutive above threshold")
         print(f"  Signal:    {activity_source}")
         print(f"  Task:      {state.get('task', '—')}")
         print(f"  Progress:  {state.get('progress_note', 'none')}")

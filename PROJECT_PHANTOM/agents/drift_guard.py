@@ -393,13 +393,15 @@ def main():
 
     task         = state.get("task", "")
     scope_files  = args.scope or state.get("scope_files") or []
-    since        = args.since or find_since(workspace)
+    # Prefer session_start_ref (stored at session start) — only checks this session's changes
+    since        = args.since or state.get("session_start_ref") or find_since(workspace)
     tracker      = TrendTracker(window=args.trend_checks)
     checks       = 0
 
     print("Drift Guard v2 active")
     print(f"  Workspace:  {workspace}")
-    print(f"  Threshold:  {args.threshold:.0f}% | Poll: {args.interval}s | Since: {since}")
+    since_src = "cli" if args.since else ("session_start_ref" if state.get("session_start_ref") else "auto")
+    print(f"  Threshold:  {args.threshold:.0f}% | Poll: {args.interval}s | Since: {since} ({since_src})")
     print(f"  Hunk spread min: {args.hunk_spread:.0%} | Hunk count min: {args.hunk_count_min}")
     print(f"  Scope threshold: {args.scope_threshold:.0f}% outside | Trend window: {args.trend_checks} checks")
     if scope_files:

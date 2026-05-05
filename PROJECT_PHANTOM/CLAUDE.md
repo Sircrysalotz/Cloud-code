@@ -41,7 +41,7 @@ Enables autonomous extended sessions. Heartbeat fires ONLY when Claude is genuin
 | File-% drift fires on legitimate single-file tasks | Four-gate eval: declared scope → task alignment → hunk depth → trend |
 | No watchdog | Detects poll cycles taking >3x interval |
 | No session summary | Printed when `turns_taken == turns_target` |
-| No test coverage | 152 integration tests in `v2/test_v2.py` |
+| No test coverage | 160 integration tests in `v2/test_v2.py` |
 | False fire during active coding (no ping) | Filesystem + git index activity signals in heartbeat_runner |
 | All config flags must be typed each session | Profile system — named configs in `~/.phantom_profiles.json` |
 | No horizontal enforcement during sessions | `drift_guard.py` background agent — fires when one file > threshold% |
@@ -100,7 +100,7 @@ nohup python3 /home/user/Cloud-code/PROJECT_PHANTOM/agents/container_logger.py -
 python3 PROJECT_PHANTOM/agents/phantom.py start "task" --profile sprint
 
 # Or with explicit flags
-python3 PROJECT_PHANTOM/agents/phantom.py start "task" --turns 10 --rounds 5 --threshold 180 --interval 30 --cooldown-factor 1.0
+python3 PROJECT_PHANTOM/agents/phantom.py start "task" --turns 10 --rounds 5 --threshold 180 --interval 30 --cooldown-factor 1.0 --min-idle-polls 1
 
 # Declare intended scope — drift guard treats these files as expected focus
 python3 PROJECT_PHANTOM/agents/phantom.py start "task" --scope agents/drift_guard.py agents/phantom.py
@@ -251,7 +251,7 @@ Last pushed entry on GitHub = last confirmed alive before container death.
 ```bash
 # Run full integration suite (isolated from live session)
 python3 PROJECT_PHANTOM/v2/test_v2.py
-# 152 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
+# 160 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
 ```
 
 ---

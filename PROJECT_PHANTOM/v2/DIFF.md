@@ -169,3 +169,59 @@ phantom.py additions in v2.1:
 - `scope_threshold` default changed from 40% to 50% (last-resort gate)
 
 Test coverage: 46 → 152 tests (152/152 passing)
+
+---
+
+## v2.2 Additions (heartbeat observability + consecutive idle + session anchoring)
+
+### Bug: drift_guard `find_since()` spanned multiple sessions
+
+On session start, `drift_guard` used `find_since()` which looked back `HEAD~10` — spanning
+previous sessions' commits. Result: a legitimate new session could immediately fire SCOPE_CREEP
+because the previous session's dominant file was still in the history window.
+
+**Fix:** `phantom.py start` now captures `git rev-parse HEAD` as `session_start_ref` in state.
+`drift_guard.py` uses `session_start_ref` as the `--since` ref when available, falling back to
+`find_since()` only if not set. This ensures drift guard only checks changes from the current session.
+
+### heartbeat_runner.py: consecutive_idle guard
+
+New `min_idle_polls` field (default 1, stored in state, settable via `--min-idle-polls N`):
+
+| Value | Behavior |
+|---|---|
+| 1 (default) | Fire on first poll above threshold — same as before |
+| 2 | Require 2 consecutive polls above threshold — prevents single-poll false positives |
+| 3+ | More conservative — useful in high-noise environments |
+
+HOLD line shows progress: `HOLD — idle 185s (1/2 polls) [ping]`
+
+### heartbeat_runner.py: activity observability
+
+Runner now writes to state when activity signal changes (new file modified, new ping):
+- `last_activity_source` — which signal is currently holding the heartbeat
+- `last_activity_ts` — when that activity occurred (human-readable)
+- `next_heartbeat_at` — estimated fire time = last_activity_ts + threshold
+
+Fire output now includes: `Polls: N consecutive above threshold`
+
+### phantom.py: status panel ETA
+
+`phantom.py status` now shows:
+```
+Heartbeat:  ARMED — fires in ~47s  (held: file:agents/phantom.py)
+```
+
+Instead of just: `Heartbeat:  ARMED`
+
+When heartbeat is overdue: `ARMED — overdue by 12s`
+
+### phantom.py: profile support for min_idle_polls
+
+`min_idle_polls` added to PROFILE_KEYS — can be saved per-profile and loaded with `--profile`.
+
+### HEARTBEAT.md: signal source documentation
+
+Added signal reference table and ETA display documentation.
+
+Test coverage: 152 → 160 tests (160/160 passing)

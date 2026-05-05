@@ -394,6 +394,40 @@ def test_heartbeat_runner():
     rc, out, err = run([RUNNER])
     check("runner exits cleanly when rounds=0", "exhausted" in out.lower() or "complete" in out.lower() or "shutting" in out.lower())
 
+    # min_idle_polls stored in state when --min-idle-polls used on start
+    run([PHANTOM, "start", "hb test", "--min-idle-polls", "2", "--force"])
+    state = read_state()
+    check("min_idle_polls stored in state", state.get("min_idle_polls") == 2)
+
+    # min_idle_polls default is 1
+    run([PHANTOM, "start", "hb test", "--force"])
+    state = read_state()
+    check("min_idle_polls defaults to 1", state.get("min_idle_polls", 1) == 1)
+
+    # session_start_ref stored on start
+    run([PHANTOM, "start", "ref test", "--force"])
+    state = read_state()
+    check("session_start_ref stored on start", "session_start_ref" in state)
+    check("session_start_ref is a string", isinstance(state.get("session_start_ref"), str))
+
+    # runner banner includes min_idle_polls
+    run([PHANTOM, "start", "hb test", "--rounds", "0", "--interval", "1", "--min-idle-polls", "3", "--force"])
+    state = read_state()
+    state["heartbeat_active"] = True
+    with open(STATE, "w") as f:
+        json.dump(state, f)
+    rc, out, err = run([RUNNER])
+    check("runner banner shows min_idle_polls", "Min idle polls: 3" in out)
+
+    # min_idle_polls in profile keys
+    run([PHANTOM, "config", "create", "testpoll",
+         "--turns", "5", "--min-idle-polls", "2"])  # note: config create won't have --min-idle-polls
+    # Verify via config set instead
+    run([PHANTOM, "config", "create", "testpoll2", "--turns", "5"])
+    run([PHANTOM, "config", "set", "testpoll2", "min_idle_polls", "2"])
+    rc, out, err = run([PHANTOM, "config", "show", "testpoll2"])
+    check("min_idle_polls settable in profile", "min_idle_polls" in out and "2" in out)
+
     cleanup()
 
 
@@ -487,6 +521,14 @@ def test_drift_guard():
     # find_since returns a string
     since = dg.find_since(git_workspace)
     check("find_since returns non-empty string", isinstance(since, str) and len(since) > 0)
+
+    # session_start_ref preferred over find_since in drift_guard main
+    # (tested indirectly: after phantom.py start, state has session_start_ref)
+    run([PHANTOM, "start", "drift ref test", "--force"])
+    state_after = read_state()
+    ref = state_after.get("session_start_ref")
+    check("session_start_ref stored by phantom start", ref is not None)
+    check("session_start_ref is a valid git hash (40 chars)", ref is not None and len(ref) == 40)
 
     # get_file_scores returns raw dict and scored list
     raw, scored = dg.get_file_scores(git_workspace, since)

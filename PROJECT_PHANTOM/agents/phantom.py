@@ -134,11 +134,21 @@ def cmd_start(args):
             return profile_defaults[profile_key]
         return cli_val if cli_val != cli_default else fallback
 
-    turns     = resolve(args.turns,          10,  "turns",          10)
-    rounds    = resolve(args.rounds,          5,   "rounds",         5)
-    threshold = resolve(args.threshold,       180, "threshold",      180)
-    interval  = resolve(args.interval,        30,  "interval",       30)
-    cf        = resolve(args.cooldown_factor, 1.0, "cooldown_factor",1.0)
+    turns          = resolve(args.turns,          10,  "turns",          10)
+    rounds         = resolve(args.rounds,          5,   "rounds",         5)
+    threshold      = resolve(args.threshold,       180, "threshold",      180)
+    interval       = resolve(args.interval,        30,  "interval",       30)
+    cf             = resolve(args.cooldown_factor, 1.0, "cooldown_factor",1.0)
+    min_idle_polls = resolve(getattr(args, "min_idle_polls", 1), 1, "min_idle_polls", 1)
+
+    # Capture current HEAD so drift guard only checks this session's changes
+    session_start_ref = None
+    try:
+        r = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, timeout=10)
+        if r.returncode == 0:
+            session_start_ref = r.stdout.strip()
+    except Exception:
+        pass
 
     state = {
         "task":                   args.task,
@@ -149,6 +159,7 @@ def cmd_start(args):
         "idle_threshold_seconds": threshold,
         "check_interval_seconds": interval,
         "cooldown_factor":        cf,
+        "min_idle_polls":         min_idle_polls,
         "rounds_used":            0,
         "agents_running":         0,
         "active_agent_ids":       [],
@@ -160,6 +171,7 @@ def cmd_start(args):
         "workspace_dir":          os.getcwd(),
         "profile":                args.profile if hasattr(args, "profile") and args.profile else None,
         "scope_files":            getattr(args, "scope", None) or [],
+        "session_start_ref":      session_start_ref,
     }
     atomic_write(state)
     print(f"Session started.")
@@ -291,9 +303,31 @@ def cmd_status(args):
     print(f"  Threshold:  {state.get('idle_threshold_seconds', '?')}s")
     print(f"  Poll:       every {state.get('check_interval_seconds', 30)}s")
     print(f"  Agents:     {state.get('agents_running', 0)} running {state.get('active_agent_ids', [])}")
-    print(f"  Heartbeat:  {'ARMED' if state.get('heartbeat_active') else 'idle'}")
+
+    # Heartbeat status with ETA and held-by signal
+    if state.get("heartbeat_active"):
+        next_fire_str = state.get("next_heartbeat_at")
+        src           = state.get("last_activity_source", "")
+        hb_line       = "ARMED"
+        if next_fire_str:
+            try:
+                remaining = (datetime.strptime(next_fire_str, "%Y-%m-%d %H:%M:%S") - datetime.now()).total_seconds()
+                if remaining > 0:
+                    hb_line = f"ARMED — fires in ~{remaining:.0f}s"
+                else:
+                    hb_line = f"ARMED — overdue by {-remaining:.0f}s"
+            except ValueError:
+                pass
+        if src:
+            hb_line += f"  (held: {src})"
+        print(f"  Heartbeat:  {hb_line}")
+    else:
+        print(f"  Heartbeat:  idle")
+
     print(f"  Last ping:  {state.get('last_active', '?')}")
     print(f"  Last fired: {state.get('last_heartbeat_fired', 'never')}")
+    if state.get("min_idle_polls", 1) > 1:
+        print(f"  Min polls:  {state.get('min_idle_polls')} consecutive idle polls required")
     print(f"  Progress:   {state.get('progress_note', '—')}")
     print("=" * 50)
 
@@ -476,6 +510,7 @@ PROFILE_KEYS = {
     "threshold":      (int,   180, "Idle threshold in seconds"),
     "interval":       (int,   30,  "Heartbeat poll interval in seconds"),
     "cooldown_factor":(float, 1.0, "Cooldown multiplier"),
+    "min_idle_polls": (int,   1,   "Consecutive idle polls before heartbeat fires"),
     "scope_threshold":(float, 50.0,"Drift guard threshold % (last-resort gate)"),
     "scope_files":    (list, [],   "Declared focus files for drift guard"),
     "coverage_targets":(list, [],  "Files to track for coverage"),
@@ -598,10 +633,12 @@ p.add_argument("--turns",     type=int, default=10,  help="Target number of turn
 p.add_argument("--rounds",    type=int, default=5,   help="Heartbeat rounds available")
 p.add_argument("--threshold", type=int, default=180, help="Idle threshold in seconds")
 p.add_argument("--interval",        type=int,   default=30,  help="Heartbeat poll interval in seconds")
-p.add_argument("--cooldown-factor", type=float, default=1.0, help="Cooldown = threshold * factor (default 1.0)")
-p.add_argument("--profile",         default=None,            help="Load defaults from named profile (overridable by flags)")
-p.add_argument("--scope",  nargs="+", default=None,          help="Declared focus files for drift guard (e.g. --scope auth.py crypto.py)")
-p.add_argument("--force",           action="store_true",     help="Overwrite existing session")
+p.add_argument("--cooldown-factor",  type=float, default=1.0, help="Cooldown = threshold * factor (default 1.0)")
+p.add_argument("--min-idle-polls",   type=int,   default=1,   dest="min_idle_polls",
+               help="Consecutive polls above threshold required before heartbeat fires (default 1)")
+p.add_argument("--profile",          default=None,            help="Load defaults from named profile (overridable by flags)")
+p.add_argument("--scope",   nargs="+", default=None,          help="Declared focus files for drift guard (e.g. --scope auth.py crypto.py)")
+p.add_argument("--force",            action="store_true",     help="Overwrite existing session")
 
 p = sub.add_parser("config", help="Manage session profiles")
 p.add_argument("config_cmd", choices=["list", "show", "create", "set", "delete"])
