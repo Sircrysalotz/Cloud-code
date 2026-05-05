@@ -1,24 +1,34 @@
 {
-  "task": "save test",
-  "last_active": "2026-05-05 22:45:38",
-  "turns_taken": 1,
-  "turns_target": 5,
-  "rounds_remaining": 5,
+  "task": "Improve heartbeat system horizontally: signal scoring, next-fire estimation, quorum idle check, runner improvements, status panel, HEARTBEAT.md, tests",
+  "last_active": "2026-05-05 22:46:01",
+  "turns_taken": 5,
+  "turns_target": 10,
+  "rounds_remaining": 8,
   "idle_threshold_seconds": 180,
   "check_interval_seconds": 30,
   "cooldown_factor": 1.0,
-  "min_idle_polls": 1,
   "rounds_used": 0,
-  "agents_running": 0,
-  "active_agent_ids": [],
-  "heartbeat_active": false,
+  "agents_running": 1,
+  "active_agent_ids": [
+    "drift-guard-2"
+  ],
+  "heartbeat_active": true,
   "last_heartbeat_fired": null,
-  "progress_note": "saved progress",
-  "started": "2026-05-05 22:45:38",
+  "progress_note": "Turn 3 done: fire history, scope --session/--threshold, status fire log, 168/168 tests",
+  "started": "2026-05-05 22:35:11",
   "status": "active",
   "workspace_dir": "/home/user/Cloud-code",
   "profile": null,
-  "scope_files": [],
-  "session_start_ref": "6876f57efd47434d3628e2318afb6d5df1979239",
-  "saved_at": "2026-05-05 22:45:38"
+  "scope_files": [
+    "agents/heartbeat_runner.py",
+    "agents/phantom.py",
+    "agents/HEARTBEAT.md",
+    "v2/test_v2.py",
+    "PROJECT_PHANTOM/CLAUDE.md",
+    "v2/DIFF.md"
+  ],
+  "drift_guard_active": true,
+  "drift_warning": null,
+  "drift_warned_at": "2026-05-05 22:36:32",
+  "saved_at": "2026-05-05 22:46:01"
 }
