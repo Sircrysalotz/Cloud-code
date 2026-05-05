@@ -150,6 +150,26 @@ def print_session_summary(state: dict):
     print("=" * 54)
 
 
+def auto_save(state: dict):
+    """Save state to git every AUTO_SAVE_EVERY pings."""
+    AUTO_SAVE_EVERY = state.get("auto_save_every", 5)
+    if state.get("turns_taken", 0) % AUTO_SAVE_EVERY == 0:
+        state["saved_at"] = now_str()
+        os.makedirs(os.path.dirname(SAVED_STATE_FILE), exist_ok=True)
+        with open(SAVED_STATE_FILE, "w") as f:
+            json.dump(state, f, indent=2)
+        try:
+            subprocess.run(["git", "add", "PROJECT_PHANTOM/logs/last_session_state.json"],
+                           cwd=REPO_DIR, capture_output=True, timeout=30)
+            subprocess.run(["git", "commit", "-m",
+                            f"[phantom] auto-save turn {state.get('turns_taken')}\n\nhttps://claude.ai/code/session_01URz48AEdtJbKdvuHxoBEJ6"],
+                           cwd=REPO_DIR, capture_output=True, timeout=30)
+            subprocess.run(["git", "push"], cwd=REPO_DIR, capture_output=True, timeout=30)
+            print(f"  [auto-saved to git]")
+        except Exception:
+            print(f"  [auto-save failed — state written locally]")
+
+
 def cmd_ping(args):
     state = require_state()
     state["last_active"]  = now_str()
@@ -165,6 +185,7 @@ def cmd_ping(args):
     print(f"PING — Turn {turns_taken}/{turns_target} | Rounds left: {rounds} | Agents: {agents} | Elapsed: {elapsed_str}")
     if args.note:
         print(f"  Note: {args.note}")
+    auto_save(state)
     if isinstance(turns_target, int) and turns_taken >= turns_target:
         state["status"] = "complete"
         atomic_write(state)
@@ -297,6 +318,48 @@ def cmd_restore(args):
     print("NOTE: heartbeat_active and agents_running cleared. Re-arm before spawning.")
 
 
+def cmd_scope(args):
+    """Check git diff stats for horizontal balance — warns if one file dominates."""
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--stat", f"HEAD~{args.depth}", "HEAD"],
+            cwd=REPO_DIR, capture_output=True, text=True, timeout=15
+        )
+        if result.returncode != 0:
+            print(f"git diff failed: {result.stderr.strip()}")
+            return
+        lines = [l for l in result.stdout.splitlines() if "|" in l]
+        if not lines:
+            print("No file changes found in last diff.")
+            return
+        totals = {}
+        for line in lines:
+            parts = line.split("|")
+            fname = parts[0].strip()
+            try:
+                changes = int(parts[1].strip().split()[0])
+                totals[fname] = changes
+            except (IndexError, ValueError):
+                pass
+        grand_total = sum(totals.values()) or 1
+        print("=" * 50)
+        print(f"  SCOPE CHECK (last {args.depth} commits)")
+        print("=" * 50)
+        for fname, count in sorted(totals.items(), key=lambda x: -x[1]):
+            pct = count / grand_total * 100
+            bar = "█" * min(int(pct / 5), 20)
+            warn = " ⚠ CONCENTRATED" if pct > 50 else ""
+            print(f"  {pct:4.0f}% {bar:<20} {count:4d} lines  {fname}{warn}")
+        print("=" * 50)
+        max_pct = max(totals.values()) / grand_total * 100 if totals else 0
+        if max_pct > 50:
+            print(f"  WARNING: One file has {max_pct:.0f}% of changes — possible vertical drift.")
+        else:
+            print(f"  OK: Changes well distributed.")
+    except Exception as e:
+        print(f"scope check error: {e}")
+
+
 def cmd_history(args):
     state = read_state()
     if not state:
@@ -352,6 +415,9 @@ sub.add_parser("status",        help="Print rich session status")
 sub.add_parser("complete",      help="Mark session complete and print summary")
 sub.add_parser("history",       help="Print session history and progress")
 
+p = sub.add_parser("scope",   help="Check git diff for horizontal balance (anti-drift)")
+p.add_argument("--depth", type=int, default=5, help="Number of commits to check")
+
 p = sub.add_parser("save",    help="Persist session state to git (survives container restart)")
 p = sub.add_parser("restore", help="Restore session state from git save")
 p.add_argument("--force", action="store_true", help="Restore even if active session exists")
@@ -368,6 +434,7 @@ args = parser.parse_args()
     "status":        cmd_status,
     "complete":      cmd_complete,
     "history":       cmd_history,
+    "scope":         cmd_scope,
     "save":          cmd_save,
     "restore":       cmd_restore,
     "reset":         cmd_reset,
