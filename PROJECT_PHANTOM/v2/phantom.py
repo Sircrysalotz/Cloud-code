@@ -20,9 +20,9 @@ import sys
 import time
 from datetime import datetime
 
-STATE_FILE = "/tmp/phantom_session.json"
-TEMP_FILE  = "/tmp/phantom_session.json.tmp"
-LOCK_FILE  = "/tmp/phantom_session.lock"
+STATE_FILE = os.environ.get("PHANTOM_STATE", "/tmp/phantom_session.json")
+TEMP_FILE  = STATE_FILE + ".tmp"
+LOCK_FILE  = STATE_FILE.replace(".json", ".lock")
 LOCK_TIMEOUT = 5  # seconds
 
 

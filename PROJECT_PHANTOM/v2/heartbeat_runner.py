@@ -22,8 +22,8 @@ import sys
 import time
 from datetime import datetime
 
-STATE_FILE = "/tmp/phantom_session.json"
-TEMP_FILE  = "/tmp/phantom_session.json.tmp"
+STATE_FILE = os.environ.get("PHANTOM_STATE", "/tmp/phantom_session.json")
+TEMP_FILE  = STATE_FILE + ".tmp"
 
 
 def atomic_write(state: dict):
@@ -81,12 +81,19 @@ def main():
 
     idle_threshold  = state.get("idle_threshold_seconds", 180)
     check_interval  = state.get("check_interval_seconds", 30)
+    # Watchdog: if a single poll cycle takes > 3x the interval, something is wrong
+    watchdog_limit  = check_interval * 3
 
     print(f"Heartbeat v2 active")
     print(f"  Threshold: {idle_threshold}s | Poll: every {check_interval}s | Rounds: {state.get('rounds_remaining')}")
+    print(f"  Watchdog:  {watchdog_limit}s max per cycle")
 
     while True:
+        cycle_start = time.monotonic()
         time.sleep(check_interval)
+        cycle_elapsed = time.monotonic() - cycle_start
+        if cycle_elapsed > watchdog_limit:
+            print(f"[WATCHDOG] Poll cycle took {cycle_elapsed:.0f}s (limit {watchdog_limit}s) — possible stall.")
 
         state = read_state()
         if not state:

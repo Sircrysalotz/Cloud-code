@@ -112,6 +112,20 @@ def read_disk() -> str:
         return "?"
 
 
+def rotate_log(max_lines: int = 500):
+    """Keep log file under max_lines by dropping oldest entries."""
+    try:
+        with open(LOG_FILE) as f:
+            lines = f.readlines()
+        if len(lines) > max_lines:
+            kept = lines[-max_lines:]
+            with open(LOG_FILE, "w") as f:
+                f.write(f"[{now()}] LOG ROTATED — kept last {max_lines} of {len(lines)} lines\n")
+                f.writelines(kept)
+    except FileNotFoundError:
+        pass
+
+
 def git_push(entry_count: int) -> str:
     for attempt in range(1, 4):
         try:
@@ -173,6 +187,7 @@ def main(log_interval: int, push_every: int):
             push_status = ""
 
             if entry_count % push_every == 0:
+                rotate_log()
                 push_status = " | " + git_push(entry_count)
 
             line = (
