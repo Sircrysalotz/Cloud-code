@@ -17,6 +17,7 @@ V2_DIR    = os.path.dirname(os.path.abspath(__file__))
 PHANTOM   = os.path.join(V2_DIR, "phantom.py")
 RUNNER    = os.path.join(V2_DIR, "heartbeat_runner.py")
 LOGGER    = os.path.join(V2_DIR, "container_logger.py")
+DRIFT     = os.path.join(V2_DIR, "drift_guard.py")
 STATE     = "/tmp/phantom_TEST_session.json"
 LOCK      = "/tmp/phantom_TEST_session.lock"
 PID_FILE  = "/tmp/phantom_container_logger.pid"
@@ -408,6 +409,113 @@ def test_container_logger():
     check("--push-every option present", "--push-every" in out)
 
 
+# ─── drift_guard.py tests ────────────────────────────────────────────────────
+
+def test_drift_guard():
+    print("\n── drift_guard.py ──")
+    cleanup()
+
+    # drift_guard exits when no state file
+    rc, out, err = run([DRIFT])
+    check("drift_guard exits on missing state", rc != 0)
+    check("drift_guard prints ERROR on missing state", "ERROR" in out or "ERROR" in err)
+
+    # drift-arm command
+    run([PHANTOM, "start", "drift test task", "--turns", "5"])
+    rc, out, _ = run([PHANTOM, "drift-arm"])
+    check("drift-arm exits 0", rc == 0)
+    state = read_state()
+    check("drift_guard_active=true after arm", state.get("drift_guard_active") == True)
+
+    # double drift-arm warns
+    rc, out, _ = run([PHANTOM, "drift-arm"])
+    check("double drift-arm exits 2", rc == 2)
+    check("double drift-arm prints WARNING", "WARNING" in out)
+
+    # drift-done with no warning
+    rc, out, _ = run([PHANTOM, "drift-done"])
+    check("drift-done exits 0 when no warning", rc == 0)
+    check("drift-done prints no drift message", "no drift" in out.lower())
+    state = read_state()
+    check("drift_guard_active=false after done", state.get("drift_guard_active") == False)
+
+    # drift-done with injected warning
+    state["drift_guard_active"] = False
+    state["drift_warning"] = "DRIFT DETECTED: phantom.py has 90% of changes"
+    state["drift_warned_at"] = "2026-01-01 12:00:00"
+    with open(STATE, "w") as f:
+        json.dump(state, f)
+    rc, out, _ = run([PHANTOM, "drift-done"])
+    check("drift-done exits 1 when warning present", rc == 1)
+    check("drift-done prints warning text", "DRIFT DETECTED" in out)
+
+    # drift-status shows warning
+    rc, out, _ = run([PHANTOM, "drift-status"])
+    check("drift-status exits 0", rc == 0)
+    check("drift-status shows DRIFT DETECTED", "DRIFT DETECTED" in out)
+
+    # drift_guard exits when not armed
+    run([PHANTOM, "start", "test", "--force"])  # resets drift_warning
+    rc, out, err = run([DRIFT])
+    check("drift_guard exits when not armed", rc != 0)
+    check("drift_guard prints not armed error", "Not armed" in out or "Not armed" in err)
+
+    # drift_guard exits when workspace_dir missing
+    run([PHANTOM, "drift-arm"])
+    state = read_state()
+    state["workspace_dir"] = "/nonexistent/path"
+    with open(STATE, "w") as f:
+        json.dump(state, f)
+    rc, out, err = run([DRIFT])
+    check("drift_guard exits on missing workspace", rc != 0)
+    check("drift_guard prints workspace error", "workspace" in out.lower() or "workspace" in err.lower())
+
+    # Unit tests — import drift_guard functions directly
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("drift_guard", DRIFT)
+    dg   = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(dg)
+
+    workspace = os.path.dirname(V2_DIR)  # PROJECT_PHANTOM dir or higher
+    # find a real git workspace (Cloud-code root)
+    git_workspace = os.path.dirname(os.path.dirname(V2_DIR))
+
+    # find_since returns a string
+    since = dg.find_since(git_workspace)
+    check("find_since returns non-empty string", isinstance(since, str) and len(since) > 0)
+
+    # check_scope returns expected keys
+    result = dg.check_scope(git_workspace, since, threshold=40.0, min_lines=5)
+    check("check_scope returns dict with 'clean' key", "clean" in result)
+    check("check_scope returns dict with 'total' key", "total" in result)
+    check("check_scope returns dict with 'files' key", "files" in result)
+    check("check_scope returns dict with 'drifters' key", "drifters" in result)
+    check("check_scope total >= 0", result.get("total", -1) >= 0)
+
+    # check_scope on non-git dir returns error
+    err_result = dg.check_scope("/tmp", "HEAD~1", threshold=40.0, min_lines=5)
+    check("check_scope returns error on non-git dir", "error" in err_result or err_result.get("total", -1) >= 0)
+
+    # check_goal_alignment returns score and note
+    align = dg.check_goal_alignment(git_workspace, since, "build drift guard monitoring agent")
+    check("check_goal_alignment returns score", "score" in align)
+    check("check_goal_alignment score is 0–1", 0.0 <= align.get("score", -1) <= 1.0)
+    check("check_goal_alignment returns note", "note" in align)
+
+    # goal alignment with empty task returns 1.0
+    align_empty = dg.check_goal_alignment(git_workspace, since, "")
+    check("goal alignment with empty task returns 1.0", align_empty.get("score") == 1.0)
+
+    # parse_diff_stat parses correctly
+    sample = " a.py | 90 +++---\n b.py | 15 +++\n 2 files changed\n"
+    files = dg.parse_diff_stat(sample)
+    check("parse_diff_stat parses a.py", files.get("a.py") == 90)
+    check("parse_diff_stat parses b.py", files.get("b.py") == 15)
+    check("parse_diff_stat skips summary line", len(files) == 2)
+
+    cleanup()
+
+
 # ─── Run all ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -419,6 +527,7 @@ if __name__ == "__main__":
         test_phantom()
         test_workspace_and_activity()
         test_config()
+        test_drift_guard()
         test_heartbeat_runner()
         test_container_logger()
     finally:

@@ -424,6 +424,49 @@ def cmd_reset(args):
     print("Reset complete.")
 
 
+def cmd_drift_arm(args):
+    state = require_state()
+    if state.get("drift_guard_active"):
+        print("WARNING: Drift guard already active.")
+        sys.exit(2)
+    state["drift_guard_active"] = True
+    state["drift_warning"]      = None
+    atomic_write(state)
+    print("Drift guard armed.")
+
+
+def cmd_drift_done(args):
+    """Call after drift guard sub-agent returns to read its findings."""
+    state = require_state()
+    state["drift_guard_active"] = False
+    warning = state.get("drift_warning")
+    atomic_write(state)
+    if warning:
+        print("=" * 54)
+        print(warning)
+        print("=" * 54)
+        print("Re-arm after spreading changes: phantom.py drift-arm")
+        sys.exit(1)
+    else:
+        print("Drift guard returned — no drift detected.")
+
+
+def cmd_drift_status(args):
+    state = read_state()
+    if not state:
+        print("No active session.")
+        return
+    active  = state.get("drift_guard_active", False)
+    warning = state.get("drift_warning")
+    warned_at = state.get("drift_warned_at", "")
+    print(f"Drift guard: {'ARMED' if active else 'idle'}")
+    if warning:
+        print(f"Last warning ({warned_at}):")
+        print(warning)
+    else:
+        print("No drift warnings.")
+
+
 # --- Profile system ---
 
 PROFILE_KEYS = {
@@ -594,6 +637,9 @@ p = sub.add_parser("restore", help="Restore session state from git save")
 p.add_argument("--force", action="store_true", help="Restore even if active session exists")
 
 sub.add_parser("reset",         help="Emergency cleanup of all state/lock files")
+sub.add_parser("drift-arm",     help="Arm the drift guard before spawning drift_guard.py")
+sub.add_parser("drift-done",    help="Read drift guard findings after sub-agent returns")
+sub.add_parser("drift-status",  help="Show drift guard state and last warning")
 
 args = parser.parse_args()
 {
@@ -610,4 +656,7 @@ args = parser.parse_args()
     "restore":       cmd_restore,
     "reset":         cmd_reset,
     "config":        cmd_config,
+    "drift-arm":     cmd_drift_arm,
+    "drift-done":    cmd_drift_done,
+    "drift-status":  cmd_drift_status,
 }[args.cmd](args)

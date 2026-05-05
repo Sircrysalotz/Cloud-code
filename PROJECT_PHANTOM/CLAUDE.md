@@ -40,9 +40,10 @@ Enables autonomous extended sessions. Heartbeat fires ONLY when Claude is genuin
 | No drift reporting | Reports `+Ns` past threshold on fire |
 | No watchdog | Detects poll cycles taking >3x interval |
 | No session summary | Printed when `turns_taken == turns_target` |
-| No test coverage | 103 integration tests in `v2/test_v2.py` |
+| No test coverage | 134 integration tests in `v2/test_v2.py` |
 | False fire during active coding (no ping) | Filesystem + git index activity signals in heartbeat_runner |
 | All config flags must be typed each session | Profile system — named configs in `~/.phantom_profiles.json` |
+| No horizontal enforcement during sessions | `drift_guard.py` background agent — fires when one file > threshold% |
 
 ### Files
 
@@ -107,6 +108,26 @@ python3 PROJECT_PHANTOM/agents/phantom.py start "task" --profile sprint --turns 
 ### Every turn start
 ```bash
 python3 PROJECT_PHANTOM/agents/phantom.py ping "what I just did / what's next"
+```
+
+### Start drift guard (optional — run alongside heartbeat)
+```bash
+python3 PROJECT_PHANTOM/agents/phantom.py drift-arm
+# Then spawn as background sub-agent:
+# "Read /home/user/Cloud-code/PROJECT_PHANTOM/agents/DRIFT_GUARD.md and execute."
+# use run_in_background: true
+```
+
+### When drift guard returns
+```bash
+python3 PROJECT_PHANTOM/agents/phantom.py drift-done
+# exits 0 if clean, exits 1 + prints warning if drift detected
+# re-arm after spreading changes: phantom.py drift-arm
+```
+
+### Check drift guard status
+```bash
+python3 PROJECT_PHANTOM/agents/phantom.py drift-status
 ```
 
 ### Before spawning a worker sub-agent
