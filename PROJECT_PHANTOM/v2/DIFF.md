@@ -79,6 +79,8 @@ Generated after 10-turn autonomous improvement session.
 | `phantom.py restore` | Restore saved state in a new container session |
 | `phantom.py reset` | Emergency cleanup of all state/lock files |
 | `last_session_state.json` | Git-persisted session state for cross-restart continuity |
+| `phantom.py scope` | Checks git diff stats, warns if one file >50% of changes (anti-drift) |
+| `auto_save` on ping | Every 5 pings, state auto-committed to git (configurable) |
 
 ---
 

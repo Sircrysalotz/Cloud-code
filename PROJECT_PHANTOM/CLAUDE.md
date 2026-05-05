@@ -153,6 +153,11 @@ python3 PROJECT_PHANTOM/agents/phantom.py complete
 python3 PROJECT_PHANTOM/agents/phantom.py history
 ```
 
+### Anti-drift scope check (warns if any file >50% of changes)
+```bash
+python3 PROJECT_PHANTOM/agents/phantom.py scope
+```
+
 ### Emergency cleanup
 ```bash
 python3 PROJECT_PHANTOM/agents/phantom.py reset
