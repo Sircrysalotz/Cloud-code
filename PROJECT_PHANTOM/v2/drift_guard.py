@@ -455,22 +455,52 @@ def main():
             hunk_count_min=args.hunk_count_min,
         )
 
-        print(f"[{ts}] Check #{checks} | {total} lines | top: {top_name} ({top_pct:.0f}%) | {verdict}")
+        # Build a richer per-check summary line with gate context
+        scope_note = ""
+        if scope_files:
+            in_scope = sum(l for n, l, _ in scored if scope_match(n, scope_files))
+            out_scope = total - in_scope
+            scope_note = f" [scope {in_scope}/{total}L]"
+        top_hunk = hunk_data.get(top_name, {})
+        hunk_note = f" hunks={top_hunk.get('hunk_count','?')}" if top_hunk else ""
+        print(f"[{ts}] Check #{checks} | {total}L | top: {top_name} ({top_pct:.0f}%){hunk_note}{scope_note} | {verdict}: {reason[:60]}")
 
         if not is_drift:
             continue
+
+        # Verdict-specific action guidance
+        action_map = {
+            "SCOPE_CREEP": (
+                "Changes are drifting outside declared scope.\n"
+                "  Option A: Move edits back to scope files.\n"
+                "  Option B: Update scope — phantom.py start --scope <files> --force\n"
+                "  Then re-arm: phantom.py drift-arm"
+            ),
+            "VERTICAL": (
+                "One file dominates — work is drilling down, not spreading out.\n"
+                "  Spread changes across more files before continuing.\n"
+                "  Then re-arm: phantom.py drift-arm"
+            ),
+            "TRENDING": (
+                "Slow upward trend detected — vertical drift is building.\n"
+                "  Proactive fix: distribute future changes across other files.\n"
+                "  Then re-arm: phantom.py drift-arm"
+            ),
+        }
+        action = action_map.get(verdict, "Spread changes, then re-arm: phantom.py drift-arm")
 
         # Build warning
         warning_lines = [
             f"DRIFT DETECTED [{verdict}] after {checks} check(s):",
             f"  {reason}",
             f"  Since: {since}",
-            f"  Top 3 files:",
+            f"  Top files:",
         ]
         for name, lines, pct in scored[:3]:
             depth = hunk_data.get(name, {})
             hunk_info = f"{depth.get('hunk_count', '?')} hunks, spread={depth.get('hunk_spread', 0):.0%}"
-            warning_lines.append(f"    {pct:5.1f}%  {name}  ({hunk_info})")
+            in_scope_flag = " [in-scope]" if scope_files and scope_match(name, scope_files) else ""
+            warning_lines.append(f"    {pct:5.1f}%  {name}  ({hunk_info}){in_scope_flag}")
 
         warning = "\n".join(warning_lines)
 
@@ -482,7 +512,7 @@ def main():
         print("=" * 54)
         print(warning)
         print("=" * 54)
-        print("ACTION: Spread changes, then re-arm: phantom.py drift-arm")
+        print(f"ACTION: {action}")
         sys.exit(1)
 
 

@@ -830,6 +830,59 @@ def test_drift_guard():
     check("parse_diff_stat parses b.py", files.get("b.py") == 15)
     check("parse_diff_stat skips summary line", len(files) == 2)
 
+    # ── v3 improved output tests: verdict-specific ACTION messages ──
+    # Test scope_match function (in-scope marker logic)
+    check("scope_match: exact filename matches", dg.scope_match("auth.py", ["auth.py", "crypto.py"]))
+    check("scope_match: path/to/file matches basename", dg.scope_match("src/auth.py", ["auth.py"]))
+    check("scope_match: different file does not match", not dg.scope_match("other.py", ["auth.py"]))
+
+    # Test that warning builder includes [in-scope] marker for in-scope files.
+    # We do this by verifying the evaluate_drift return values lead to the right
+    # SCOPE_CREEP verdict with scope markers expected in the actual warning construction.
+    # The warning text is built in main() — we verify it via the verdict that would
+    # trigger the SCOPE_CREEP branch of the action_map.
+    in_scope_files = ["auth.py"]
+    creep_scored2 = [("random.py", 60, 60.0), ("auth.py", 40, 40.0)]
+    t_c = dg.TrendTracker(3)
+    t_c.update(creep_scored2)
+    is_creep, v_creep, r_creep = dg.evaluate_drift(
+        creep_scored2, 100, {}, t_c,
+        task="fix auth", scope_files=in_scope_files,
+        threshold=50.0, min_lines=5, hunk_spread_min=0.3, scope_threshold=30.0)
+    check("SCOPE_CREEP verdict triggers for scope test", is_creep and v_creep == "SCOPE_CREEP")
+    # Verify in-scope flag logic matches scope_match
+    for name, _, _ in creep_scored2:
+        expected_in_scope = dg.scope_match(name, in_scope_files)
+        if name == "auth.py":
+            check(f"scope_match correctly identifies {name} as in-scope", expected_in_scope)
+        else:
+            check(f"scope_match correctly identifies {name} as out-of-scope", not expected_in_scope)
+
+    # Test that VERTICAL fires correct evaluate_drift verdict (action_map key)
+    vert_scored2 = [("only.py", 90, 90.0), ("other.py", 10, 10.0)]
+    t_v = dg.TrendTracker(3)
+    for _ in range(4): t_v.update(vert_scored2)
+    is_v, v_v, _ = dg.evaluate_drift(
+        vert_scored2, 100,
+        {"only.py": {"hunk_count": 1, "hunk_spread": 0.05}}, t_v,
+        task="unrelated to only", scope_files=[],
+        threshold=50.0, min_lines=5, hunk_spread_min=0.3)
+    check("VERTICAL verdict for action_map test", is_v and v_v == "VERTICAL")
+
+    # Test TRENDING verdict fires — Gate 4: top_pct <= threshold but trending up
+    # Gate 4 requires: top_pct <= threshold AND trend up AND consistently_above(threshold*0.7)
+    # With threshold=50, threshold*0.7=35 — all values must be > 35
+    t_trend = dg.TrendTracker(window=3)
+    for pct in [36, 40, 45]:
+        t_trend.update([("slow_creep.py", pct, float(pct)), ("b.py", 100 - pct, float(100 - pct))])
+    is_tr, v_tr, _ = dg.evaluate_drift(
+        [("slow_creep.py", 45, 45.0), ("b.py", 55, 55.0)], 100,
+        {"slow_creep.py": {"hunk_count": 1, "hunk_spread": 0.1}}, t_trend,
+        task="unrelated task", scope_files=[],
+        threshold=50.0, min_lines=5, hunk_spread_min=0.3)
+    # top_pct=45 <= threshold=50, trend up, consistently_above(35%) → TRENDING
+    check("TRENDING verdict fires on slow upward creep below threshold", is_tr and v_tr == "TRENDING")
+
     cleanup()
 
 
