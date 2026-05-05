@@ -1,80 +1,120 @@
 # PROJECT: PHANTOM
 
 > Status: Active
-> Purpose: Discover and maximize the capabilities of this cloud environment. Build the infrastructure that puts it on steroids.
+> Purpose: Discover and maximize the capabilities of this cloud environment. Build the infrastructure that makes it actually useful.
 
 ---
 
 ## What is this project?
 
-PHANTOM is a meta-project. It's not an app or a product — it's the system that makes everything else possible. It explores environment limits, builds reusable tooling, and creates the autonomous session infrastructure that lets Claude work for extended periods without constant user input.
+PHANTOM is a meta-project. It explores environment limits and builds the autonomous session tooling that lets Claude work for extended periods without constant user input.
 
-## Key Discoveries So Far
+## Key Environment Facts
 
 - Container stays alive as long as background processes are running
-- Bare `sleep` is blocked by the harness — use `python3 -c "import time; time.sleep(N)"`
-- Sub-agents run in background, report back, and each return wakes the main session for a new turn
+- Bare `sleep` is blocked by the harness — always use `python3 -c "import time; time.sleep(N)"`
+- Sub-agents run in background, report back, each return wakes the main session
 - Internet is allowlist-restricted (GitHub + Anthropic API confirmed reachable)
-- PostgreSQL 16 and Redis 7 are available locally (need to be started manually)
-- Docker binary exists but daemon is not running
+- PostgreSQL 16 and Redis 7 available locally (start manually — not auto-started)
+- Docker binary exists, daemon is not running
+- Container idle timeout: confirmed alive past 5+ minutes; keep heartbeat threshold ≤ 3 min to be safe
+
+---
 
 ## The Heartbeat System
 
-The core PHANTOM infrastructure. Enables Claude to work autonomously for extended sessions.
+Enables autonomous extended sessions. The heartbeat fires ONLY when Claude is genuinely idle — not when waiting on sub-agents, not within the cooldown window, not when rounds are exhausted.
 
-### How It Works
-
-1. **Start a session** — sets up state file with task, turn target, heartbeat rounds
-2. **Ping each turn** — Claude signals it's active at the start of every turn
-3. **Heartbeat agent** — runs in background, polls every 30s, fires when Claude goes idle
-4. **Resume loop** — each heartbeat wakes Claude for a new turn, repeats until rounds hit zero
+### Fixes over v1
+| Problem | Fix |
+|---|---|
+| False positive while waiting on sub-agents | `agents_running` counter — heartbeat holds while > 0 |
+| Rapid re-fire if ping missed | Cooldown: can't re-fire within one full threshold window |
+| Double heartbeat spawn | `heartbeat_active` flag — arm check prevents duplicate |
+| JSON corruption on concurrent read/write | Atomic writes via write-to-temp + `os.rename()` |
+| Meaningless turn counter | Optional `progress_note` on every ping |
 
 ### Files
 
 | File | Purpose |
 |---|---|
-| `agents/start_session.py` | Initialize a work session |
-| `agents/session_ping.py` | Run at start of each turn to signal active |
-| `agents/heartbeat_runner.py` | The polling monitor — fires on idle detection |
+| `agents/phantom.py` | Unified session CLI — all state operations go through here |
+| `agents/heartbeat_runner.py` | The polling monitor — handles all guard conditions |
 | `agents/HEARTBEAT.md` | Instructions the heartbeat sub-agent reads |
 
-### Session State File
-
-Lives at `/tmp/phantom_session.json` (ephemeral — resets with container):
+### Session State (`/tmp/phantom_session.json`)
 
 ```json
 {
   "task": "what Claude is working on",
   "last_active": "2026-05-05 20:00:00",
-  "turns_taken": 3,
+  "turns_taken": 0,
   "turns_target": 10,
-  "rounds_remaining": 7,
+  "rounds_remaining": 5,
   "idle_threshold_seconds": 180,
-  "started": "2026-05-05 19:45:00",
+  "agents_running": 0,
+  "heartbeat_active": false,
+  "last_heartbeat_fired": null,
+  "progress_note": "",
+  "started": "2026-05-05 20:00:00",
   "status": "active"
 }
 ```
 
-### Starting a Session
+---
 
+## Protocol — Every Session
+
+### Start
 ```bash
-# Initialize state (task, turns, heartbeat rounds, idle threshold in seconds)
-python3 PROJECT_PHANTOM/agents/start_session.py "my task description" 10 10 180
-
-# Ping at the start of each Claude turn
-python3 PROJECT_PHANTOM/agents/session_ping.py
+python3 PROJECT_PHANTOM/agents/phantom.py start "task description" --turns 10 --rounds 5 --threshold 180
 ```
 
-### Spawning the Heartbeat Sub-Agent
+### Every turn (MUST run at start of each turn)
+```bash
+python3 PROJECT_PHANTOM/agents/phantom.py ping "what I just did / what's next"
+```
 
-Keep the prompt minimal:
+### Before spawning ANY worker sub-agent
+```bash
+python3 PROJECT_PHANTOM/agents/phantom.py agent-start
+# spawn the agent
+```
+
+### When a worker sub-agent returns
+```bash
+python3 PROJECT_PHANTOM/agents/phantom.py agent-done
+```
+
+### Before spawning the heartbeat sub-agent
+```bash
+python3 PROJECT_PHANTOM/agents/phantom.py heartbeat-arm
+# exits with code 2 if already armed or no rounds left — DO NOT spawn if it exits 2
+```
+
+### Heartbeat sub-agent prompt (keep it this short)
 > "Read /home/user/Cloud-code/PROJECT_PHANTOM/agents/HEARTBEAT.md and execute."
 
-Use `run_in_background: true`. When it fires, it returns a report. Immediately ping, then spawn the next one.
+Always use `run_in_background: true`.
+
+### When heartbeat fires (new turn starts)
+1. `phantom.py ping "resuming — [what's next]"`
+2. `phantom.py heartbeat-arm`
+3. Spawn next heartbeat round
+4. Continue work
+
+### Check state anytime
+```bash
+python3 PROJECT_PHANTOM/agents/phantom.py status
+```
+
+---
 
 ## Rules
 
-- Always ping at the start of every turn during an active session
-- Always spawn the next heartbeat round immediately after one fires
-- Never let rounds_remaining hit zero without wrapping up the task cleanly
-- Keep this CLAUDE.md updated as new discoveries are made
+- Always ping at the start of every turn — no exceptions
+- Always call `agent-start` before spawning a worker, `agent-done` when it returns
+- Always call `heartbeat-arm` and check exit code before spawning heartbeat
+- Never spawn a heartbeat if `heartbeat-arm` exits with code 2
+- Keep idle threshold ≤ 180s (container timeout not fully mapped yet)
+- Update this CLAUDE.md as new environment facts are discovered
