@@ -172,6 +172,8 @@ def cmd_start(args):
         "profile":                args.profile if hasattr(args, "profile") and args.profile else None,
         "scope_files":            getattr(args, "scope", None) or [],
         "session_start_ref":      session_start_ref,
+        "tracked_extensions":     getattr(args, "tracked_exts", None) or [],
+        "scan_depth":             getattr(args, "scan_depth", None) or 5,
     }
     atomic_write(state)
     print(f"Session started.")
@@ -183,6 +185,10 @@ def cmd_start(args):
     print(f"  Threshold: {threshold}s ({threshold // 60}m {threshold % 60}s)")
     print(f"  Poll:      every {interval}s")
     print(f"  Workspace: {os.getcwd()}")
+    if getattr(args, "tracked_exts", None):
+        print(f"  Tracked:   {' '.join(args.tracked_exts)}")
+    if getattr(args, "scan_depth", None):
+        print(f"  ScanDepth: {args.scan_depth}")
 
 
 def print_session_summary(state: dict):
@@ -366,6 +372,10 @@ def cmd_status(args):
         print(f"  Fire log:   (last {len(fires)})")
         for ev in fires[-3:]:
             print(f"    {ev['fired_at']}  gap={ev['gap_seconds']}s  signal={ev['signal']}  turn={ev['turns']}")
+    wdevents = state.get("watchdog_events", [])
+    if wdevents:
+        last_wd = wdevents[-1]
+        print(f"  Watchdog:   {len(wdevents)} stall(s) — last: {last_wd['at']} ({last_wd['cycle_secs']}s cycle)")
     print("=" * 50)
 
 
@@ -637,6 +647,21 @@ def cmd_report(args):
     declared = state.get("scope_files", [])
     if declared:
         print(f"\n  Declared scope: {', '.join(declared)}")
+
+    # Watchdog events
+    wdevents = state.get("watchdog_events", [])
+    if wdevents:
+        print(f"\n  Watchdog stalls ({len(wdevents)}):")
+        for ev in wdevents:
+            print(f"    {ev['at']}  cycle={ev['cycle_secs']}s (limit {ev['limit_secs']}s)  turn={ev['turns']}")
+
+    # Scan config
+    exts = state.get("tracked_extensions")
+    if exts:
+        print(f"\n  Tracked exts: {' '.join(sorted(exts))}")
+    depth = state.get("scan_depth", 5)
+    if depth != 5:
+        print(f"  Scan depth: {depth}")
     print(sep)
 
 
@@ -829,6 +854,10 @@ p.add_argument("--min-idle-polls",   type=int,   default=1,   dest="min_idle_pol
                help="Consecutive polls above threshold required before heartbeat fires (default 1)")
 p.add_argument("--profile",          default=None,            help="Load defaults from named profile (overridable by flags)")
 p.add_argument("--scope",   nargs="+", default=None,          help="Declared focus files for drift guard (e.g. --scope auth.py crypto.py)")
+p.add_argument("--tracked-exts", nargs="+", default=None, dest="tracked_exts",
+               help="File extensions to watch for activity signals (e.g. --tracked-exts .py .ts)")
+p.add_argument("--scan-depth",  type=int, default=None, dest="scan_depth",
+               help="Max directory depth for workspace file scan (default 5)")
 p.add_argument("--force",            action="store_true",     help="Overwrite existing session")
 
 p = sub.add_parser("config", help="Manage session profiles")

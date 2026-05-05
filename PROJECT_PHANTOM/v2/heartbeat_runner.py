@@ -27,6 +27,12 @@ v4 additions:
     before firing (configurable in state, default 1 = same as before)
   - Writes last_activity_source, last_activity_ts, next_heartbeat_at to state
     when activity signal changes — enables status panel ETA display
+
+v5 additions:
+  - tracked_extensions read from state — configurable per-session via phantom.py start
+  - scan_depth read from state — limits os.walk depth (default 5)
+  - Watchdog events written to state (watchdog_events list, last 10)
+    so stuck-cycle stalls are visible in report/status even after runner exits
 """
 
 import json
@@ -39,11 +45,11 @@ from datetime import datetime
 STATE_FILE = os.environ.get("PHANTOM_STATE", "/tmp/phantom_session.json")
 TEMP_FILE  = STATE_FILE + ".tmp"
 
-TRACKED_EXTS = {'.py', '.md', '.json', '.sh', '.txt', '.yaml', '.yml',
-                '.toml', '.js', '.ts', '.go', '.rs', '.rb', '.java', '.c', '.cpp'}
+DEFAULT_TRACKED_EXTS = {'.py', '.md', '.json', '.sh', '.txt', '.yaml', '.yml',
+                        '.toml', '.js', '.ts', '.go', '.rs', '.rb', '.java', '.c', '.cpp'}
 SKIP_DIRS    = {'.git', '__pycache__', 'node_modules', '.venv', 'venv',
                 'dist', 'build', '.tox', '.mypy_cache', 'logs'}
-MAX_SCAN_DEPTH = 5
+DEFAULT_SCAN_DEPTH = 5
 
 
 def atomic_write(state: dict):
@@ -68,12 +74,18 @@ def parse_dt(s: str) -> datetime:
     return datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
 
 
-def scan_workspace(workspace: str) -> tuple[float, str | None]:
+def scan_workspace(workspace: str,
+                   tracked_exts: set | None = None,
+                   max_depth: int = DEFAULT_SCAN_DEPTH) -> tuple[float, str | None]:
     """
     Walk workspace for recently modified tracked files.
     Returns (latest_mtime_timestamp, filepath_of_most_recent).
     Skips noise dirs (logs, __pycache__, .git, etc).
+    tracked_exts defaults to DEFAULT_TRACKED_EXTS if not supplied.
     """
+    if tracked_exts is None:
+        tracked_exts = DEFAULT_TRACKED_EXTS
+
     latest_mtime = 0.0
     latest_path  = None
 
@@ -84,12 +96,12 @@ def scan_workspace(workspace: str) -> tuple[float, str | None]:
 
             # Depth limit
             depth = root[len(workspace):].count(os.sep)
-            if depth >= MAX_SCAN_DEPTH:
+            if depth >= max_depth:
                 dirs.clear()
 
             for fname in files:
                 ext = os.path.splitext(fname)[1].lower()
-                if ext not in TRACKED_EXTS:
+                if ext not in tracked_exts:
                     continue
                 fpath = os.path.join(root, fname)
                 try:
@@ -114,7 +126,9 @@ def git_index_mtime(workspace: str) -> float:
         return 0.0
 
 
-def get_last_activity(state: dict) -> tuple[float, str]:
+def get_last_activity(state: dict,
+                      tracked_exts: set | None = None,
+                      scan_depth: int = DEFAULT_SCAN_DEPTH) -> tuple[float, str]:
     """
     Return (timestamp, source_label) of the most recent observable activity.
 
@@ -137,7 +151,7 @@ def get_last_activity(state: dict) -> tuple[float, str]:
     workspace = state.get("workspace_dir", "")
     if workspace and os.path.isdir(workspace):
         # Source 2: filesystem scan
-        fs_mtime, fs_path = scan_workspace(workspace)
+        fs_mtime, fs_path = scan_workspace(workspace, tracked_exts, scan_depth)
         if fs_mtime > 0:
             label = f"file:{fs_path}" if fs_path else "file:scan"
             candidates.append((fs_mtime, label))
@@ -193,6 +207,11 @@ def main():
 
     min_idle_polls = state.get("min_idle_polls", 1)
 
+    # Configurable scan settings (v5)
+    raw_exts   = state.get("tracked_extensions")
+    tracked_exts = set(raw_exts) if raw_exts else None  # None → use DEFAULT_TRACKED_EXTS
+    scan_depth   = state.get("scan_depth", DEFAULT_SCAN_DEPTH)
+
     print(f"Heartbeat v2 active")
     print(f"  Threshold: {idle_threshold}s | Cooldown: {cooldown_window:.0f}s ({cooldown_factor}x) | Poll: {check_interval}s | Rounds: {state.get('rounds_remaining')}")
     print(f"  Watchdog:  {watchdog_limit}s max per cycle | Min idle polls: {min_idle_polls}")
@@ -200,6 +219,9 @@ def main():
         print(f"  Workspace: {workspace}")
     else:
         print(f"  Workspace: not set — filesystem activity signals disabled")
+    if raw_exts:
+        print(f"  Tracked exts: {', '.join(sorted(tracked_exts))}")
+    print(f"  Scan depth: {scan_depth}")
 
     # Track across polls (not persisted — runner-local state)
     prev_activity_ts     = 0.0
@@ -212,6 +234,22 @@ def main():
         cycle_elapsed = time.monotonic() - cycle_start
         if cycle_elapsed > watchdog_limit:
             print(f"[WATCHDOG] Poll cycle took {cycle_elapsed:.0f}s (limit {watchdog_limit}s) — possible stall.")
+            # Write watchdog event to state so report/status can surface it
+            _state = read_state()
+            if _state:
+                wd_event = {
+                    "at":           datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "cycle_secs":   round(cycle_elapsed),
+                    "limit_secs":   round(watchdog_limit),
+                    "turns":        _state.get("turns_taken", 0),
+                }
+                history = _state.get("watchdog_events", [])
+                history.append(wd_event)
+                _state["watchdog_events"] = history[-10:]
+                try:
+                    atomic_write(_state)
+                except Exception:
+                    pass
 
         state = read_state()
         if not state:
@@ -237,7 +275,7 @@ def main():
 
         # Observe activity before any guards — so ETA is always written
         # even when agents are running or cooldown is active
-        last_activity_ts, activity_source = get_last_activity(state)
+        last_activity_ts, activity_source = get_last_activity(state, tracked_exts, scan_depth)
         if last_activity_ts > 0:
             activity_moved = (last_activity_ts - prev_activity_ts) >= check_interval * 0.5
             source_changed = activity_source != prev_activity_source

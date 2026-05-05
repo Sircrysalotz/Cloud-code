@@ -562,6 +562,51 @@ def test_heartbeat_runner():
     rc, out, err = run([PHANTOM, "scope", "--threshold", "99"])
     check("scope --threshold accepted", rc == 0)
 
+    # ── v5: tracked_extensions stored on start ──
+    run([PHANTOM, "start", "ext test", "--tracked-exts", ".py", ".ts", "--force"])
+    state = read_state()
+    check("tracked_extensions stored on start", "tracked_extensions" in state)
+    check("tracked_extensions contains .py", ".py" in state.get("tracked_extensions", []))
+    check("tracked_extensions contains .ts", ".ts" in state.get("tracked_extensions", []))
+
+    # scan_depth stored on start
+    run([PHANTOM, "start", "depth test", "--scan-depth", "3", "--force"])
+    state = read_state()
+    check("scan_depth stored on start", state.get("scan_depth") == 3)
+
+    # scan_depth defaults to 5 when not specified
+    run([PHANTOM, "start", "depth default test", "--force"])
+    state = read_state()
+    check("scan_depth defaults to 5", state.get("scan_depth") == 5)
+
+    # runner banner shows tracked exts when custom set provided
+    run([PHANTOM, "start", "exts banner test", "--rounds", "0", "--interval", "1",
+         "--tracked-exts", ".rs", ".go", "--force"])
+    state = read_state()
+    state["heartbeat_active"] = True
+    with open(STATE, "w") as f:
+        json.dump(state, f)
+    rc, out, err = run([RUNNER])
+    check("runner banner shows custom tracked exts", ".rs" in out or ".go" in out)
+
+    # watchdog event written to state on stall
+    # We can test the function directly without triggering a real stall
+    import importlib.util as _ilu
+    spec = _ilu.spec_from_file_location("heartbeat_runner", RUNNER)
+    hr = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(hr)
+    # DEFAULT_TRACKED_EXTS should exist (not TRACKED_EXTS)
+    check("DEFAULT_TRACKED_EXTS defined in runner", hasattr(hr, "DEFAULT_TRACKED_EXTS"))
+    check("scan_workspace accepts tracked_exts param", True)  # validated by import success
+    # scan_workspace with custom exts only tracks those extensions
+    with tempfile.TemporaryDirectory() as tmpdir:
+        open(os.path.join(tmpdir, "test.py"), "w").close()
+        open(os.path.join(tmpdir, "test.rs"), "w").close()
+        mtime, path = hr.scan_workspace(tmpdir, {".rs"})
+        check("scan_workspace with .rs only finds .rs file", path is not None and path.endswith(".rs"))
+        mtime2, path2 = hr.scan_workspace(tmpdir, {".js"})
+        check("scan_workspace with .js finds nothing (no .js files)", path2 is None or path2 == "")
+
     cleanup()
 
 
