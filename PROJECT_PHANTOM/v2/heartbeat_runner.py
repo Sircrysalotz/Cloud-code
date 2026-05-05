@@ -81,11 +81,13 @@ def main():
 
     idle_threshold  = state.get("idle_threshold_seconds", 180)
     check_interval  = state.get("check_interval_seconds", 30)
+    cooldown_factor = state.get("cooldown_factor", 1.0)
+    cooldown_window = idle_threshold * cooldown_factor
     # Watchdog: if a single poll cycle takes > 3x the interval, something is wrong
     watchdog_limit  = check_interval * 3
 
     print(f"Heartbeat v2 active")
-    print(f"  Threshold: {idle_threshold}s | Poll: every {check_interval}s | Rounds: {state.get('rounds_remaining')}")
+    print(f"  Threshold: {idle_threshold}s | Cooldown: {cooldown_window:.0f}s ({cooldown_factor}x) | Poll: {check_interval}s | Rounds: {state.get('rounds_remaining')}")
     print(f"  Watchdog:  {watchdog_limit}s max per cycle")
 
     while True:
@@ -123,12 +125,12 @@ def main():
             continue
         gap = (now - parse_dt(last_active_str)).total_seconds()
 
-        # Guard 3: cooldown
+        # Guard 3: cooldown (configurable via cooldown_factor)
         last_fired_str = state.get("last_heartbeat_fired")
         if last_fired_str:
-            cooldown = (now - parse_dt(last_fired_str)).total_seconds()
-            if cooldown < idle_threshold:
-                print(f"[{ts}] HOLD — cooldown {cooldown:.0f}s/{idle_threshold}s | gap {gap:.0f}s")
+            cooldown_elapsed = (now - parse_dt(last_fired_str)).total_seconds()
+            if cooldown_elapsed < cooldown_window:
+                print(f"[{ts}] HOLD — cooldown {cooldown_elapsed:.0f}s/{cooldown_window:.0f}s | gap {gap:.0f}s")
                 continue
 
         if gap < idle_threshold:
@@ -138,6 +140,7 @@ def main():
         # All guards passed — fire
         drift = gap - idle_threshold
         state["rounds_remaining"]     = max(0, rounds_remaining - 1)
+        state["rounds_used"]          = state.get("rounds_used", 0) + 1
         state["last_heartbeat_fired"] = now.strftime("%Y-%m-%d %H:%M:%S")
         state["heartbeat_active"]     = False
         atomic_write(state)

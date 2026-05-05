@@ -112,6 +112,8 @@ def cmd_start(args):
         "rounds_remaining":       args.rounds,
         "idle_threshold_seconds": args.threshold,
         "check_interval_seconds": args.interval,
+        "cooldown_factor":        args.cooldown_factor,
+        "rounds_used":            0,
         "agents_running":         0,
         "active_agent_ids":       [],
         "heartbeat_active":       False,
@@ -129,6 +131,21 @@ def cmd_start(args):
     print(f"  Poll:      every {args.interval}s")
 
 
+def print_session_summary(state: dict):
+    print()
+    print("=" * 54)
+    print("  SESSION COMPLETE")
+    print("=" * 54)
+    print(f"  Task:      {state.get('task', '?')}")
+    print(f"  Started:   {state.get('started', '?')}")
+    print(f"  Finished:  {now_str()}")
+    print(f"  Duration:  {elapsed(state.get('started', now_str()))}")
+    print(f"  Turns:     {state.get('turns_taken')}/{state.get('turns_target')}")
+    print(f"  HB rounds used: {state.get('rounds_used', '?')}")
+    print(f"  Last note: {state.get('progress_note', '—')}")
+    print("=" * 54)
+
+
 def cmd_ping(args):
     state = require_state()
     state["last_active"]  = now_str()
@@ -136,12 +153,19 @@ def cmd_ping(args):
     if args.note:
         state["progress_note"] = args.note
     atomic_write(state)
-    agents  = state.get("agents_running", 0)
-    rounds  = state.get("rounds_remaining", 0)
+    agents      = state.get("agents_running", 0)
+    rounds      = state.get("rounds_remaining", 0)
     elapsed_str = elapsed(state.get("started", now_str()))
-    print(f"PING — Turn {state['turns_taken']}/{state['turns_target']} | Rounds left: {rounds} | Agents: {agents} | Elapsed: {elapsed_str}")
+    turns_taken = state["turns_taken"]
+    turns_target = state.get("turns_target", "?")
+    print(f"PING — Turn {turns_taken}/{turns_target} | Rounds left: {rounds} | Agents: {agents} | Elapsed: {elapsed_str}")
     if args.note:
         print(f"  Note: {args.note}")
+    if isinstance(turns_target, int) and turns_taken >= turns_target:
+        state["status"] = "complete"
+        state["rounds_used"] = state.get("rounds_used", 0)
+        atomic_write(state)
+        print_session_summary(state)
 
 
 def cmd_agent_start(args):
@@ -232,8 +256,9 @@ p.add_argument("task", help="Description of what Claude is working on")
 p.add_argument("--turns",     type=int, default=10,  help="Target number of turns")
 p.add_argument("--rounds",    type=int, default=5,   help="Heartbeat rounds available")
 p.add_argument("--threshold", type=int, default=180, help="Idle threshold in seconds")
-p.add_argument("--interval",  type=int, default=30,  help="Heartbeat poll interval in seconds")
-p.add_argument("--force",     action="store_true",   help="Overwrite existing session")
+p.add_argument("--interval",        type=int,   default=30,  help="Heartbeat poll interval in seconds")
+p.add_argument("--cooldown-factor", type=float, default=1.0, help="Cooldown = threshold * factor (default 1.0)")
+p.add_argument("--force",           action="store_true",     help="Overwrite existing session")
 
 p = sub.add_parser("ping", help="Signal active turn (run at start of every turn)")
 p.add_argument("note", nargs="?", default="", help="Optional progress note")

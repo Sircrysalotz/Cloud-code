@@ -36,3 +36,9 @@ If the heartbeat_runner.py crashes or exits unexpectedly:
 - Do NOT add commentary — raw output only
 - If runner exits with "Rounds exhausted" → do NOT suggest re-spawning
 - Your entire job is: pre-flight → run script → return output
+
+## Note on state file path
+
+Production state: `/tmp/phantom_session.json` (default)
+Test isolation: set `PHANTOM_STATE=/tmp/phantom_TEST_session.json` before running
+The `PHANTOM_STATE` env var controls which file both phantom.py and heartbeat_runner.py use.
