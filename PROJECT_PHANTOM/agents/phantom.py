@@ -282,7 +282,22 @@ def cmd_heartbeat_arm(args):
         sys.exit(2)
     state["heartbeat_active"] = True
     atomic_write(state)
-    print(f"Heartbeat armed. Rounds remaining: {state['rounds_remaining']}")
+    rounds = state["rounds_remaining"]
+    threshold = state.get("idle_threshold_seconds", 180)
+    print(f"Heartbeat armed. Rounds remaining: {rounds}")
+    # Show estimated fire time based on last activity
+    last_active = state.get("last_active", "")
+    if last_active:
+        try:
+            from datetime import timedelta
+            fire_dt = datetime.strptime(last_active, "%Y-%m-%d %H:%M:%S") + timedelta(seconds=threshold)
+            remaining = (fire_dt - datetime.now()).total_seconds()
+            if remaining > 0:
+                print(f"  Est. fire:  ~{remaining:.0f}s from now ({fire_dt.strftime('%H:%M:%S')})")
+            else:
+                print(f"  Est. fire:  overdue by {-remaining:.0f}s (ping was {-remaining + threshold:.0f}s ago)")
+        except Exception:
+            pass
 
 
 def cmd_status(args):

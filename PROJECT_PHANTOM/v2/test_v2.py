@@ -394,6 +394,25 @@ def test_heartbeat_runner():
     rc, out, err = run([RUNNER])
     check("runner exits cleanly when rounds=0", "exhausted" in out.lower() or "complete" in out.lower() or "shutting" in out.lower())
 
+    # Activity metadata written even when agents_running > 0 (bug fix verification)
+    import subprocess as _sp
+    run([PHANTOM, "start", "agent guard test", "--rounds", "1", "--interval", "1", "--force"])
+    state = read_state()
+    state["heartbeat_active"] = True
+    state["agents_running"]   = 1   # simulate worker holding the guard
+    state["last_active"]      = "2026-01-01 12:00:00"
+    import tempfile as _tf
+    with _tf.TemporaryDirectory() as tmpws:
+        state["workspace_dir"] = tmpws
+        with open(STATE, "w") as fp: json.dump(state, fp)
+        try:
+            _sp.run([sys.executable, RUNNER], capture_output=True, timeout=3, env=TEST_ENV)
+        except _sp.TimeoutExpired:
+            pass
+    state_after = read_state()
+    check("next_heartbeat_at written when agents_running > 0", state_after.get("next_heartbeat_at") is not None)
+    check("last_activity_source written when agents_running > 0", state_after.get("last_activity_source") is not None)
+
     # min_idle_polls stored in state when --min-idle-polls used on start
     run([PHANTOM, "start", "hb test", "--min-idle-polls", "2", "--force"])
     state = read_state()
@@ -418,6 +437,12 @@ def test_heartbeat_runner():
         json.dump(state, f)
     rc, out, err = run([RUNNER])
     check("runner banner shows min_idle_polls", "Min idle polls: 3" in out)
+
+    # heartbeat-arm shows ETA estimate
+    run([PHANTOM, "start", "arm eta test", "--threshold", "180", "--force"])
+    rc, out, err = run([PHANTOM, "heartbeat-arm"])
+    check("heartbeat-arm exits 0", rc == 0)
+    check("heartbeat-arm shows Est. fire or overdue", "Est. fire" in out or "overdue" in out or "fire" in out.lower())
 
     # min_idle_polls in profile keys
     run([PHANTOM, "config", "create", "testpoll",
