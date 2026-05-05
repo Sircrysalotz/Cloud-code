@@ -17,34 +17,41 @@ PHANTOM is a meta-project. It explores environment limits and builds the autonom
 - Internet is allowlist-restricted (GitHub + Anthropic API confirmed reachable)
 - PostgreSQL 16 and Redis 7 available locally (start manually — not auto-started)
 - Docker binary exists, daemon is not running
-- Container idle timeout: confirmed alive past 10+ minutes of chat idle; true death point unknown — container_logger.py is mapping this accurately
+- Container idle timeout: confirmed alive past 10+ min of chat idle; container_logger.py maps this precisely
 - A running background process keeps the container warm (heartbeat runner doubles as keepalive)
 - Keep heartbeat idle threshold ≤ 180s (3 min) until container_logger gives accurate data
 
 ---
 
-## The Heartbeat System
+## The Heartbeat System (v2)
 
-Enables autonomous extended sessions. The heartbeat fires ONLY when Claude is genuinely idle — not when waiting on sub-agents, not within the cooldown window, not when rounds are exhausted.
+Enables autonomous extended sessions. Heartbeat fires ONLY when Claude is genuinely idle — not when waiting on sub-agents, not within cooldown, not when rounds are exhausted.
 
-### Fixes over v1
+### v2 Improvements Over v1
 | Problem | Fix |
 |---|---|
 | False positive while waiting on sub-agents | `agents_running` counter — heartbeat holds while > 0 |
-| Rapid re-fire if ping missed | Cooldown: can't re-fire within one full threshold window |
+| Rapid re-fire if ping missed | Configurable cooldown via `cooldown_factor` |
 | Double heartbeat spawn | `heartbeat_active` flag — arm check prevents duplicate |
-| JSON corruption on concurrent read/write | Atomic writes via write-to-temp + `os.rename()` |
-| Meaningless turn counter | Optional `progress_note` on every ping |
+| JSON corruption on concurrent read/write | Atomic writes + lock file |
+| Tests colliding with live session state | `PHANTOM_STATE` env var for full isolation |
+| Hardcoded poll interval | `check_interval_seconds` in state, set via `--interval` |
+| No SIGTERM handling | Graceful shutdown clears `heartbeat_active` flag |
+| No drift reporting | Reports `+Ns` past threshold on fire |
+| No watchdog | Detects poll cycles taking >3x interval |
+| No session summary | Printed when `turns_taken == turns_target` |
+| No test coverage | 46 integration tests in `v2/test_v2.py` |
 
 ### Files
 
 | File | Purpose |
 |---|---|
-| `agents/phantom.py` | Unified session CLI — all state operations go through here |
-| `agents/heartbeat_runner.py` | The polling monitor — handles all guard conditions |
-| `agents/HEARTBEAT.md` | Instructions the heartbeat sub-agent reads |
-| `agents/container_logger.py` | Background daemon — logs vitals every 60s, pushes to git every 5 min |
-| `logs/container_vitals.log` | Persistent vitals log — last entry = last confirmed container alive |
+| `agents/phantom.py` | Unified session CLI (v2) |
+| `agents/heartbeat_runner.py` | Polling monitor with all guards (v2) |
+| `agents/HEARTBEAT.md` | Sub-agent instructions (v2) |
+| `agents/container_logger.py` | Background vitals daemon (v2) |
+| `logs/container_vitals.log` | Live container vitals log |
+| `v2/` | Development copies + test suite + DIFF.md |
 
 ### Session State (`/tmp/phantom_session.json`)
 
@@ -56,7 +63,11 @@ Enables autonomous extended sessions. The heartbeat fires ONLY when Claude is ge
   "turns_target": 10,
   "rounds_remaining": 5,
   "idle_threshold_seconds": 180,
+  "check_interval_seconds": 30,
+  "cooldown_factor": 1.0,
+  "rounds_used": 0,
   "agents_running": 0,
+  "active_agent_ids": [],
   "heartbeat_active": false,
   "last_heartbeat_fired": null,
   "progress_note": "",
@@ -67,77 +78,93 @@ Enables autonomous extended sessions. The heartbeat fires ONLY when Claude is ge
 
 ---
 
-## Container Logger
-
-Runs independently of the heartbeat. Its job is to accurately map when the container dies.
-
-### Start it at the beginning of every session
-```bash
-nohup python3 /home/user/Cloud-code/PROJECT_PHANTOM/agents/container_logger.py > /tmp/container_logger.out 2>&1 &
-echo "Logger PID: $!"
-```
-
-### How it works
-- Logs a timestamped entry every 60 seconds to `logs/container_vitals.log`
-- Every 5 entries (~5 min) commits and pushes the log to git
-- When the container dies, the last pushed entry = last confirmed alive timestamp
-- Subtract that from the next session start to get the death window
-
-### Check it anytime
-```bash
-tail -20 /home/user/Cloud-code/PROJECT_PHANTOM/logs/container_vitals.log
-```
-
-### Check if still running
-```bash
-ps aux | grep container_logger | grep -v grep
-```
-
----
-
 ## Protocol — Every Session
 
-### Start
+### Start container logger (once per container boot)
 ```bash
-python3 PROJECT_PHANTOM/agents/phantom.py start "task description" --turns 10 --rounds 5 --threshold 180
+# Check if already running first
+ps aux | grep container_logger | grep -v grep
+# Start if not running
+nohup python3 /home/user/Cloud-code/PROJECT_PHANTOM/agents/container_logger.py --interval 60 --push-every 5 > /tmp/container_logger.out 2>&1 &
 ```
 
-### Every turn (MUST run at start of each turn)
+### Initialize session
+```bash
+python3 PROJECT_PHANTOM/agents/phantom.py start "task" --turns 10 --rounds 5 --threshold 180 --interval 30 --cooldown-factor 1.0
+```
+
+### Every turn start
 ```bash
 python3 PROJECT_PHANTOM/agents/phantom.py ping "what I just did / what's next"
 ```
 
-### Before spawning ANY worker sub-agent
+### Before spawning a worker sub-agent
 ```bash
-python3 PROJECT_PHANTOM/agents/phantom.py agent-start
+python3 PROJECT_PHANTOM/agents/phantom.py agent-start --id "worker-name"
 # spawn the agent
 ```
 
-### When a worker sub-agent returns
+### When worker returns
 ```bash
-python3 PROJECT_PHANTOM/agents/phantom.py agent-done
+python3 PROJECT_PHANTOM/agents/phantom.py agent-done --id "worker-name"
 ```
 
-### Before spawning the heartbeat sub-agent
+### Before spawning heartbeat (check exit code — skip spawn if exit 2)
 ```bash
 python3 PROJECT_PHANTOM/agents/phantom.py heartbeat-arm
-# exits with code 2 if already armed or no rounds left — DO NOT spawn if it exits 2
+# if exit 0: spawn heartbeat
+# if exit 2: heartbeat already active OR rounds=0 — do NOT spawn
 ```
 
-### Heartbeat sub-agent prompt (keep it this short)
+### Heartbeat sub-agent prompt (keep it short)
 > "Read /home/user/Cloud-code/PROJECT_PHANTOM/agents/HEARTBEAT.md and execute."
 
-Always use `run_in_background: true`.
+Use `run_in_background: true`.
 
-### When heartbeat fires (new turn starts)
+### When heartbeat fires
 1. `phantom.py ping "resuming — [what's next]"`
 2. `phantom.py heartbeat-arm`
 3. Spawn next heartbeat round
-4. Continue work
+4. Continue work immediately — do NOT wait
 
-### Check state anytime
+### Check status anytime
 ```bash
 python3 PROJECT_PHANTOM/agents/phantom.py status
+```
+
+### Explicit session end
+```bash
+python3 PROJECT_PHANTOM/agents/phantom.py complete
+```
+
+### Emergency cleanup
+```bash
+python3 PROJECT_PHANTOM/agents/phantom.py reset
+```
+
+---
+
+## Container Logger
+
+Runs independently of the heartbeat. Maps when the container dies.
+
+```bash
+# Check vitals
+tail -20 PROJECT_PHANTOM/logs/container_vitals.log
+# Check if running
+ps aux | grep container_logger | grep -v grep
+```
+
+Last pushed entry on GitHub = last confirmed alive before container death.
+
+---
+
+## Testing
+
+```bash
+# Run full integration suite (isolated from live session)
+python3 PROJECT_PHANTOM/v2/test_v2.py
+# 46 tests covering all phantom.py commands + heartbeat_runner edge cases
 ```
 
 ---
@@ -147,6 +174,6 @@ python3 PROJECT_PHANTOM/agents/phantom.py status
 - Always ping at the start of every turn — no exceptions
 - Always call `agent-start` before spawning a worker, `agent-done` when it returns
 - Always call `heartbeat-arm` and check exit code before spawning heartbeat
-- Never spawn a heartbeat if `heartbeat-arm` exits with code 2
-- Keep idle threshold ≤ 180s (container timeout not fully mapped yet)
+- Keep idle threshold ≤ 180s until container timeout is fully mapped
 - Update this CLAUDE.md as new environment facts are discovered
+- The correct flow: work continuously → stop when genuinely done → heartbeat fires → resume

@@ -150,6 +150,33 @@ def test_phantom():
     check("state file gone after reset", not os.path.exists(STATE))
 
 
+    # complete command
+    cleanup()
+    run([PHANTOM, "start", "complete test", "--turns", "2"])
+    run([PHANTOM, "ping", "turn 1"])
+    run([PHANTOM, "ping", "turn 2"])  # hits turns_target
+    rc, out, _ = run([PHANTOM, "complete"])
+    check("complete exits 0", rc == 0)
+    check("complete prints SESSION COMPLETE", "SESSION COMPLETE" in out)
+    state = read_state()
+    check("complete sets status=complete", state.get("status") == "complete")
+    check("complete sets completed timestamp", "completed" in state)
+
+    # cooldown_factor stored in state
+    cleanup()
+    run([PHANTOM, "start", "cf test", "--threshold", "60", "--cooldown-factor", "0.5"])
+    state = read_state()
+    check("cooldown_factor stored in state", state.get("cooldown_factor") == 0.5)
+
+    # PHANTOM_STATE isolation — confirm production state untouched
+    check("test state isolated from /tmp/phantom_session.json",
+          not os.path.exists("/tmp/phantom_session.json") or
+          open("/tmp/phantom_session.json").read() != open(STATE).read()
+          if os.path.exists(STATE) else True)
+
+    cleanup()
+
+
 # ─── heartbeat_runner.py tests ───────────────────────────────────────────────
 
 def test_heartbeat_runner():

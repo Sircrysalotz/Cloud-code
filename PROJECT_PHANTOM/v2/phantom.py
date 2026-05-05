@@ -163,7 +163,6 @@ def cmd_ping(args):
         print(f"  Note: {args.note}")
     if isinstance(turns_target, int) and turns_taken >= turns_target:
         state["status"] = "complete"
-        state["rounds_used"] = state.get("rounds_used", 0)
         atomic_write(state)
         print_session_summary(state)
 
@@ -236,6 +235,31 @@ def cmd_status(args):
     print("=" * 50)
 
 
+def cmd_complete(args):
+    state = require_state()
+    state["status"]    = "complete"
+    state["completed"] = now_str()
+    atomic_write(state)
+    print_session_summary(state)
+
+
+def cmd_history(args):
+    state = read_state()
+    if not state:
+        print("No active session.")
+        return
+    print("=" * 50)
+    print("  SESSION HISTORY")
+    print("=" * 50)
+    print(f"  Task:    {state.get('task', '?')}")
+    print(f"  Started: {state.get('started', '?')}")
+    print(f"  Elapsed: {elapsed(state.get('started', now_str()))}")
+    print(f"  Turns:   {state.get('turns_taken', 0)}/{state.get('turns_target', '?')}")
+    print(f"  HB rounds used: {state.get('rounds_used', 0)}")
+    print(f"  Last note: {state.get('progress_note', '—')}")
+    print("=" * 50)
+
+
 def cmd_reset(args):
     for f in [STATE_FILE, TEMP_FILE, LOCK_FILE]:
         try:
@@ -271,6 +295,8 @@ p.add_argument("--id", default="", help="Optional agent identifier")
 
 sub.add_parser("heartbeat-arm", help="Arm the heartbeat before spawning")
 sub.add_parser("status",        help="Print rich session status")
+sub.add_parser("complete",      help="Mark session complete and print summary")
+sub.add_parser("history",       help="Print session history and progress")
 sub.add_parser("reset",         help="Emergency cleanup of all state/lock files")
 
 args = parser.parse_args()
@@ -281,5 +307,7 @@ args = parser.parse_args()
     "agent-done":    cmd_agent_done,
     "heartbeat-arm": cmd_heartbeat_arm,
     "status":        cmd_status,
+    "complete":      cmd_complete,
+    "history":       cmd_history,
     "reset":         cmd_reset,
 }[args.cmd](args)
