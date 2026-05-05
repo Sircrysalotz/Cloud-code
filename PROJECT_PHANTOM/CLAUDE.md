@@ -17,7 +17,9 @@ PHANTOM is a meta-project. It explores environment limits and builds the autonom
 - Internet is allowlist-restricted (GitHub + Anthropic API confirmed reachable)
 - PostgreSQL 16 and Redis 7 available locally (start manually — not auto-started)
 - Docker binary exists, daemon is not running
-- Container idle timeout: confirmed alive past 5+ minutes; keep heartbeat threshold ≤ 3 min to be safe
+- Container idle timeout: confirmed alive past 10+ minutes of chat idle; true death point unknown — container_logger.py is mapping this accurately
+- A running background process keeps the container warm (heartbeat runner doubles as keepalive)
+- Keep heartbeat idle threshold ≤ 180s (3 min) until container_logger gives accurate data
 
 ---
 
@@ -41,6 +43,8 @@ Enables autonomous extended sessions. The heartbeat fires ONLY when Claude is ge
 | `agents/phantom.py` | Unified session CLI — all state operations go through here |
 | `agents/heartbeat_runner.py` | The polling monitor — handles all guard conditions |
 | `agents/HEARTBEAT.md` | Instructions the heartbeat sub-agent reads |
+| `agents/container_logger.py` | Background daemon — logs vitals every 60s, pushes to git every 5 min |
+| `logs/container_vitals.log` | Persistent vitals log — last entry = last confirmed container alive |
 
 ### Session State (`/tmp/phantom_session.json`)
 
@@ -59,6 +63,34 @@ Enables autonomous extended sessions. The heartbeat fires ONLY when Claude is ge
   "started": "2026-05-05 20:00:00",
   "status": "active"
 }
+```
+
+---
+
+## Container Logger
+
+Runs independently of the heartbeat. Its job is to accurately map when the container dies.
+
+### Start it at the beginning of every session
+```bash
+nohup python3 /home/user/Cloud-code/PROJECT_PHANTOM/agents/container_logger.py > /tmp/container_logger.out 2>&1 &
+echo "Logger PID: $!"
+```
+
+### How it works
+- Logs a timestamped entry every 60 seconds to `logs/container_vitals.log`
+- Every 5 entries (~5 min) commits and pushes the log to git
+- When the container dies, the last pushed entry = last confirmed alive timestamp
+- Subtract that from the next session start to get the death window
+
+### Check it anytime
+```bash
+tail -20 /home/user/Cloud-code/PROJECT_PHANTOM/logs/container_vitals.log
+```
+
+### Check if still running
+```bash
+ps aux | grep container_logger | grep -v grep
 ```
 
 ---
