@@ -280,6 +280,19 @@ def main():
         state["rounds_used"]          = state.get("rounds_used", 0) + 1
         state["last_heartbeat_fired"] = now.strftime("%Y-%m-%d %H:%M:%S")
         state["heartbeat_active"]     = False
+
+        # Append to fire history (keep last 10)
+        fire_event = {
+            "fired_at":     now.strftime("%Y-%m-%d %H:%M:%S"),
+            "signal":       activity_source,
+            "gap_seconds":  round(gap),
+            "idle_polls":   consecutive_idle,
+            "turns":        state.get("turns_taken", 0),
+        }
+        history = state.get("heartbeat_fires", [])
+        history.append(fire_event)
+        state["heartbeat_fires"] = history[-10:]
+
         atomic_write(state)
 
         print("=" * 54)

@@ -329,6 +329,11 @@ def cmd_status(args):
     if state.get("min_idle_polls", 1) > 1:
         print(f"  Min polls:  {state.get('min_idle_polls')} consecutive idle polls required")
     print(f"  Progress:   {state.get('progress_note', '—')}")
+    fires = state.get("heartbeat_fires", [])
+    if fires:
+        print(f"  Fire log:   (last {len(fires)})")
+        for ev in fires[-3:]:
+            print(f"    {ev['fired_at']}  gap={ev['gap_seconds']}s  signal={ev['signal']}  turn={ev['turns']}")
     print("=" * 50)
 
 
@@ -393,8 +398,18 @@ def cmd_restore(args):
 def cmd_scope(args):
     """Check git diff stats for horizontal balance — warns if one file dominates."""
     try:
+        state = read_state()
+        # Determine diff range — prefer session_start_ref for current-session view
+        session_ref = state.get("session_start_ref") if state else None
+        if args.session and session_ref:
+            diff_range = [session_ref, "HEAD"]
+            label = "this session"
+        else:
+            diff_range = [f"HEAD~{args.depth}", "HEAD"]
+            label = f"last {args.depth} commits"
+
         result = subprocess.run(
-            ["git", "diff", "--stat", f"HEAD~{args.depth}", "HEAD"],
+            ["git", "diff", "--stat"] + diff_range,
             cwd=REPO_DIR, capture_output=True, text=True, timeout=15
         )
         if result.returncode != 0:
@@ -402,7 +417,7 @@ def cmd_scope(args):
             return
         lines = [l for l in result.stdout.splitlines() if "|" in l]
         if not lines:
-            print("No file changes found in last diff.")
+            print(f"No file changes found ({label}).")
             return
         totals = {}
         for line in lines:
@@ -414,20 +429,21 @@ def cmd_scope(args):
             except (IndexError, ValueError):
                 pass
         grand_total = sum(totals.values()) or 1
+        threshold = getattr(args, "threshold", 50)
         print("=" * 50)
-        print(f"  SCOPE CHECK (last {args.depth} commits)")
+        print(f"  SCOPE CHECK ({label})")
         print("=" * 50)
         for fname, count in sorted(totals.items(), key=lambda x: -x[1]):
             pct = count / grand_total * 100
             bar = "█" * min(int(pct / 5), 20)
-            warn = " ⚠ CONCENTRATED" if pct > 50 else ""
+            warn = f" ⚠ CONCENTRATED" if pct > threshold else ""
             print(f"  {pct:4.0f}% {bar:<20} {count:4d} lines  {fname}{warn}")
         print("=" * 50)
         max_pct = max(totals.values()) / grand_total * 100 if totals else 0
-        if max_pct > 50:
-            print(f"  WARNING: One file has {max_pct:.0f}% of changes — possible vertical drift.")
+        if max_pct > threshold:
+            print(f"  WARNING: One file has {max_pct:.0f}% of changes (threshold {threshold}%) — possible vertical drift.")
         else:
-            print(f"  OK: Changes well distributed.")
+            print(f"  OK: Changes distributed (max {max_pct:.0f}%, threshold {threshold}%).")
     except Exception as e:
         print(f"scope check error: {e}")
 
@@ -670,7 +686,9 @@ sub.add_parser("complete",      help="Mark session complete and print summary")
 sub.add_parser("history",       help="Print session history and progress")
 
 p = sub.add_parser("scope",   help="Check git diff for horizontal balance (anti-drift)")
-p.add_argument("--depth", type=int, default=5, help="Number of commits to check")
+p.add_argument("--depth",     type=int,   default=5,    help="Number of commits to check (default 5)")
+p.add_argument("--threshold", type=float, default=50.0, help="%% concentration that triggers warning (default 50)")
+p.add_argument("--session",   action="store_true",      help="Use session_start_ref as base (only this session)")
 
 p = sub.add_parser("save",    help="Persist session state to git (survives container restart)")
 p = sub.add_parser("restore", help="Restore session state from git save")

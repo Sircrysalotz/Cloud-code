@@ -428,6 +428,37 @@ def test_heartbeat_runner():
     rc, out, err = run([PHANTOM, "config", "show", "testpoll2"])
     check("min_idle_polls settable in profile", "min_idle_polls" in out and "2" in out)
 
+    # heartbeat fire history written to state on fire
+    import tempfile
+    run([PHANTOM, "start", "fire history test", "--rounds", "1", "--interval", "1", "--force"])
+    state = read_state()
+    state["heartbeat_active"] = True
+    # Inject a last_active far in the past so runner fires on first poll
+    state["last_active"] = "2020-01-01 00:00:00"
+    # Use an empty temp dir so filesystem scan returns instantly (no files to walk)
+    with tempfile.TemporaryDirectory() as tmpws:
+        state["workspace_dir"] = tmpws
+        with open(STATE, "w") as f:
+            json.dump(state, f)
+        rc, out, err = run([RUNNER], timeout=10)
+    state_after = read_state()
+    fires = state_after.get("heartbeat_fires", [])
+    check("heartbeat_fires list exists after fire", isinstance(fires, list))
+    check("fire event has fired_at key", len(fires) > 0 and "fired_at" in fires[-1])
+    check("fire event has signal key", len(fires) > 0 and "signal" in fires[-1])
+    check("fire event has gap_seconds key", len(fires) > 0 and "gap_seconds" in fires[-1])
+    check("fire event records turns", len(fires) > 0 and "turns" in fires[-1])
+
+    # scope --session flag accepted
+    run([PHANTOM, "start", "scope test", "--force"])
+    rc, out, err = run([PHANTOM, "scope", "--session"])
+    check("scope --session exits 0", rc == 0)
+    check("scope --session shows label", "session" in out.lower() or "SCOPE CHECK" in out)
+
+    # scope --threshold flag changes warning level
+    rc, out, err = run([PHANTOM, "scope", "--threshold", "99"])
+    check("scope --threshold accepted", rc == 0)
+
     cleanup()
 
 
