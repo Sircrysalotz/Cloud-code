@@ -179,6 +179,36 @@ def test_phantom():
     check("history shows turns", "1/3" in out)
     check("history shows last note", "did some work" in out)
 
+    # save command (skip git push in tests — just check file written)
+    cleanup()
+    run([PHANTOM, "start", "save test", "--turns", "5"])
+    run([PHANTOM, "ping", "saved progress"])
+    SAVED = os.path.join(V2_DIR, "../logs/last_session_state.json")
+    rc, out, _ = run([PHANTOM, "save"])
+    check("save exits 0 or warns on push", rc == 0 or "push" in out.lower())
+    check("save writes last_session_state.json", os.path.exists(SAVED))
+    if os.path.exists(SAVED):
+        with open(SAVED) as f:
+            saved = json.load(f)
+        check("saved state has correct task", saved.get("task") == "save test")
+        check("saved state has saved_at timestamp", "saved_at" in saved)
+
+    # restore command
+    cleanup()
+    rc, out, _ = run([PHANTOM, "restore"])
+    check("restore exits 0 after save", rc == 0)
+    state = read_state()
+    check("restore clears heartbeat_active", state.get("heartbeat_active") == False)
+    check("restore clears agents_running", state.get("agents_running") == 0)
+    check("restore preserves task", state.get("task") == "save test")
+
+    # restore --force over existing session
+    run([PHANTOM, "start", "other task", "--force"])
+    rc, out, _ = run([PHANTOM, "restore"])
+    check("restore blocked without --force when session exists", rc == 1)
+    rc, out, _ = run([PHANTOM, "restore", "--force"])
+    check("restore --force succeeds", rc == 0)
+
     # PHANTOM_STATE isolation — confirm production state untouched
     check("test state isolated from /tmp/phantom_session.json",
           not os.path.exists("/tmp/phantom_session.json") or

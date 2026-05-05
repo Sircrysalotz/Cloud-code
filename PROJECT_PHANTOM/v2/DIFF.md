@@ -69,10 +69,16 @@ Generated after 10-turn autonomous improvement session.
 
 | Addition | Description |
 |---|---|
-| `test_v2.py` | 46 integration tests covering all phantom.py commands and heartbeat_runner edge cases |
+| `test_v2.py` | 51 integration tests covering all phantom.py commands and heartbeat_runner edge cases |
 | `PLAN.md` | Horizontal improvement tracker — ensures all files improve together |
 | `DIFF.md` | This file — v1 vs v2 comparison |
 | `PHANTOM_STATE` env var | Enables test isolation without touching production state |
+| `phantom.py complete` | Explicit session completion with full summary |
+| `phantom.py history` | Print session progress and last note |
+| `phantom.py save` | Persist session state to git (survives container restart) |
+| `phantom.py restore` | Restore saved state in a new container session |
+| `phantom.py reset` | Emergency cleanup of all state/lock files |
+| `last_session_state.json` | Git-persisted session state for cross-restart continuity |
 
 ---
 

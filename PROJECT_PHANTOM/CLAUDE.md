@@ -132,9 +132,25 @@ Use `run_in_background: true`.
 python3 PROJECT_PHANTOM/agents/phantom.py status
 ```
 
+### Save session state to git (call periodically — survives container restart)
+```bash
+python3 PROJECT_PHANTOM/agents/phantom.py save
+```
+
+### Restore after container restart
+```bash
+python3 PROJECT_PHANTOM/agents/phantom.py restore
+# Use --force to restore over an existing session
+```
+
 ### Explicit session end
 ```bash
 python3 PROJECT_PHANTOM/agents/phantom.py complete
+```
+
+### Session history
+```bash
+python3 PROJECT_PHANTOM/agents/phantom.py history
 ```
 
 ### Emergency cleanup
@@ -166,6 +182,21 @@ Last pushed entry on GitHub = last confirmed alive before container death.
 python3 PROJECT_PHANTOM/v2/test_v2.py
 # 46 tests covering all phantom.py commands + heartbeat_runner edge cases
 ```
+
+---
+
+## Anti-Drift Observations (from 10-turn session)
+
+Key patterns that cause drift in autonomous sessions:
+- Treating heartbeat as a turn timer (stop and wait) — it should fire when you genuinely stop
+- Writing code without pinging — looks idle to heartbeat even when active
+- Vertical creep on one file while others are neglected
+
+Proposed future agents (`v2/ANTI_DRIFT.md`):
+- **Scope Guard** — warns if one file is getting disproportionate commits
+- **Goal Alignment Checker** — re-reads task, flags if progress notes drift from goal
+- **Coverage Tracker** — tracks which targets have been touched vs skipped
+- **Progress Note Auditor** — flags vague notes, enforces specificity
 
 ---
 
