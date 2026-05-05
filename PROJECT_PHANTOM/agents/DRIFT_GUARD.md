@@ -20,8 +20,20 @@ If either check fails, exit immediately without doing anything.
 ```bash
 python3 /home/user/Cloud-code/PROJECT_PHANTOM/agents/drift_guard.py \
   --interval 60 \
-  --threshold 40
+  --threshold 50
 ```
+
+Optional flags:
+- `--scope file1 file2` — declare intended focus files; drift guard treats concentration there as CLEAN and flags changes outside scope as SCOPE_CREEP
+- `--trend-checks N` — number of consecutive checks above threshold before a TRENDING verdict fires (default 3)
+- `--hunk-spread N` — minimum hunk count before spread analysis exempts a file (default 4)
+
+Four-gate evaluation order:
+1. **Declared scope** — if scope_files set and dominant file is in scope, CLEAN; if outside scope > 30%, SCOPE_CREEP
+2. **Task alignment** — if dominant file name matches task keywords, CLEAN
+3. **Hunk spread** — if hunk_count ≥ threshold AND spread ≥ 0.3, CLEAN (changes distributed across file)
+4. **Trend detection** — if trending up AND consistently above threshold for N checks, TRENDING
+5. **Fallback** — raw percentage threshold → VERTICAL
 
 This runs until one of:
 1. **Drift detected** — exits code 1, warning written to session state

@@ -159,6 +159,7 @@ def cmd_start(args):
         "status":                 "active",
         "workspace_dir":          os.getcwd(),
         "profile":                args.profile if hasattr(args, "profile") and args.profile else None,
+        "scope_files":            getattr(args, "scope", None) or [],
     }
     atomic_write(state)
     print(f"Session started.")
@@ -475,7 +476,8 @@ PROFILE_KEYS = {
     "threshold":      (int,   180, "Idle threshold in seconds"),
     "interval":       (int,   30,  "Heartbeat poll interval in seconds"),
     "cooldown_factor":(float, 1.0, "Cooldown multiplier"),
-    "scope_threshold":(float, 40.0,"Scope guard drift threshold %"),
+    "scope_threshold":(float, 50.0,"Drift guard threshold % (last-resort gate)"),
+    "scope_files":    (list, [],   "Declared focus files for drift guard"),
     "coverage_targets":(list, [],  "Files to track for coverage"),
     "description":    (str,   "",  "Human-readable profile description"),
 }
@@ -598,6 +600,7 @@ p.add_argument("--threshold", type=int, default=180, help="Idle threshold in sec
 p.add_argument("--interval",        type=int,   default=30,  help="Heartbeat poll interval in seconds")
 p.add_argument("--cooldown-factor", type=float, default=1.0, help="Cooldown = threshold * factor (default 1.0)")
 p.add_argument("--profile",         default=None,            help="Load defaults from named profile (overridable by flags)")
+p.add_argument("--scope",  nargs="+", default=None,          help="Declared focus files for drift guard (e.g. --scope auth.py crypto.py)")
 p.add_argument("--force",           action="store_true",     help="Overwrite existing session")
 
 p = sub.add_parser("config", help="Manage session profiles")

@@ -38,9 +38,10 @@ Enables autonomous extended sessions. Heartbeat fires ONLY when Claude is genuin
 | Hardcoded poll interval | `check_interval_seconds` in state, set via `--interval` |
 | No SIGTERM handling | Graceful shutdown clears `heartbeat_active` flag |
 | No drift reporting | Reports `+Ns` past threshold on fire |
+| File-% drift fires on legitimate single-file tasks | Four-gate eval: declared scope → task alignment → hunk depth → trend |
 | No watchdog | Detects poll cycles taking >3x interval |
 | No session summary | Printed when `turns_taken == turns_target` |
-| No test coverage | 134 integration tests in `v2/test_v2.py` |
+| No test coverage | 148 integration tests in `v2/test_v2.py` |
 | False fire during active coding (no ping) | Filesystem + git index activity signals in heartbeat_runner |
 | All config flags must be typed each session | Profile system — named configs in `~/.phantom_profiles.json` |
 | No horizontal enforcement during sessions | `drift_guard.py` background agent — fires when one file > threshold% |
@@ -101,6 +102,9 @@ python3 PROJECT_PHANTOM/agents/phantom.py start "task" --profile sprint
 # Or with explicit flags
 python3 PROJECT_PHANTOM/agents/phantom.py start "task" --turns 10 --rounds 5 --threshold 180 --interval 30 --cooldown-factor 1.0
 
+# Declare intended scope — drift guard treats these files as expected focus
+python3 PROJECT_PHANTOM/agents/phantom.py start "task" --scope agents/drift_guard.py agents/phantom.py
+
 # Profile flags can still be overridden
 python3 PROJECT_PHANTOM/agents/phantom.py start "task" --profile sprint --turns 3
 ```
@@ -117,6 +121,13 @@ python3 PROJECT_PHANTOM/agents/phantom.py drift-arm
 # "Read /home/user/Cloud-code/PROJECT_PHANTOM/agents/DRIFT_GUARD.md and execute."
 # use run_in_background: true
 ```
+
+Drift guard uses four-gate evaluation (v2):
+1. Declared scope (`--scope` on `phantom.py start`) — concentrating on scope files is CLEAN; creeping outside is SCOPE_CREEP
+2. Task alignment — dominant file matching task keywords is CLEAN (e.g., editing `drift_guard.py` when task says "improve drift guard")
+3. Hunk spread — many hunks distributed across a file signals horizontal work → CLEAN
+4. Trend detection — only fires TRENDING after N consecutive checks above threshold
+5. Fallback — raw % → VERTICAL (last resort)
 
 ### When drift guard returns
 ```bash
@@ -240,7 +251,7 @@ Last pushed entry on GitHub = last confirmed alive before container death.
 ```bash
 # Run full integration suite (isolated from live session)
 python3 PROJECT_PHANTOM/v2/test_v2.py
-# 46 tests covering all phantom.py commands + heartbeat_runner edge cases
+# 148 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
 ```
 
 ---

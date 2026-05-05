@@ -1,27 +1,35 @@
 #!/usr/bin/env python3
 """
-Phantom Drift Guard — background agent that monitors horizontal drift.
+Phantom Drift Guard v2 — smarter horizontal drift detection.
 
-Runs alongside the heartbeat during a session. Periodically checks git diff
-stats to detect vertical drilling (one file getting disproportionate changes).
-Also checks goal alignment: are the changed files plausibly related to the
-stated task?
+Four-gate evaluation replaces the naive file-percentage threshold:
 
-When drift is detected, writes a warning to session state and exits — waking
-the main Claude session so it can self-correct before continuing.
+  Gate 1 — Declared scope:  if changes stay within --scope files, not drift.
+            Fires on SCOPE CREEP instead (changes outside declared scope).
+  Gate 2 — Task alignment:  if dominant file matches task keywords, suppress.
+            A file that IS the task having 90% of changes is expected.
+  Gate 3 — Intra-file depth: many spread hunks = horizontal-within-file, not drift.
+            One function growing huge = vertical drilling = drift.
+  Gate 4 — Trend detection: track % over checks; warn on sustained upward trend
+            even when below threshold, indicating slow vertical drilling.
+
+All gates configurable. Falls back to simple threshold check when no context.
 
 Exit codes:
-  0 — clean exit (session complete, rounds done, or SIGTERM)
+  0 — clean exit (session complete, disarmed, or SIGTERM)
   1 — drift detected (warning written to session state)
 
-Usage (run as background sub-agent):
+Usage:
   python3 drift_guard.py [options]
 
 Options:
-  --interval N      Poll every N seconds (default: 60)
-  --threshold N     Warn if any file exceeds N% of changes (default: 40)
-  --since REF       Git ref to diff from (default: auto-detect merge-base)
-  --min-lines N     Minimum total changed lines before checking (default: 20)
+  --interval N        Poll every N seconds (default: 60)
+  --threshold N       Raw % threshold — only used as last resort (default: 50)
+  --scope f1 f2 ...   Expected focus files (overrides session state scope_files)
+  --since REF         Git ref to diff from (default: auto-detect)
+  --min-lines N       Min changed lines before checking (default: 20)
+  --trend-checks N    Checks needed to detect a trend (default: 3)
+  --hunk-spread N     Hunk spread ratio below which file is "vertical" (default: 0.3)
 """
 
 import argparse
@@ -34,8 +42,16 @@ import sys
 import time
 from datetime import datetime
 
+
 STATE_FILE = os.environ.get("PHANTOM_STATE", "/tmp/phantom_session.json")
 TEMP_FILE  = STATE_FILE + ".tmp"
+
+STOP_WORDS = {
+    "with", "that", "this", "from", "have", "will", "also", "into", "over",
+    "then", "when", "where", "while", "about", "build", "make", "adds", "more",
+    "each", "some", "only", "both", "very", "just", "does", "uses", "gets",
+    "runs", "file", "code", "test", "adds", "runs", "take", "give", "work",
+}
 
 
 # ─── State I/O ────────────────────────────────────────────────────────────────
@@ -75,13 +91,10 @@ def signal_handler(sig, frame):
     sys.exit(0)
 
 
-# ─── Git analysis ─────────────────────────────────────────────────────────────
+# ─── Git helpers ──────────────────────────────────────────────────────────────
 
-def git(args, cwd, check=False):
-    return subprocess.run(
-        ["git"] + args, cwd=cwd,
-        capture_output=True, text=True
-    )
+def git(args, cwd):
+    return subprocess.run(["git"] + args, cwd=cwd, capture_output=True, text=True)
 
 
 def find_since(workspace: str, base_branch: str | None = None) -> str | None:
@@ -107,93 +120,246 @@ def parse_diff_stat(stat_output: str) -> dict[str, int]:
     return files
 
 
-def check_scope(workspace: str, since: str, threshold: float, min_lines: int) -> dict:
+# ─── Analysis functions ───────────────────────────────────────────────────────
+
+def get_file_scores(workspace: str, since: str) -> tuple[dict, list]:
     """
-    Returns a result dict:
-      clean     bool
-      total     int
-      files     list of (name, lines, pct)
-      drifters  list of (name, lines, pct) exceeding threshold
-      since     str
+    Returns (raw_files: {name: lines}, scored: [(name, lines, pct)]).
+    scored is sorted by pct descending.
     """
     r = git(["diff", "--stat", since, "HEAD"], workspace)
     if r.returncode != 0:
-        return {"error": r.stderr.strip()}
-
+        return {}, []
     files = parse_diff_stat(r.stdout)
-    if not files:
-        return {"clean": True, "total": 0, "files": [], "drifters": [], "since": since}
-
     total = sum(files.values())
-    if total < min_lines:
-        return {"clean": True, "total": total, "files": [], "drifters": [], "since": since,
-                "note": f"only {total} lines changed (min {min_lines})"}
-
+    if not total:
+        return files, []
     scored = sorted(
         [(name, lines, 100.0 * lines / total) for name, lines in files.items()],
         key=lambda x: -x[2]
     )
-    drifters = [(n, l, p) for n, l, p in scored if p > threshold]
-
-    return {
-        "clean":    len(drifters) == 0,
-        "total":    total,
-        "files":    scored,
-        "drifters": drifters,
-        "since":    since,
-    }
+    return files, scored
 
 
-def check_goal_alignment(workspace: str, since: str, task: str) -> dict:
+def count_hunks(workspace: str, since: str) -> dict[str, dict]:
     """
-    Lightweight keyword-based check: do changed filenames relate to the task?
-    Returns alignment score 0.0–1.0 and a note.
-    """
-    if not task:
-        return {"score": 1.0, "note": "no task set"}
+    Per-file hunk analysis. Returns:
+      {filename: {hunk_count, position_span, hunk_spread}}
 
-    r = git(["diff", "--name-only", since, "HEAD"], workspace)
+    hunk_spread: 0.0 = all changes in one place (vertical),
+                 1.0 = changes spread across entire file (horizontal).
+    """
+    r = git(["diff", "--unified=0", since, "HEAD"], workspace)
     if r.returncode != 0:
-        return {"score": 1.0, "note": "git diff failed"}
+        return {}
 
-    changed = [f.lower() for f in r.stdout.strip().splitlines() if f]
-    if not changed:
-        return {"score": 1.0, "note": "no files changed"}
+    result = {}
+    current = None
 
-    # Extract keywords from task (words ≥4 chars, skip common words)
-    stop = {"with", "that", "this", "from", "have", "will", "also", "into",
-            "over", "then", "when", "where", "while", "about", "build",
-            "make", "adds", "more", "each", "some", "only", "both", "very"}
-    task_words = {w.lower() for w in re.findall(r'\b[a-zA-Z]{4,}\b', task)
-                  if w.lower() not in stop}
+    for line in r.stdout.splitlines():
+        if line.startswith("+++ b/"):
+            current = line[6:]
+            result[current] = {"hunk_count": 0, "positions": []}
+        elif line.startswith("@@") and current:
+            result[current]["hunk_count"] += 1
+            m = re.match(r"@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", line)
+            if m:
+                result[current]["positions"].append(int(m.group(1)))
 
-    if not task_words:
-        return {"score": 1.0, "note": "no meaningful keywords in task"}
+    for fname, data in result.items():
+        positions = data.pop("positions")
+        if len(positions) >= 2:
+            span = max(positions) - min(positions)
+            data["position_span"] = span
+            # Normalize: 300+ line span = fully spread (1.0)
+            data["hunk_spread"] = min(1.0, span / 300.0)
+        else:
+            data["position_span"] = 0
+            data["hunk_spread"] = 0.0
 
-    # Check how many changed files mention a task keyword (in path or name)
-    matched = sum(
-        1 for f in changed
-        if any(kw in f for kw in task_words)
-    )
-    score = matched / len(changed) if changed else 1.0
+    return result
 
-    if score < 0.2 and len(changed) >= 3:
-        note = (f"{matched}/{len(changed)} changed files relate to task keywords "
-                f"({', '.join(sorted(task_words)[:5])})")
-    else:
-        note = f"{matched}/{len(changed)} files match task keywords"
 
-    return {"score": score, "note": note}
+def extract_task_words(task: str) -> set[str]:
+    return {w.lower() for w in re.findall(r'\b[a-zA-Z]{4,}\b', task)
+            if w.lower() not in STOP_WORDS}
+
+
+def file_matches_task(filepath: str, task_words: set[str]) -> bool:
+    """True if any task keyword appears in the file path."""
+    path_lower = filepath.lower().replace("_", " ").replace("/", " ").replace(".", " ")
+    return any(w in path_lower for w in task_words)
+
+
+def scope_match(filepath: str, scope_files: list[str]) -> bool:
+    """True if filepath matches any declared scope file."""
+    fp_lower = filepath.lower()
+    for s in scope_files:
+        s_lower = s.lower()
+        if s_lower in fp_lower or os.path.basename(s_lower) in fp_lower:
+            return True
+    return False
+
+
+# ─── Trend tracker ────────────────────────────────────────────────────────────
+
+class TrendTracker:
+    def __init__(self, window: int = 3):
+        self.window = window
+        self.history: list[dict[str, float]] = []
+
+    def update(self, scored: list) -> None:
+        snapshot = {name: pct for name, _lines, pct in scored}
+        self.history.append(snapshot)
+        if len(self.history) > self.window + 2:
+            self.history.pop(0)
+
+    def trend(self, filename: str) -> tuple[str, float]:
+        """
+        Returns (direction, avg_delta_per_check).
+        direction: 'up' | 'down' | 'stable' | 'unknown'
+        """
+        pcts = [h.get(filename, 0.0) for h in self.history]
+        if len(pcts) < self.window:
+            return "unknown", 0.0
+        recent = pcts[-self.window:]
+        deltas = [recent[i+1] - recent[i] for i in range(len(recent)-1)]
+        avg = sum(deltas) / len(deltas) if deltas else 0.0
+        if avg > 2.0:
+            return "up", avg
+        if avg < -2.0:
+            return "down", avg
+        return "stable", avg
+
+    def consistently_above(self, filename: str, threshold: float) -> bool:
+        """True if file has been above threshold for all recent checks."""
+        if len(self.history) < self.window:
+            return False
+        return all(h.get(filename, 0) > threshold for h in self.history[-self.window:])
+
+
+# ─── Four-gate drift evaluation ───────────────────────────────────────────────
+
+def evaluate_drift(
+    scored: list,
+    total: int,
+    hunk_data: dict,
+    trend: TrendTracker,
+    task: str,
+    scope_files: list[str],
+    threshold: float,
+    min_lines: int,
+    hunk_spread_min: float,
+) -> tuple[bool, str, str]:
+    """
+    Returns (is_drift: bool, verdict: str, reason: str).
+    verdict: 'CLEAN' | 'SCOPE_CREEP' | 'VERTICAL' | 'TRENDING' | 'THRESHOLD'
+    """
+    if total < min_lines:
+        return False, "CLEAN", f"only {total} lines changed (min {min_lines})"
+
+    if not scored:
+        return False, "CLEAN", "no files changed"
+
+    top_name, top_lines, top_pct = scored[0]
+    task_words = extract_task_words(task)
+
+    # ── Gate 1: Declared scope ────────────────────────────────────────────────
+    if scope_files:
+        in_scope  = [(n, l, p) for n, l, p in scored if scope_match(n, scope_files)]
+        out_scope = [(n, l, p) for n, l, p in scored if not scope_match(n, scope_files)]
+        in_scope_lines  = sum(l for _, l, _ in in_scope)
+        out_scope_lines = sum(l for _, l, _ in out_scope)
+        out_pct = 100.0 * out_scope_lines / total if total else 0
+
+        if out_pct > 30:
+            files_list = ", ".join(n for n, _, _ in out_scope[:3])
+            return (True, "SCOPE_CREEP",
+                    f"{out_pct:.0f}% of changes are outside declared scope "
+                    f"({files_list})")
+
+        # Within declared scope — check balance within scope
+        if len(in_scope) >= 2:
+            top_in = in_scope[0]
+            in_total = in_scope_lines or 1
+            top_in_pct = 100.0 * top_in[1] / in_total
+            if top_in_pct > threshold * 1.5:
+                # Still check task alignment and hunk spread before flagging
+                if not file_matches_task(top_in[0], task_words):
+                    depth = hunk_data.get(top_in[0], {})
+                    if depth.get("hunk_spread", 0) < hunk_spread_min:
+                        return (True, "VERTICAL",
+                                f"within scope: {top_in[0]} has {top_in_pct:.0f}% "
+                                f"of in-scope changes with low hunk spread "
+                                f"({depth.get('hunk_spread', 0):.1%})")
+        return False, "CLEAN", f"changes within declared scope ({out_pct:.0f}% outside)"
+
+    # ── Gate 2: Task alignment ────────────────────────────────────────────────
+    if task_words and file_matches_task(top_name, task_words):
+        matched_words = [w for w in task_words if w in top_name.lower()]
+        # Even aligned files can drift if trending badly AND very dominant
+        t_dir, t_rate = trend.trend(top_name)
+        if t_dir == "up" and top_pct > threshold * 1.4 and trend.consistently_above(top_name, threshold):
+            return (True, "TRENDING",
+                    f"task-aligned {top_name} is trending up "
+                    f"(+{t_rate:.1f}%/check, now {top_pct:.0f}%) — "
+                    f"consistently dominant despite alignment")
+        return (False, "CLEAN",
+                f"{top_name} matches task keywords {matched_words} "
+                f"({top_pct:.0f}% — expected)")
+
+    # ── Gate 3: Intra-file depth ──────────────────────────────────────────────
+    if top_pct > threshold:
+        depth = hunk_data.get(top_name, {})
+        hunk_count  = depth.get("hunk_count", 0)
+        hunk_spread = depth.get("hunk_spread", 0.0)
+
+        if hunk_count >= 4 and hunk_spread >= hunk_spread_min:
+            # Many spread hunks = horizontal work within file
+            # Still flag if trending badly
+            t_dir, t_rate = trend.trend(top_name)
+            if t_dir == "up" and trend.consistently_above(top_name, threshold):
+                return (True, "TRENDING",
+                        f"{top_name}: {hunk_count} hunks spread across file "
+                        f"but trending up (+{t_rate:.1f}%/check, {top_pct:.0f}%) — "
+                        f"consider spreading to other files")
+            return (False, "CLEAN",
+                    f"{top_name}: {hunk_count} hunks, spread={hunk_spread:.1%} "
+                    f"— horizontal work within file ({top_pct:.0f}%)")
+
+    # ── Gate 4: Trend detection ───────────────────────────────────────────────
+    if top_pct <= threshold:
+        t_dir, t_rate = trend.trend(top_name)
+        if t_dir == "up" and trend.consistently_above(top_name, threshold * 0.7):
+            return (True, "TRENDING",
+                    f"{top_name} trending up (+{t_rate:.1f}%/check, now {top_pct:.0f}%) "
+                    f"— slow vertical drift building")
+        return False, "CLEAN", f"top file {top_name} at {top_pct:.0f}% (threshold {threshold:.0f}%)"
+
+    # ── Fallback: raw threshold ───────────────────────────────────────────────
+    depth = hunk_data.get(top_name, {})
+    return (True, "VERTICAL",
+            f"{top_name} has {top_pct:.0f}% of {total} changed lines "
+            f"(threshold {threshold:.0f}%, hunks={depth.get('hunk_count',0)}, "
+            f"spread={depth.get('hunk_spread',0):.1%})")
 
 
 # ─── Main loop ────────────────────────────────────────────────────────────────
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Drift Guard — background horizontal drift monitor")
-    p.add_argument("--interval",  type=int,   default=60,   help="Poll interval in seconds")
-    p.add_argument("--threshold", type=float, default=40.0, help="Scope drift threshold %%")
-    p.add_argument("--since",     default=None,             help="Git ref to diff from")
-    p.add_argument("--min-lines", type=int,   default=20,   help="Min changed lines before checking")
+    p = argparse.ArgumentParser(
+        description="Drift Guard v2 — smarter horizontal drift detection")
+    p.add_argument("--interval",     type=int,   default=60)
+    p.add_argument("--threshold",    type=float, default=50.0,
+                   help="Raw %% threshold (last-resort gate, default 50)")
+    p.add_argument("--scope",        nargs="+",  default=None,
+                   help="Declared focus files (suppresses false positives)")
+    p.add_argument("--since",        default=None)
+    p.add_argument("--min-lines",    type=int,   default=20)
+    p.add_argument("--trend-checks", type=int,   default=3,
+                   help="History window for trend detection")
+    p.add_argument("--hunk-spread",  type=float, default=0.3,
+                   help="Min hunk spread ratio to consider work horizontal")
     return p.parse_args()
 
 
@@ -214,19 +380,26 @@ def main():
 
     workspace = state.get("workspace_dir", "")
     if not workspace or not os.path.isdir(workspace):
-        print(f"ERROR: workspace_dir not set or missing in session state.")
-        print("  Start session with an up-to-date phantom.py that stores workspace_dir.")
+        print("ERROR: workspace_dir not set or missing in session state.")
+        print("  Start session with an up-to-date phantom.py.")
         clear_active_flag()
         sys.exit(1)
 
-    task     = state.get("task", "")
-    since    = args.since or find_since(workspace)
-    checks   = 0
+    task         = state.get("task", "")
+    scope_files  = args.scope or state.get("scope_files") or []
+    since        = args.since or find_since(workspace)
+    tracker      = TrendTracker(window=args.trend_checks)
+    checks       = 0
 
-    print(f"Drift Guard active")
-    print(f"  Workspace: {workspace}")
-    print(f"  Threshold: {args.threshold:.0f}% | Poll: {args.interval}s | Since: {since}")
-    print(f"  Task:      {task[:60]}{'...' if len(task) > 60 else ''}")
+    print("Drift Guard v2 active")
+    print(f"  Workspace:  {workspace}")
+    print(f"  Threshold:  {args.threshold:.0f}% | Poll: {args.interval}s | Since: {since}")
+    print(f"  Hunk spread min: {args.hunk_spread:.0%} | Trend window: {args.trend_checks} checks")
+    if scope_files:
+        print(f"  Scope:      {', '.join(scope_files)}")
+    else:
+        print(f"  Scope:      auto (task alignment + hunk analysis)")
+    print(f"  Task:       {task[:70]}{'...' if len(task) > 70 else ''}")
 
     while True:
         time.sleep(args.interval)
@@ -238,54 +411,58 @@ def main():
             print(f"[{ts}] ERROR: State file lost.")
             sys.exit(1)
 
-        # Exit if session ended or drift guard disarmed externally
-        if state.get("status") in ("complete",):
+        if state.get("status") == "complete":
             print(f"[{ts}] Session complete. Drift guard shutting down.")
             clear_active_flag()
             sys.exit(0)
 
         if not state.get("drift_guard_active"):
-            print(f"[{ts}] Drift guard disarmed externally. Exiting.")
+            print(f"[{ts}] Disarmed externally. Exiting.")
             sys.exit(0)
 
-        # Scope check
-        scope = check_scope(workspace, since, args.threshold, args.min_lines)
+        # Gather data
+        _files, scored = get_file_scores(workspace, since)
+        total = sum(l for _, l, _ in scored)
 
-        if "error" in scope:
-            print(f"[{ts}] Scope check error: {scope['error']}")
+        if not scored or total < args.min_lines:
+            note = f"only {total} lines" if total > 0 else "no changes yet"
+            print(f"[{ts}] Check #{checks} — {note}")
             continue
 
-        if "note" in scope and scope["total"] == 0:
-            print(f"[{ts}] OK — {scope.get('note', 'no changes yet')}")
+        hunk_data = count_hunks(workspace, since)
+        tracker.update(scored)
+
+        top_name, _top_lines, top_pct = scored[0]
+
+        # Evaluate
+        is_drift, verdict, reason = evaluate_drift(
+            scored, total, hunk_data, tracker,
+            state.get("task", ""),
+            scope_files,
+            args.threshold,
+            args.min_lines,
+            args.hunk_spread,
+        )
+
+        print(f"[{ts}] Check #{checks} | {total} lines | top: {top_name} ({top_pct:.0f}%) | {verdict}")
+
+        if not is_drift:
             continue
 
-        # Build status line
-        top = scope["files"][0] if scope["files"] else None
-        top_str = f"{top[0]} ({top[2]:.0f}%)" if top else "—"
-        print(f"[{ts}] Check #{checks} | {scope['total']} lines | top: {top_str} | {'CLEAN' if scope['clean'] else 'DRIFT'}")
-
-        if scope["clean"]:
-            continue
-
-        # Goal alignment check
-        alignment = check_goal_alignment(workspace, since, state.get("task", ""))
-
-        # Build warning message
-        drifters = scope["drifters"]
-        warning_parts = [
-            f"DRIFT DETECTED after {checks} check(s):",
-            f"  Scope: {drifters[0][0]} has {drifters[0][2]:.0f}% of {scope['total']} changed lines (threshold: {args.threshold:.0f}%)",
+        # Build warning
+        warning_lines = [
+            f"DRIFT DETECTED [{verdict}] after {checks} check(s):",
+            f"  {reason}",
+            f"  Since: {since}",
+            f"  Top 3 files:",
         ]
-        if len(drifters) > 1:
-            for n, l, p in drifters[1:]:
-                warning_parts.append(f"  Also: {n} ({p:.0f}%)")
-        if alignment["score"] < 0.3:
-            warning_parts.append(f"  Alignment: {alignment['note']}")
-        warning_parts.append(f"  Since: {since}")
+        for name, lines, pct in scored[:3]:
+            depth = hunk_data.get(name, {})
+            hunk_info = f"{depth.get('hunk_count', '?')} hunks, spread={depth.get('hunk_spread', 0):.0%}"
+            warning_lines.append(f"    {pct:5.1f}%  {name}  ({hunk_info})")
 
-        warning = "\n".join(warning_parts)
+        warning = "\n".join(warning_lines)
 
-        # Write warning to state, clear active flag, exit
         state["drift_warning"]      = warning
         state["drift_warned_at"]    = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         state["drift_guard_active"] = False
@@ -294,7 +471,7 @@ def main():
         print("=" * 54)
         print(warning)
         print("=" * 54)
-        print("ACTION: Spread changes more horizontally, then re-arm drift guard.")
+        print("ACTION: Spread changes, then re-arm: phantom.py drift-arm")
         sys.exit(1)
 
 

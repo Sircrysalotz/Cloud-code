@@ -470,43 +470,105 @@ def test_drift_guard():
     check("drift_guard exits on missing workspace", rc != 0)
     check("drift_guard prints workspace error", "workspace" in out.lower() or "workspace" in err.lower())
 
+    # scope_files stored in session state on start
+    run([PHANTOM, "start", "scoped task", "--turns", "3",
+         "--scope", "auth.py", "crypto.py", "--force"])
+    state = read_state()
+    check("start --scope stores scope_files in state", state.get("scope_files") == ["auth.py", "crypto.py"])
+
     # Unit tests — import drift_guard functions directly
     import importlib.util
     spec = importlib.util.spec_from_file_location("drift_guard", DRIFT)
     dg   = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(dg)
 
-    workspace = os.path.dirname(V2_DIR)  # PROJECT_PHANTOM dir or higher
-    # find a real git workspace (Cloud-code root)
     git_workspace = os.path.dirname(os.path.dirname(V2_DIR))
 
     # find_since returns a string
     since = dg.find_since(git_workspace)
     check("find_since returns non-empty string", isinstance(since, str) and len(since) > 0)
 
-    # check_scope returns expected keys
-    result = dg.check_scope(git_workspace, since, threshold=40.0, min_lines=5)
-    check("check_scope returns dict with 'clean' key", "clean" in result)
-    check("check_scope returns dict with 'total' key", "total" in result)
-    check("check_scope returns dict with 'files' key", "files" in result)
-    check("check_scope returns dict with 'drifters' key", "drifters" in result)
-    check("check_scope total >= 0", result.get("total", -1) >= 0)
+    # get_file_scores returns raw dict and scored list
+    raw, scored = dg.get_file_scores(git_workspace, since)
+    check("get_file_scores returns scored list", isinstance(scored, list))
+    check("scored list has tuples of 3", all(len(x) == 3 for x in scored[:3]))
+    if scored:
+        check("scored pct sums to ~100", abs(sum(p for _, _, p in scored) - 100.0) < 1.0)
 
-    # check_scope on non-git dir returns error
-    err_result = dg.check_scope("/tmp", "HEAD~1", threshold=40.0, min_lines=5)
-    check("check_scope returns error on non-git dir", "error" in err_result or err_result.get("total", -1) >= 0)
+    # count_hunks returns per-file hunk analysis
+    hunks = dg.count_hunks(git_workspace, since)
+    check("count_hunks returns dict", isinstance(hunks, dict))
+    for fname, data in list(hunks.items())[:3]:
+        check(f"hunk data has hunk_count for {fname[:30]}", "hunk_count" in data)
+        check(f"hunk data has hunk_spread for {fname[:30]}", "hunk_spread" in data)
+        check(f"hunk_spread 0–1 for {fname[:30]}", 0.0 <= data.get("hunk_spread", -1) <= 1.0)
 
-    # check_goal_alignment returns score and note
-    align = dg.check_goal_alignment(git_workspace, since, "build drift guard monitoring agent")
-    check("check_goal_alignment returns score", "score" in align)
-    check("check_goal_alignment score is 0–1", 0.0 <= align.get("score", -1) <= 1.0)
-    check("check_goal_alignment returns note", "note" in align)
+    # TrendTracker — basic operations
+    tracker = dg.TrendTracker(window=3)
+    check("trend unknown with no history", tracker.trend("a.py")[0] == "unknown")
+    tracker.update([("a.py", 80, 80.0), ("b.py", 20, 20.0)])
+    tracker.update([("a.py", 85, 85.0), ("b.py", 15, 15.0)])
+    tracker.update([("a.py", 90, 90.0), ("b.py", 10, 10.0)])
+    t_dir, t_rate = tracker.trend("a.py")
+    check("trend detects upward trend", t_dir == "up")
+    check("trend rate is positive", t_rate > 0)
+    check("consistently_above detects sustained high pct", tracker.consistently_above("a.py", 70.0))
+    check("consistently_above false when not sustained", not tracker.consistently_above("a.py", 95.0))
 
-    # goal alignment with empty task returns 1.0
-    align_empty = dg.check_goal_alignment(git_workspace, since, "")
-    check("goal alignment with empty task returns 1.0", align_empty.get("score") == 1.0)
+    # evaluate_drift — Gate 1: declared scope, changes within scope → CLEAN
+    in_scope_scored = [("auth.py", 80, 80.0), ("crypto.py", 20, 20.0)]
+    in_scope_hunks  = {"auth.py": {"hunk_count": 5, "hunk_spread": 0.6}}
+    t2 = dg.TrendTracker(3)
+    t2.update(in_scope_scored)
+    is_d, verdict, _ = dg.evaluate_drift(
+        in_scope_scored, 100, in_scope_hunks, t2,
+        task="improve auth module", scope_files=["auth.py", "crypto.py"],
+        threshold=50.0, min_lines=5, hunk_spread_min=0.3)
+    check("Gate1: within declared scope → CLEAN", not is_d and verdict == "CLEAN")
 
-    # parse_diff_stat parses correctly
+    # evaluate_drift — Gate 1: scope creep → SCOPE_CREEP
+    creep_scored = [("auth.py", 30, 30.0), ("random_util.py", 40, 40.0), ("other.py", 30, 30.0)]
+    t3 = dg.TrendTracker(3)
+    t3.update(creep_scored)
+    is_d2, verdict2, _ = dg.evaluate_drift(
+        creep_scored, 100, {}, t3,
+        task="improve auth", scope_files=["auth.py"],
+        threshold=50.0, min_lines=5, hunk_spread_min=0.3)
+    check("Gate1: changes outside scope → SCOPE_CREEP", is_d2 and verdict2 == "SCOPE_CREEP")
+
+    # evaluate_drift — Gate 2: task alignment → CLEAN
+    aligned_scored = [("drift_guard.py", 85, 85.0), ("test.py", 15, 15.0)]
+    t4 = dg.TrendTracker(3)
+    t4.update(aligned_scored)
+    is_d3, verdict3, _ = dg.evaluate_drift(
+        aligned_scored, 100, {"drift_guard.py": {"hunk_count": 3, "hunk_spread": 0.2}}, t4,
+        task="improve drift guard detection logic", scope_files=[],
+        threshold=50.0, min_lines=5, hunk_spread_min=0.3)
+    check("Gate2: dominant file matches task → CLEAN", not is_d3 and verdict3 == "CLEAN")
+
+    # evaluate_drift — Gate 3: many spread hunks → CLEAN
+    spread_scored = [("big_refactor.py", 80, 80.0), ("b.py", 20, 20.0)]
+    t5 = dg.TrendTracker(3)
+    t5.update(spread_scored)
+    is_d4, verdict4, _ = dg.evaluate_drift(
+        spread_scored, 100,
+        {"big_refactor.py": {"hunk_count": 12, "hunk_spread": 0.85}}, t5,
+        task="general refactor", scope_files=[],
+        threshold=50.0, min_lines=5, hunk_spread_min=0.3)
+    check("Gate3: many spread hunks → CLEAN", not is_d4 and verdict4 == "CLEAN")
+
+    # evaluate_drift — Fallback: 1 hunk, low spread, no alignment → VERTICAL
+    vert_scored = [("only_file.py", 80, 80.0), ("b.py", 20, 20.0)]
+    t6 = dg.TrendTracker(3)
+    for _ in range(4): t6.update(vert_scored)
+    is_d5, verdict5, _ = dg.evaluate_drift(
+        vert_scored, 100,
+        {"only_file.py": {"hunk_count": 1, "hunk_spread": 0.05}}, t6,
+        task="update config system", scope_files=[],
+        threshold=50.0, min_lines=5, hunk_spread_min=0.3)
+    check("Fallback: 1 hunk no alignment → VERTICAL drift", is_d5 and verdict5 == "VERTICAL")
+
+    # parse_diff_stat still works
     sample = " a.py | 90 +++---\n b.py | 15 +++\n 2 files changed\n"
     files = dg.parse_diff_stat(sample)
     check("parse_diff_stat parses a.py", files.get("a.py") == 90)
