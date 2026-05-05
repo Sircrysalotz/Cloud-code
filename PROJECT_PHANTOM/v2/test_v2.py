@@ -231,6 +231,59 @@ def test_phantom():
           open("/tmp/phantom_session.json").read() != open(STATE).read()
           if os.path.exists(STATE) else True)
 
+    # ── report command ──
+    cleanup()
+    run([PHANTOM, "start", "report test", "--turns", "5", "--rounds", "3"])
+    run([PHANTOM, "ping", "first turn note"])
+    rc, out, _ = run([PHANTOM, "report"])
+    check("report exits 0", rc == 0)
+    check("report shows SESSION REPORT header", "SESSION REPORT" in out)
+    check("report shows task name", "report test" in out)
+    check("report shows status", "ACTIVE" in out)
+    check("report shows turns", "1/5" in out)
+    check("report shows last note", "first turn note" in out)
+    check("report shows Rounds section", "Rounds:" in out)
+    check("report shows Heartbeat status", "Heartbeat:" in out)
+    # report on completed session
+    run([PHANTOM, "complete"])
+    rc, out, _ = run([PHANTOM, "report"])
+    check("report on completed session shows COMPLETE", "COMPLETE" in out)
+
+    # ── recover command ──
+    cleanup()
+    run([PHANTOM, "start", "recover test", "--turns", "5"])
+    run([PHANTOM, "ping", "working"])
+    run([PHANTOM, "heartbeat-arm"])
+    run([PHANTOM, "agent-start", "--id", "stuck-agent"])
+    run([PHANTOM, "drift-arm"])
+    state = read_state()
+    check("setup: heartbeat_active is true", state.get("heartbeat_active") == True)
+    check("setup: agents_running is 1", state.get("agents_running") == 1)
+    check("setup: drift_guard_active is true", state.get("drift_guard_active") == True)
+    rc, out, _ = run([PHANTOM, "recover"])
+    check("recover exits 0", rc == 0)
+    check("recover output mentions heartbeat_active", "heartbeat_active" in out)
+    check("recover output mentions agents_running", "agents_running" in out)
+    check("recover output mentions drift_guard_active", "drift_guard_active" in out)
+    state = read_state()
+    check("recover clears heartbeat_active", state.get("heartbeat_active") == False)
+    check("recover clears agents_running", state.get("agents_running") == 0)
+    check("recover clears drift_guard_active", state.get("drift_guard_active") == False)
+    # verify task and turns are preserved
+    check("recover preserves task", state.get("task") == "recover test")
+    check("recover preserves turns_taken", state.get("turns_taken") == 1)
+    # recover on clean session
+    run([PHANTOM, "reset"])
+    run([PHANTOM, "start", "clean session"])
+    rc, out, _ = run([PHANTOM, "recover"])
+    check("recover on clean session exits 0", rc == 0)
+    check("recover on clean session says no stuck flags", "No stuck flags" in out)
+    # recover with no session
+    run([PHANTOM, "reset"])
+    rc, out, _ = run([PHANTOM, "recover"])
+    check("recover with no session exits 0", rc == 0)
+    check("recover with no session says no session", "No active session" in out)
+
     cleanup()
 
 

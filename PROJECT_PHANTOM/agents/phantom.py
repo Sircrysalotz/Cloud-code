@@ -508,6 +508,138 @@ def cmd_history(args):
     print("=" * 50)
 
 
+def cmd_recover(args):
+    """Soft reset: clears stuck flags without touching task, turns, or history."""
+    state = read_state()
+    if not state:
+        print("No active session to recover.")
+        return
+    cleared = []
+    if state.get("heartbeat_active"):
+        state["heartbeat_active"] = False
+        cleared.append("heartbeat_active → False")
+    if state.get("agents_running", 0) != 0:
+        state["agents_running"]   = 0
+        state["active_agent_ids"] = []
+        cleared.append(f"agents_running → 0  (cleared {state.get('active_agent_ids', [])})")
+    elif state.get("active_agent_ids"):
+        state["active_agent_ids"] = []
+        cleared.append("active_agent_ids → []")
+    if state.get("drift_guard_active"):
+        state["drift_guard_active"] = False
+        cleared.append("drift_guard_active → False")
+    if cleared:
+        atomic_write(state)
+        print("Recovered — cleared stuck flags:")
+        for c in cleared:
+            print(f"  {c}")
+        print(f"Task:  {state.get('task', '?')}")
+        print(f"Turns: {state.get('turns_taken', 0)}/{state.get('turns_target', '?')}")
+        print("Re-arm heartbeat/drift guard if needed.")
+    else:
+        print("No stuck flags found — session state looks clean.")
+        print(f"  heartbeat_active: {state.get('heartbeat_active', False)}")
+        print(f"  agents_running:   {state.get('agents_running', 0)}")
+        print(f"  drift_guard_active: {state.get('drift_guard_active', False)}")
+
+
+def cmd_report(args):
+    """Print a full session report: overview, fire history, scope snapshot."""
+    state = read_state()
+    if not state:
+        print("No active session.")
+        return
+    sep = "=" * 56
+    print(sep)
+    print("  SESSION REPORT")
+    print(sep)
+    print(f"  Task:    {state.get('task', '?')}")
+    print(f"  Status:  {state.get('status', '?').upper()}")
+    print(f"  Started: {state.get('started', '?')}")
+    print(f"  Elapsed: {elapsed(state.get('started', now_str()))}")
+    print(f"  Profile: {state.get('profile') or '(none)'}")
+    print()
+
+    turns_taken  = state.get("turns_taken", 0)
+    turns_target = state.get("turns_target", "?")
+    rounds_rem   = state.get("rounds_remaining", 0)
+    rounds_used  = state.get("rounds_used", 0)
+    print(f"  Turns:  {turns_taken}/{turns_target}  (budget floor — session stays active past target)")
+    print(f"  Rounds: {rounds_used} used, {rounds_rem} remaining")
+    print(f"  Last note: {state.get('progress_note', '—')}")
+    print()
+
+    # Agent / heartbeat state
+    hb = "ARMED" if state.get("heartbeat_active") else "idle"
+    ag = state.get("agents_running", 0)
+    ag_ids = state.get("active_agent_ids", [])
+    print(f"  Heartbeat: {hb}")
+    if ag > 0:
+        print(f"  Agents running: {ag}  ({', '.join(ag_ids) if ag_ids else 'unnamed'})")
+    else:
+        print(f"  Agents running: 0")
+
+    # ETA
+    next_hb = state.get("next_heartbeat_at")
+    if next_hb and state.get("heartbeat_active"):
+        try:
+            from datetime import datetime
+            eta_dt = datetime.strptime(next_hb, "%Y-%m-%d %H:%M:%S")
+            secs = (eta_dt - datetime.now()).total_seconds()
+            if secs > 0:
+                print(f"  Next heartbeat: ~{int(secs)}s ({state.get('last_activity_source', '?')})")
+            else:
+                print(f"  Next heartbeat: overdue by {int(-secs)}s")
+        except Exception:
+            print(f"  Next heartbeat: {next_hb}")
+    print()
+
+    # Fire history
+    fires = state.get("heartbeat_fires", [])
+    if fires:
+        print(f"  Heartbeat fires ({len(fires)}):")
+        for ev in fires:
+            print(f"    {ev['fired_at']}  gap={ev['gap_seconds']}s  "
+                  f"signal={ev['signal']}  polls={ev.get('idle_polls', '?')}  turn={ev['turns']}")
+    else:
+        print(f"  Heartbeat fires: none")
+    print()
+
+    # Scope snapshot (this session)
+    session_ref = state.get("session_start_ref")
+    if session_ref:
+        try:
+            result = subprocess.run(
+                ["git", "diff", "--stat", session_ref, "HEAD"],
+                cwd=REPO_DIR, capture_output=True, text=True, timeout=10
+            )
+            lines = [l for l in result.stdout.splitlines() if "|" in l]
+            if lines:
+                totals = {}
+                for line in lines:
+                    parts = line.split("|")
+                    fname = parts[0].strip()
+                    try:
+                        totals[fname] = int(parts[1].strip().split()[0])
+                    except (IndexError, ValueError):
+                        pass
+                grand = sum(totals.values()) or 1
+                print(f"  Scope (this session — {len(totals)} files changed):")
+                for fname, cnt in sorted(totals.items(), key=lambda x: -x[1]):
+                    pct = cnt / grand * 100
+                    bar = "█" * min(int(pct / 5), 20)
+                    print(f"    {pct:4.0f}% {bar:<20} {cnt:4d}  {fname}")
+            else:
+                print(f"  Scope: no changes since session start")
+        except Exception as e:
+            print(f"  Scope: error — {e}")
+
+    declared = state.get("scope_files", [])
+    if declared:
+        print(f"\n  Declared scope: {', '.join(declared)}")
+    print(sep)
+
+
 def cmd_reset(args):
     for f in [STATE_FILE, TEMP_FILE, LOCK_FILE]:
         try:
@@ -738,6 +870,8 @@ p = sub.add_parser("restore", help="Restore session state from git save")
 p.add_argument("--force", action="store_true", help="Restore even if active session exists")
 
 sub.add_parser("reset",         help="Emergency cleanup of all state/lock files")
+sub.add_parser("recover",       help="Clear stuck flags (heartbeat_active, agents_running) without full reset")
+sub.add_parser("report",        help="Full session report: overview, fires, scope snapshot")
 sub.add_parser("drift-arm",     help="Arm the drift guard before spawning drift_guard.py")
 sub.add_parser("drift-done",    help="Read drift guard findings after sub-agent returns")
 sub.add_parser("drift-status",  help="Show drift guard state and last warning")
@@ -756,6 +890,8 @@ args = parser.parse_args()
     "save":          cmd_save,
     "restore":       cmd_restore,
     "reset":         cmd_reset,
+    "recover":       cmd_recover,
+    "report":        cmd_report,
     "config":        cmd_config,
     "drift-arm":     cmd_drift_arm,
     "drift-done":    cmd_drift_done,
