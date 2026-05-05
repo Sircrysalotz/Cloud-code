@@ -219,6 +219,12 @@ def main():
             clear_active_flag()
             return
 
+        if state.get("status") == "complete":
+            print("Session explicitly completed. Heartbeat shutting down.")
+            state["heartbeat_active"] = False
+            atomic_write(state)
+            return
+
         rounds_remaining = state.get("rounds_remaining", 0)
         if rounds_remaining <= 0:
             print("Rounds exhausted. Heartbeat shutting down.")

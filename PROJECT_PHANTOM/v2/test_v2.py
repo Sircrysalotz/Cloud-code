@@ -153,11 +153,24 @@ def test_phantom():
     check("state file gone after reset", not os.path.exists(STATE))
 
 
-    # complete command
+    # hitting turns_target prints milestone but keeps session active
     cleanup()
-    run([PHANTOM, "start", "complete test", "--turns", "2"])
+    run([PHANTOM, "start", "milestone test", "--turns", "2"])
     run([PHANTOM, "ping", "turn 1"])
-    run([PHANTOM, "ping", "turn 2"])  # hits turns_target
+    rc, out, _ = run([PHANTOM, "ping", "turn 2"])  # hits turns_target
+    check("ping at turns_target exits 0", rc == 0)
+    check("ping at turns_target prints TURN TARGET REACHED", "TURN TARGET REACHED" in out)
+    state = read_state()
+    check("ping at turns_target keeps status=active", state.get("status") == "active")
+
+    # turns beyond target are counted normally (session stays open)
+    rc, out, _ = run([PHANTOM, "ping", "turn 3 — beyond target"])
+    check("ping beyond turns_target exits 0", rc == 0)
+    state = read_state()
+    check("turns_taken increments past target", state.get("turns_taken") == 3)
+    check("status still active past target", state.get("status") == "active")
+
+    # complete command ends the session explicitly
     rc, out, _ = run([PHANTOM, "complete"])
     check("complete exits 0", rc == 0)
     check("complete prints SESSION COMPLETE", "SESSION COMPLETE" in out)
@@ -393,6 +406,18 @@ def test_heartbeat_runner():
         json.dump(state, f)
     rc, out, err = run([RUNNER])
     check("runner exits cleanly when rounds=0", "exhausted" in out.lower() or "complete" in out.lower() or "shutting" in out.lower())
+
+    # runner exits when status==complete (explicit session completion)
+    run([PHANTOM, "start", "complete exit test", "--rounds", "5", "--interval", "1", "--force"])
+    state = read_state()
+    state["heartbeat_active"] = True
+    state["status"]           = "complete"  # session explicitly ended
+    state["last_active"]      = "2020-01-01 00:00:00"
+    with open(STATE, "w") as f:
+        json.dump(state, f)
+    rc, out, err = run([RUNNER])
+    check("runner exits when status=complete", "complete" in out.lower() or "shutting" in out.lower())
+    check("runner clears heartbeat_active on complete exit", not read_state().get("heartbeat_active", True))
 
     # Activity metadata written even when agents_running > 0 (bug fix verification)
     import subprocess as _sp

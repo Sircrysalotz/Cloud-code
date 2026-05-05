@@ -200,6 +200,23 @@ def print_session_summary(state: dict):
     print("=" * 54)
 
 
+def print_turn_milestone(state: dict):
+    """Printed when turns_taken hits turns_target — session keeps running."""
+    print()
+    print("=" * 54)
+    print("  TURN TARGET REACHED — keep working")
+    print("=" * 54)
+    print(f"  Task:      {state.get('task', '?')}")
+    print(f"  Turns:     {state.get('turns_taken')}/{state.get('turns_target')} (target met)")
+    print(f"  Elapsed:   {elapsed(state.get('started', now_str()))}")
+    print(f"  HB rounds: {state.get('rounds_remaining', 0)} remaining")
+    print(f"  Note:      {state.get('progress_note', '—')}")
+    print()
+    print("  Session is still ACTIVE. Call phantom.py complete to end it.")
+    print("  Or keep pinging — turns beyond target are counted normally.")
+    print("=" * 54)
+
+
 def auto_save(state: dict):
     """Save state to git every AUTO_SAVE_EVERY pings."""
     AUTO_SAVE_EVERY = state.get("auto_save_every", 5)
@@ -236,10 +253,10 @@ def cmd_ping(args):
     if args.note:
         print(f"  Note: {args.note}")
     auto_save(state)
-    if isinstance(turns_target, int) and turns_taken >= turns_target:
-        state["status"] = "complete"
-        atomic_write(state)
-        print_session_summary(state)
+    if isinstance(turns_target, int) and turns_taken == turns_target:
+        # Turn budget met — print milestone but keep session active
+        # Only phantom.py complete ends the session
+        print_turn_milestone(state)
 
 
 def cmd_agent_start(args):
