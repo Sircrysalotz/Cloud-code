@@ -224,4 +224,23 @@ When heartbeat is overdue: `ARMED — overdue by 12s`
 
 Added signal reference table and ETA display documentation.
 
-Test coverage: 152 → 160 tests (160/160 passing)
+### heartbeat_runner.py: fire history
+
+Runner appends a fire event to `heartbeat_fires` list in state on each fire:
+```json
+{"fired_at": "...", "signal": "ping", "gap_seconds": 192, "idle_polls": 1, "turns": 3}
+```
+Kept to last 10 events. Visible in `phantom.py status` (last 3) and `phantom.py history` (all).
+
+### phantom.py scope improvements
+
+- `--session` flag: uses `session_start_ref` as base ref (only this session's changes)
+- `--threshold` flag: configurable concentration warning level (default 50%)
+- Previously hardcoded `50` and `HEAD~5`
+
+### phantom.py history improvements
+
+Now shows fire event history with timestamp, signal, gap, idle_polls, and turn number.
+Also shows declared scope files if set.
+
+Test coverage: 152 → 168 tests (168/168 passing)

@@ -462,6 +462,17 @@ def cmd_history(args):
     print(f"  Turns:   {state.get('turns_taken', 0)}/{state.get('turns_target', '?')}")
     print(f"  HB rounds used: {state.get('rounds_used', 0)}")
     print(f"  Last note: {state.get('progress_note', '—')}")
+    fires = state.get("heartbeat_fires", [])
+    if fires:
+        print(f"\n  Heartbeat fires ({len(fires)} total):")
+        for ev in fires:
+            print(f"    {ev['fired_at']}  gap={ev['gap_seconds']}s  "
+                  f"signal={ev['signal']}  idle_polls={ev.get('idle_polls', '?')}  turn={ev['turns']}")
+    else:
+        print(f"\n  Heartbeat fires: none yet")
+    scope = state.get("scope_files", [])
+    if scope:
+        print(f"\n  Declared scope: {', '.join(scope)}")
     print("=" * 50)
 
 

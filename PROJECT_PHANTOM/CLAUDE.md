@@ -41,10 +41,14 @@ Enables autonomous extended sessions. Heartbeat fires ONLY when Claude is genuin
 | File-% drift fires on legitimate single-file tasks | Four-gate eval: declared scope → task alignment → hunk depth → trend |
 | No watchdog | Detects poll cycles taking >3x interval |
 | No session summary | Printed when `turns_taken == turns_target` |
-| No test coverage | 160 integration tests in `v2/test_v2.py` |
+| No test coverage | 168 integration tests in `v2/test_v2.py` |
 | False fire during active coding (no ping) | Filesystem + git index activity signals in heartbeat_runner |
 | All config flags must be typed each session | Profile system — named configs in `~/.phantom_profiles.json` |
 | No horizontal enforcement during sessions | `drift_guard.py` background agent — fires when one file > threshold% |
+| Single-poll false positives possible | `--min-idle-polls N` — require N consecutive polls above threshold |
+| No ETA in status panel | `status` shows "fires in ~Xs (held: signal)" via `next_heartbeat_at` in state |
+| Drift guard bleeds into previous sessions | `session_start_ref` stored on start — drift guard only checks current session |
+| No fire timing retrospective | `heartbeat_fires` list in state (last 10 events, shown in `history`) |
 
 ### Files
 
@@ -69,15 +73,22 @@ Enables autonomous extended sessions. Heartbeat fires ONLY when Claude is genuin
   "idle_threshold_seconds": 180,
   "check_interval_seconds": 30,
   "cooldown_factor": 1.0,
+  "min_idle_polls": 1,
   "rounds_used": 0,
   "agents_running": 0,
   "active_agent_ids": [],
   "heartbeat_active": false,
   "last_heartbeat_fired": null,
+  "last_activity_source": "ping",
+  "last_activity_ts": "2026-05-05 20:00:00",
+  "next_heartbeat_at": "2026-05-05 20:03:00",
+  "heartbeat_fires": [],
   "progress_note": "",
   "started": "2026-05-05 20:00:00",
   "status": "active",
   "workspace_dir": "/path/to/cwd",
+  "session_start_ref": "abc123...",
+  "scope_files": [],
   "profile": null
 }
 ```
@@ -251,7 +262,7 @@ Last pushed entry on GitHub = last confirmed alive before container death.
 ```bash
 # Run full integration suite (isolated from live session)
 python3 PROJECT_PHANTOM/v2/test_v2.py
-# 160 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
+# 168 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
 ```
 
 ---
