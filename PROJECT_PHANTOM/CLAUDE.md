@@ -40,7 +40,9 @@ Enables autonomous extended sessions. Heartbeat fires ONLY when Claude is genuin
 | No drift reporting | Reports `+Ns` past threshold on fire |
 | No watchdog | Detects poll cycles taking >3x interval |
 | No session summary | Printed when `turns_taken == turns_target` |
-| No test coverage | 46 integration tests in `v2/test_v2.py` |
+| No test coverage | 103 integration tests in `v2/test_v2.py` |
+| False fire during active coding (no ping) | Filesystem + git index activity signals in heartbeat_runner |
+| All config flags must be typed each session | Profile system — named configs in `~/.phantom_profiles.json` |
 
 ### Files
 
@@ -72,7 +74,9 @@ Enables autonomous extended sessions. Heartbeat fires ONLY when Claude is genuin
   "last_heartbeat_fired": null,
   "progress_note": "",
   "started": "2026-05-05 20:00:00",
-  "status": "active"
+  "status": "active",
+  "workspace_dir": "/path/to/cwd",
+  "profile": null
 }
 ```
 
@@ -90,7 +94,14 @@ nohup python3 /home/user/Cloud-code/PROJECT_PHANTOM/agents/container_logger.py -
 
 ### Initialize session
 ```bash
+# With a profile (recommended — loads saved defaults)
+python3 PROJECT_PHANTOM/agents/phantom.py start "task" --profile sprint
+
+# Or with explicit flags
 python3 PROJECT_PHANTOM/agents/phantom.py start "task" --turns 10 --rounds 5 --threshold 180 --interval 30 --cooldown-factor 1.0
+
+# Profile flags can still be overridden
+python3 PROJECT_PHANTOM/agents/phantom.py start "task" --profile sprint --turns 3
 ```
 
 ### Every turn start
@@ -156,6 +167,29 @@ python3 PROJECT_PHANTOM/agents/phantom.py history
 ### Anti-drift scope check (warns if any file >50% of changes)
 ```bash
 python3 PROJECT_PHANTOM/agents/phantom.py scope
+```
+
+### Manage profiles
+```bash
+# List all profiles
+python3 PROJECT_PHANTOM/agents/phantom.py config list
+
+# Create a profile (stored in ~/.phantom_profiles.json by default)
+python3 PROJECT_PHANTOM/agents/phantom.py config create security \
+  --description "Security audit" --turns 5 --rounds 3 --threshold 120 \
+  --cooldown-factor 0.5 --scope-threshold 25
+
+# Show a profile
+python3 PROJECT_PHANTOM/agents/phantom.py config show security
+
+# Update a single value
+python3 PROJECT_PHANTOM/agents/phantom.py config set security turns 6
+
+# Delete a profile
+python3 PROJECT_PHANTOM/agents/phantom.py config delete security
+
+# Override PHANTOM_PROFILES env var to use a project-local profiles file
+export PHANTOM_PROFILES=/path/to/project/phantom_profiles.json
 ```
 
 ### Emergency cleanup

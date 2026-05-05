@@ -11,6 +11,7 @@ import os
 import subprocess
 import sys
 import time
+from datetime import datetime
 
 V2_DIR    = os.path.dirname(os.path.abspath(__file__))
 PHANTOM   = os.path.join(V2_DIR, "phantom.py")
@@ -19,13 +20,14 @@ LOGGER    = os.path.join(V2_DIR, "container_logger.py")
 STATE     = "/tmp/phantom_TEST_session.json"
 LOCK      = "/tmp/phantom_TEST_session.lock"
 PID_FILE  = "/tmp/phantom_container_logger.pid"
+PROFILES  = "/tmp/phantom_TEST_profiles.json"
 
 PASS = "✓"
 FAIL = "✗"
 results = []
 
 
-TEST_ENV = {**os.environ, "PHANTOM_STATE": STATE}
+TEST_ENV = {**os.environ, "PHANTOM_STATE": STATE, "PHANTOM_PROFILES": PROFILES}
 
 
 def run(cmd: list, input_text=None, timeout=10) -> tuple[int, str, str]:
@@ -38,7 +40,7 @@ def run(cmd: list, input_text=None, timeout=10) -> tuple[int, str, str]:
 
 
 def cleanup():
-    for f in [STATE, LOCK, "/tmp/phantom_session.json.tmp"]:
+    for f in [STATE, LOCK, PROFILES, "/tmp/phantom_session.json.tmp"]:
         try: os.unlink(f)
         except FileNotFoundError: pass
 
@@ -218,6 +220,155 @@ def test_phantom():
     cleanup()
 
 
+# ─── workspace_dir + activity signals tests ──────────────────────────────────
+
+def test_workspace_and_activity():
+    print("\n── workspace_dir + activity signals ──")
+    cleanup()
+
+    # workspace_dir stored on start
+    run([PHANTOM, "start", "workspace test", "--turns", "3"])
+    state = read_state()
+    check("start stores workspace_dir", "workspace_dir" in state)
+    check("workspace_dir is a string", isinstance(state.get("workspace_dir"), str))
+    check("workspace_dir is a real directory", os.path.isdir(state.get("workspace_dir", "")))
+
+    # workspace_dir stored in profile start too
+    run([PHANTOM, "reset"])
+    run([PHANTOM, "config", "create", "ws_test", "--turns", "3"])
+    run([PHANTOM, "start", "ws profile test", "--profile", "ws_test"])
+    state = read_state()
+    check("profile start also stores workspace_dir", "workspace_dir" in state)
+    check("profile stored in state", state.get("profile") == "ws_test")
+
+    # Activity signals unit test — import runner functions directly
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("heartbeat_runner", RUNNER)
+    hr   = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(hr)
+
+    # scan_workspace returns a float and a path string
+    workspace = state.get("workspace_dir", os.path.dirname(RUNNER))
+    mtime, path = hr.scan_workspace(workspace)
+    check("scan_workspace returns nonzero mtime", mtime > 0)
+    check("scan_workspace returns file path", path is not None)
+
+    # git_index_mtime returns float
+    gi = hr.git_index_mtime(workspace)
+    check("git_index_mtime returns float", isinstance(gi, float))
+
+    # get_last_activity uses filesystem when ping is old
+    old_state = {
+        "last_active": "2020-01-01 00:00:00",  # ancient ping
+        "workspace_dir": workspace,
+    }
+    ts, source = hr.get_last_activity(old_state)
+    check("get_last_activity finds recent activity despite old ping", ts > 0)
+    check("activity source is filesystem or git (not ping)", source != "ping")
+    check("effective gap < 300s despite ancient ping", (time.time() - ts) < 300)
+
+    # get_last_activity uses ping when it's the most recent
+    very_recent_state = {
+        "last_active": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "workspace_dir": "/nonexistent/path",  # no fs scan possible
+    }
+    ts2, source2 = hr.get_last_activity(very_recent_state)
+    check("get_last_activity falls back to ping when workspace missing", source2 == "ping")
+
+    cleanup()
+
+
+# ─── profile / config tests ───────────────────────────────────────────────────
+
+def test_config():
+    print("\n── phantom.py config ──")
+    cleanup()
+
+    # config list — empty
+    rc, out, _ = run([PHANTOM, "config", "list"])
+    check("config list exits 0 when empty", rc == 0)
+    check("config list shows no profiles message", "No profiles" in out)
+
+    # config create
+    rc, out, _ = run([PHANTOM, "config", "create", "myprofile",
+                      "--turns", "7", "--rounds", "4", "--threshold", "90",
+                      "--description", "test profile"])
+    check("config create exits 0", rc == 0)
+    check("config create shows profile name", "myprofile" in out)
+
+    # config list — shows new profile
+    rc, out, _ = run([PHANTOM, "config", "list"])
+    check("config list shows created profile", "myprofile" in out)
+    check("config list shows turns", "turns=7" in out)
+    check("config list shows threshold", "threshold=90s" in out)
+
+    # config show
+    rc, out, _ = run([PHANTOM, "config", "show", "myprofile"])
+    check("config show exits 0", rc == 0)
+    check("config show displays turns", "turns" in out and "7" in out)
+    check("config show displays description", "test profile" in out)
+
+    # config set
+    rc, out, _ = run([PHANTOM, "config", "set", "myprofile", "turns", "9"])
+    check("config set exits 0", rc == 0)
+    rc, out, _ = run([PHANTOM, "config", "show", "myprofile"])
+    check("config set persists change", "9" in out)
+
+    # config set — invalid key
+    rc, out, _ = run([PHANTOM, "config", "set", "myprofile", "nonexistent_key", "123"])
+    check("config set exits 1 on unknown key", rc == 1)
+
+    # config set — type coercion
+    rc, out, _ = run([PHANTOM, "config", "set", "myprofile", "cooldown_factor", "0.75"])
+    check("config set coerces float", rc == 0)
+    rc, out, _ = run([PHANTOM, "config", "show", "myprofile"])
+    check("config set stores float value", "0.75" in out)
+
+    # config create --force overwrites
+    rc, out, _ = run([PHANTOM, "config", "create", "myprofile", "--turns", "99", "--force"])
+    check("config create --force exits 0", rc == 0)
+    rc, out, _ = run([PHANTOM, "config", "show", "myprofile"])
+    check("config create --force overwrites profile", "99" in out)
+
+    # config create blocked without --force
+    rc, out, _ = run([PHANTOM, "config", "create", "myprofile", "--turns", "1"])
+    check("config create blocked without --force", rc == 1)
+
+    # phantom.py start --profile loads values
+    run([PHANTOM, "config", "create", "starttest",
+         "--turns", "8", "--rounds", "4", "--threshold", "77"])
+    rc, out, _ = run([PHANTOM, "start", "profile start test", "--profile", "starttest"])
+    check("start --profile exits 0", rc == 0)
+    check("start --profile shows profile name in output", "starttest" in out)
+    state = read_state()
+    check("start --profile sets turns_target from profile", state.get("turns_target") == 8)
+    check("start --profile sets threshold from profile", state.get("idle_threshold_seconds") == 77)
+    check("start --profile stores profile name in state", state.get("profile") == "starttest")
+    check("start --profile stores workspace_dir", "workspace_dir" in state)
+
+    # start --profile with flag override
+    run([PHANTOM, "start", "override test", "--profile", "starttest", "--turns", "42", "--force"])
+    state = read_state()
+    check("start --profile --turns overrides profile", state.get("turns_target") == 42)
+    check("start --profile without --turns uses profile value", state.get("idle_threshold_seconds") == 77)
+
+    # start with nonexistent profile exits 1
+    rc, out, _ = run([PHANTOM, "start", "bad profile", "--profile", "nonexistent"])
+    check("start --profile nonexistent exits 1", rc == 1)
+
+    # config delete
+    rc, out, _ = run([PHANTOM, "config", "delete", "myprofile"])
+    check("config delete exits 0", rc == 0)
+    rc, out, _ = run([PHANTOM, "config", "list"])
+    check("deleted profile gone from list", "myprofile" not in out)
+
+    # config delete nonexistent exits 1
+    rc, out, _ = run([PHANTOM, "config", "delete", "nonexistent_profile"])
+    check("config delete nonexistent exits 1", rc == 1)
+
+    cleanup()
+
+
 # ─── heartbeat_runner.py tests ───────────────────────────────────────────────
 
 def test_heartbeat_runner():
@@ -266,6 +417,8 @@ if __name__ == "__main__":
     cleanup()
     try:
         test_phantom()
+        test_workspace_and_activity()
+        test_config()
         test_heartbeat_runner()
         test_container_logger()
     finally:

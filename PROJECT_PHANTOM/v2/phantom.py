@@ -21,13 +21,18 @@ import sys
 import time
 from datetime import datetime
 
-REPO_DIR        = "/home/user/Cloud-code"
+REPO_DIR         = "/home/user/Cloud-code"
 SAVED_STATE_FILE = os.path.join(REPO_DIR, "PROJECT_PHANTOM/logs/last_session_state.json")
 
 STATE_FILE = os.environ.get("PHANTOM_STATE", "/tmp/phantom_session.json")
 TEMP_FILE  = STATE_FILE + ".tmp"
 LOCK_FILE  = STATE_FILE.replace(".json", ".lock")
 LOCK_TIMEOUT = 5  # seconds
+
+PROFILES_FILE = os.environ.get(
+    "PHANTOM_PROFILES",
+    os.path.join(os.path.expanduser("~"), ".phantom_profiles.json")
+)
 
 
 def acquire_lock():
@@ -108,15 +113,42 @@ def cmd_start(args):
         print("Use --force to overwrite, or continue the existing session.")
         sys.exit(1)
 
+    # Load profile defaults, then let explicit CLI args override
+    profile_defaults = {}
+    if hasattr(args, "profile") and args.profile:
+        profile_defaults = load_profile(args.profile)
+        if profile_defaults is None:
+            print(f"ERROR: Profile '{args.profile}' not found. Run: phantom.py config list")
+            sys.exit(1)
+
+    turns     = getattr(args, "turns",          None) or profile_defaults.get("turns",     10)
+    rounds    = getattr(args, "rounds",         None) or profile_defaults.get("rounds",    5)
+    threshold = getattr(args, "threshold",      None) or profile_defaults.get("threshold", 180)
+    interval  = getattr(args, "interval",       None) or profile_defaults.get("interval",  30)
+    cf        = getattr(args, "cooldown_factor",None) or profile_defaults.get("cooldown_factor", 1.0)
+
+    # argparse gives defaults even when not specified — re-read raw to detect user overrides
+    # Use profile value if CLI is at default AND profile has the key
+    def resolve(cli_val, cli_default, profile_key, fallback):
+        if args.profile and cli_val == cli_default and profile_key in profile_defaults:
+            return profile_defaults[profile_key]
+        return cli_val if cli_val != cli_default else fallback
+
+    turns     = resolve(args.turns,          10,  "turns",          10)
+    rounds    = resolve(args.rounds,          5,   "rounds",         5)
+    threshold = resolve(args.threshold,       180, "threshold",      180)
+    interval  = resolve(args.interval,        30,  "interval",       30)
+    cf        = resolve(args.cooldown_factor, 1.0, "cooldown_factor",1.0)
+
     state = {
         "task":                   args.task,
         "last_active":            now_str(),
         "turns_taken":            0,
-        "turns_target":           args.turns,
-        "rounds_remaining":       args.rounds,
-        "idle_threshold_seconds": args.threshold,
-        "check_interval_seconds": args.interval,
-        "cooldown_factor":        args.cooldown_factor,
+        "turns_target":           turns,
+        "rounds_remaining":       rounds,
+        "idle_threshold_seconds": threshold,
+        "check_interval_seconds": interval,
+        "cooldown_factor":        cf,
         "rounds_used":            0,
         "agents_running":         0,
         "active_agent_ids":       [],
@@ -125,14 +157,19 @@ def cmd_start(args):
         "progress_note":          "",
         "started":                now_str(),
         "status":                 "active",
+        "workspace_dir":          os.getcwd(),
+        "profile":                args.profile if hasattr(args, "profile") and args.profile else None,
     }
     atomic_write(state)
     print(f"Session started.")
+    if profile_defaults:
+        print(f"  Profile:   {args.profile}")
     print(f"  Task:      {args.task}")
-    print(f"  Turns:     {args.turns}")
-    print(f"  Rounds:    {args.rounds}")
-    print(f"  Threshold: {args.threshold}s ({args.threshold // 60}m {args.threshold % 60}s)")
-    print(f"  Poll:      every {args.interval}s")
+    print(f"  Turns:     {turns}")
+    print(f"  Rounds:    {rounds}")
+    print(f"  Threshold: {threshold}s ({threshold // 60}m {threshold % 60}s)")
+    print(f"  Poll:      every {interval}s")
+    print(f"  Workspace: {os.getcwd()}")
 
 
 def print_session_summary(state: dict):
@@ -387,6 +424,124 @@ def cmd_reset(args):
     print("Reset complete.")
 
 
+# --- Profile system ---
+
+PROFILE_KEYS = {
+    "turns":          (int,   10,  "Target number of turns"),
+    "rounds":         (int,   5,   "Heartbeat rounds available"),
+    "threshold":      (int,   180, "Idle threshold in seconds"),
+    "interval":       (int,   30,  "Heartbeat poll interval in seconds"),
+    "cooldown_factor":(float, 1.0, "Cooldown multiplier"),
+    "scope_threshold":(float, 40.0,"Scope guard drift threshold %"),
+    "coverage_targets":(list, [],  "Files to track for coverage"),
+    "description":    (str,   "",  "Human-readable profile description"),
+}
+
+
+def read_profiles() -> dict:
+    try:
+        with open(PROFILES_FILE) as f:
+            data = json.load(f)
+            return data.get("profiles", {})
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def write_profiles(profiles: dict):
+    os.makedirs(os.path.dirname(os.path.abspath(PROFILES_FILE)), exist_ok=True)
+    with open(PROFILES_FILE, "w") as f:
+        json.dump({"profiles": profiles}, f, indent=2)
+
+
+def load_profile(name: str) -> dict | None:
+    profiles = read_profiles()
+    return profiles.get(name)
+
+
+def cmd_config(args):
+    sub = args.config_cmd
+
+    if sub == "list":
+        profiles = read_profiles()
+        if not profiles:
+            print(f"No profiles found. ({PROFILES_FILE})")
+            print("Create one: phantom.py config create <name>")
+            return
+        print(f"Profiles ({PROFILES_FILE}):")
+        for name, p in profiles.items():
+            desc = p.get("description", "")
+            turns = p.get("turns", "—")
+            threshold = p.get("threshold", "—")
+            print(f"  {name:<20} turns={turns} threshold={threshold}s  {desc}")
+
+    elif sub == "show":
+        profiles = read_profiles()
+        name = args.name
+        if name not in profiles:
+            print(f"Profile '{name}' not found.")
+            sys.exit(1)
+        p = profiles[name]
+        print(f"Profile: {name}")
+        print(f"  File: {PROFILES_FILE}")
+        for key, (typ, default, desc) in PROFILE_KEYS.items():
+            val = p.get(key, default)
+            print(f"  {key:<20} = {val!r:<20}  # {desc}")
+
+    elif sub == "create":
+        profiles = read_profiles()
+        name = args.name
+        if name in profiles and not getattr(args, "force", False):
+            print(f"Profile '{name}' already exists. Use --force to overwrite.")
+            sys.exit(1)
+        p = {}
+        for key, (typ, default, _) in PROFILE_KEYS.items():
+            val = getattr(args, key.replace("-", "_"), None)
+            if val is not None:
+                p[key] = val
+            elif key in profiles.get(name, {}):
+                p[key] = profiles[name][key]
+        profiles[name] = p
+        write_profiles(profiles)
+        print(f"Profile '{name}' created.")
+        for k, v in p.items():
+            print(f"  {k} = {v!r}")
+        print(f"  Saved: {PROFILES_FILE}")
+
+    elif sub == "set":
+        profiles = read_profiles()
+        name = args.name
+        if name not in profiles:
+            print(f"Profile '{name}' not found. Create it first: phantom.py config create {name}")
+            sys.exit(1)
+        key = args.key
+        if key not in PROFILE_KEYS:
+            print(f"Unknown key '{key}'. Valid keys: {', '.join(PROFILE_KEYS)}")
+            sys.exit(1)
+        typ, _, _ = PROFILE_KEYS[key]
+        try:
+            if typ == list:
+                import ast
+                val = ast.literal_eval(args.value)
+            else:
+                val = typ(args.value)
+        except (ValueError, SyntaxError):
+            print(f"Invalid value for '{key}' (expected {typ.__name__}): {args.value!r}")
+            sys.exit(1)
+        profiles[name][key] = val
+        write_profiles(profiles)
+        print(f"Profile '{name}': {key} = {val!r}")
+
+    elif sub == "delete":
+        profiles = read_profiles()
+        name = args.name
+        if name not in profiles:
+            print(f"Profile '{name}' not found.")
+            sys.exit(1)
+        del profiles[name]
+        write_profiles(profiles)
+        print(f"Profile '{name}' deleted.")
+
+
 # --- CLI ---
 
 parser = argparse.ArgumentParser(description="Phantom session manager v2")
@@ -399,7 +554,23 @@ p.add_argument("--rounds",    type=int, default=5,   help="Heartbeat rounds avai
 p.add_argument("--threshold", type=int, default=180, help="Idle threshold in seconds")
 p.add_argument("--interval",        type=int,   default=30,  help="Heartbeat poll interval in seconds")
 p.add_argument("--cooldown-factor", type=float, default=1.0, help="Cooldown = threshold * factor (default 1.0)")
+p.add_argument("--profile",         default=None,            help="Load defaults from named profile (overridable by flags)")
 p.add_argument("--force",           action="store_true",     help="Overwrite existing session")
+
+p = sub.add_parser("config", help="Manage session profiles")
+p.add_argument("config_cmd", choices=["list", "show", "create", "set", "delete"])
+p.add_argument("name",  nargs="?", default=None, help="Profile name")
+p.add_argument("key",   nargs="?", default=None, help="Key to set (for 'set' subcommand)")
+p.add_argument("value", nargs="?", default=None, help="Value (for 'set' subcommand)")
+p.add_argument("--description",    default=None, help="Profile description")
+p.add_argument("--turns",          type=int,   default=None)
+p.add_argument("--rounds",         type=int,   default=None)
+p.add_argument("--threshold",      type=int,   default=None)
+p.add_argument("--interval",       type=int,   default=None)
+p.add_argument("--cooldown-factor",type=float, default=None, dest="cooldown_factor")
+p.add_argument("--scope-threshold",type=float, default=None, dest="scope_threshold")
+p.add_argument("--coverage-targets",nargs="+", default=None, dest="coverage_targets")
+p.add_argument("--force", action="store_true", help="Overwrite existing profile")
 
 p = sub.add_parser("ping", help="Signal active turn (run at start of every turn)")
 p.add_argument("note", nargs="?", default="", help="Optional progress note")
@@ -438,4 +609,5 @@ args = parser.parse_args()
     "save":          cmd_save,
     "restore":       cmd_restore,
     "reset":         cmd_reset,
+    "config":        cmd_config,
 }[args.cmd](args)
