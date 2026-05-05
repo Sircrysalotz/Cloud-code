@@ -168,6 +168,17 @@ def test_phantom():
     state = read_state()
     check("cooldown_factor stored in state", state.get("cooldown_factor") == 0.5)
 
+    # history command
+    cleanup()
+    run([PHANTOM, "start", "history test", "--turns", "3"])
+    run([PHANTOM, "ping", "did some work"])
+    rc, out, _ = run([PHANTOM, "history"])
+    check("history exits 0", rc == 0)
+    check("history shows SESSION HISTORY", "SESSION HISTORY" in out)
+    check("history shows task", "history test" in out)
+    check("history shows turns", "1/3" in out)
+    check("history shows last note", "did some work" in out)
+
     # PHANTOM_STATE isolation — confirm production state untouched
     check("test state isolated from /tmp/phantom_session.json",
           not os.path.exists("/tmp/phantom_session.json") or

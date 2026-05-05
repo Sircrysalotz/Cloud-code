@@ -16,9 +16,13 @@ Usage:
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 from datetime import datetime
+
+REPO_DIR        = "/home/user/Cloud-code"
+SAVED_STATE_FILE = os.path.join(REPO_DIR, "PROJECT_PHANTOM/logs/last_session_state.json")
 
 STATE_FILE = os.environ.get("PHANTOM_STATE", "/tmp/phantom_session.json")
 TEMP_FILE  = STATE_FILE + ".tmp"
@@ -243,6 +247,56 @@ def cmd_complete(args):
     print_session_summary(state)
 
 
+def cmd_save(args):
+    """Persist current session state to git so it survives container restarts."""
+    state = require_state()
+    state["saved_at"] = now_str()
+    os.makedirs(os.path.dirname(SAVED_STATE_FILE), exist_ok=True)
+    with open(SAVED_STATE_FILE, "w") as f:
+        json.dump(state, f, indent=2)
+    try:
+        subprocess.run(["git", "add", "PROJECT_PHANTOM/logs/last_session_state.json"],
+                       cwd=REPO_DIR, capture_output=True, timeout=30)
+        subprocess.run(["git", "commit", "-m",
+                        f"[phantom] session state saved — turn {state.get('turns_taken')}\n\nhttps://claude.ai/code/session_01URz48AEdtJbKdvuHxoBEJ6"],
+                       cwd=REPO_DIR, capture_output=True, timeout=30)
+        result = subprocess.run(["git", "push"], cwd=REPO_DIR, capture_output=True, timeout=30)
+        if result.returncode == 0:
+            print(f"Session state saved and pushed to git.")
+        else:
+            print(f"State saved locally but push failed: {result.stderr.decode().strip()[:80]}")
+    except Exception as e:
+        print(f"State saved locally but git error: {e}")
+    print(f"  Saved: {SAVED_STATE_FILE}")
+    print(f"  Turn: {state.get('turns_taken')}/{state.get('turns_target')}")
+
+
+def cmd_restore(args):
+    """Restore session state from git-saved copy (use after container restart)."""
+    if os.path.exists(STATE_FILE) and not args.force:
+        print("WARNING: Active session state exists. Use --force to restore over it.")
+        sys.exit(1)
+    try:
+        with open(SAVED_STATE_FILE) as f:
+            state = json.load(f)
+    except FileNotFoundError:
+        print(f"ERROR: No saved state found at {SAVED_STATE_FILE}")
+        sys.exit(1)
+    except json.JSONDecodeError:
+        print(f"ERROR: Saved state file is corrupt.")
+        sys.exit(1)
+    saved_at = state.pop("saved_at", "unknown")
+    state["heartbeat_active"] = False  # always clear on restore
+    state["agents_running"]   = 0      # always clear on restore
+    state["active_agent_ids"] = []
+    atomic_write(state)
+    print(f"Session restored from git save ({saved_at}).")
+    print(f"  Task:  {state.get('task', '?')}")
+    print(f"  Turns: {state.get('turns_taken', 0)}/{state.get('turns_target', '?')}")
+    print(f"  Rounds remaining: {state.get('rounds_remaining', 0)}")
+    print("NOTE: heartbeat_active and agents_running cleared. Re-arm before spawning.")
+
+
 def cmd_history(args):
     state = read_state()
     if not state:
@@ -297,6 +351,11 @@ sub.add_parser("heartbeat-arm", help="Arm the heartbeat before spawning")
 sub.add_parser("status",        help="Print rich session status")
 sub.add_parser("complete",      help="Mark session complete and print summary")
 sub.add_parser("history",       help="Print session history and progress")
+
+p = sub.add_parser("save",    help="Persist session state to git (survives container restart)")
+p = sub.add_parser("restore", help="Restore session state from git save")
+p.add_argument("--force", action="store_true", help="Restore even if active session exists")
+
 sub.add_parser("reset",         help="Emergency cleanup of all state/lock files")
 
 args = parser.parse_args()
@@ -309,5 +368,7 @@ args = parser.parse_args()
     "status":        cmd_status,
     "complete":      cmd_complete,
     "history":       cmd_history,
+    "save":          cmd_save,
+    "restore":       cmd_restore,
     "reset":         cmd_reset,
 }[args.cmd](args)
