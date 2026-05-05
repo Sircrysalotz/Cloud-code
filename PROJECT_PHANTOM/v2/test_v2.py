@@ -568,6 +568,40 @@ def test_drift_guard():
         threshold=50.0, min_lines=5, hunk_spread_min=0.3)
     check("Fallback: 1 hunk no alignment → VERTICAL drift", is_d5 and verdict5 == "VERTICAL")
 
+    # evaluate_drift — configurable scope_threshold (tighter: 20%)
+    scope_scored2 = [("in_scope.py", 70, 70.0), ("out_of_scope.py", 30, 30.0)]
+    t7 = dg.TrendTracker(3)
+    t7.update(scope_scored2)
+    # Default scope_threshold=30 → 30% outside is NOT > 30 → CLEAN
+    is_d6, verdict6, _ = dg.evaluate_drift(
+        scope_scored2, 100, {}, t7, task="fix bug", scope_files=["in_scope.py"],
+        threshold=50.0, min_lines=5, hunk_spread_min=0.3, scope_threshold=30.0)
+    check("scope_threshold=30: exactly at boundary → CLEAN", not is_d6)
+    # With tighter scope_threshold=20 → 30% outside IS > 20 → SCOPE_CREEP
+    is_d7, verdict7, _ = dg.evaluate_drift(
+        scope_scored2, 100, {}, t7, task="fix bug", scope_files=["in_scope.py"],
+        threshold=50.0, min_lines=5, hunk_spread_min=0.3, scope_threshold=20.0)
+    check("scope_threshold=20: 30% outside → SCOPE_CREEP", is_d7 and verdict7 == "SCOPE_CREEP")
+
+    # evaluate_drift — configurable hunk_count_min (stricter: require 8 hunks)
+    spread_scored = [("big_file.py", 80, 80.0), ("other.py", 20, 20.0)]
+    t8 = dg.TrendTracker(3)
+    t8.update(spread_scored)
+    # With hunk_count_min=4 and only 4 hunks → CLEAN
+    is_d8, verdict8, _ = dg.evaluate_drift(
+        spread_scored, 100,
+        {"big_file.py": {"hunk_count": 4, "hunk_spread": 0.8}}, t8,
+        task="unrelated task", scope_files=[],
+        threshold=50.0, min_lines=5, hunk_spread_min=0.3, hunk_count_min=4)
+    check("hunk_count_min=4 with 4 hunks → CLEAN", not is_d8)
+    # With hunk_count_min=8 and only 4 hunks → falls through to VERTICAL
+    is_d9, verdict9, _ = dg.evaluate_drift(
+        spread_scored, 100,
+        {"big_file.py": {"hunk_count": 4, "hunk_spread": 0.8}}, t8,
+        task="unrelated task", scope_files=[],
+        threshold=50.0, min_lines=5, hunk_spread_min=0.3, hunk_count_min=8)
+    check("hunk_count_min=8 with only 4 hunks → VERTICAL", is_d9 and verdict9 == "VERTICAL")
+
     # parse_diff_stat still works
     sample = " a.py | 90 +++---\n b.py | 15 +++\n 2 files changed\n"
     files = dg.parse_diff_stat(sample)

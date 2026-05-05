@@ -105,3 +105,67 @@ v2 is a significant improvement across all dimensions:
 - More testable (env var isolation, 46 tests)
 - More configurable (interval, cooldown_factor, CLI args on logger)
 - Catches more bugs (agent-done underflow, double-arm, crash recovery)
+
+---
+
+## v2.1 Additions (activity signals + profile system + drift_guard v2)
+
+### Problem: heartbeat_runner fired false positives during active coding
+
+v2.0 heartbeat_runner used only `last_active` (ping timestamp) to measure idle time.
+When Claude coded for 8+ minutes without pinging, heartbeat fired as a false positive.
+
+**Fix in v2.1** — multi-source activity signals:
+
+| Signal | Source |
+|---|---|
+| `ping` | `last_active` field in session state (explicit) |
+| `file:path` | `os.walk(workspace)` — most recently modified tracked file |
+| `git:index` | `mtime(.git/index)` — any staged/modified file |
+
+`get_last_activity(state)` returns `(timestamp, source_label)` using `max()` of all three.
+Heartbeat now shows `[signal_source]` on every HOLD/FIRE line.
+
+### Problem: all config flags had to be retyped each session
+
+**Fix in v2.1** — profile system:
+- Named configs stored in `~/.phantom_profiles.json` (default) or `PHANTOM_PROFILES` env var
+- `phantom.py config create|list|show|set|delete` commands
+- `phantom.py start --profile sprint` loads saved defaults
+- Flags passed explicitly still override the profile
+
+### New: portable anti-drift tools
+
+| Tool | Purpose |
+|---|---|
+| `tools/scope_guard.py` | Standalone drift checker for any git repo (`--repo`, `--threshold`, `--since`) |
+| `tools/coverage_tracker.py` | Target coverage checker — which files have been touched vs skipped |
+| `tools/test_tools.py` | 36 integration tests for both tools |
+
+### drift_guard.py — v1 (percentage-only) vs v2.1 (four-gate)
+
+| Scenario | v1 | v2.1 |
+|---|---|---|
+| Legitimate single-file task (e.g. rewriting drift_guard.py) | `DRIFT` (false positive) | `CLEAN` — task alignment gate |
+| Declared focus: `--scope drift_guard.py` | No concept | `CLEAN` — within scope |
+| Many hunks spread across one large file | `DRIFT` (false positive) | `CLEAN` — hunk spread gate |
+| Slow upward trend, not yet over threshold | Missed | `TRENDING` — trend detection |
+| Actually vertical (1 hunk, 80% one file) | `DRIFT` ✓ | `VERTICAL` ✓ |
+| Scope creep (outside declared scope) | No concept | `SCOPE_CREEP` |
+
+New CLI args on drift_guard.py:
+
+| Arg | Default | Purpose |
+|---|---|---|
+| `--scope f1 f2` | (from state) | Override declared scope files |
+| `--scope-threshold` | 30% | % outside scope that triggers SCOPE_CREEP |
+| `--hunk-count-min` | 4 | Minimum hunks before spread analysis applies |
+| `--hunk-spread` | 0.3 | Minimum spread ratio for CLEAN verdict |
+| `--trend-checks` | 3 | History window for trend detection |
+
+phantom.py additions in v2.1:
+- `--scope` on `start` → `scope_files` stored in session state
+- `scope_files` included in profile keys (saveable per-profile)
+- `scope_threshold` default changed from 40% to 50% (last-resort gate)
+
+Test coverage: 46 → 152 tests (152/152 passing)

@@ -250,6 +250,8 @@ def evaluate_drift(
     threshold: float,
     min_lines: int,
     hunk_spread_min: float,
+    scope_threshold: float = 30.0,
+    hunk_count_min: int = 4,
 ) -> tuple[bool, str, str]:
     """
     Returns (is_drift: bool, verdict: str, reason: str).
@@ -272,11 +274,11 @@ def evaluate_drift(
         out_scope_lines = sum(l for _, l, _ in out_scope)
         out_pct = 100.0 * out_scope_lines / total if total else 0
 
-        if out_pct > 30:
+        if out_pct > scope_threshold:
             files_list = ", ".join(n for n, _, _ in out_scope[:3])
             return (True, "SCOPE_CREEP",
                     f"{out_pct:.0f}% of changes are outside declared scope "
-                    f"({files_list})")
+                    f"({files_list}; threshold {scope_threshold:.0f}%)")
 
         # Within declared scope — check balance within scope
         if len(in_scope) >= 2:
@@ -314,7 +316,7 @@ def evaluate_drift(
         hunk_count  = depth.get("hunk_count", 0)
         hunk_spread = depth.get("hunk_spread", 0.0)
 
-        if hunk_count >= 4 and hunk_spread >= hunk_spread_min:
+        if hunk_count >= hunk_count_min and hunk_spread >= hunk_spread_min:
             # Many spread hunks = horizontal work within file
             # Still flag if trending badly
             t_dir, t_rate = trend.trend(top_name)
@@ -360,6 +362,10 @@ def parse_args():
                    help="History window for trend detection")
     p.add_argument("--hunk-spread",  type=float, default=0.3,
                    help="Min hunk spread ratio to consider work horizontal")
+    p.add_argument("--scope-threshold", type=float, default=30.0,
+                   help="%% of changes outside declared scope that triggers SCOPE_CREEP (default 30)")
+    p.add_argument("--hunk-count-min",  type=int,   default=4,
+                   help="Min hunks required before spread analysis exempts a file (default 4)")
     return p.parse_args()
 
 
@@ -394,7 +400,8 @@ def main():
     print("Drift Guard v2 active")
     print(f"  Workspace:  {workspace}")
     print(f"  Threshold:  {args.threshold:.0f}% | Poll: {args.interval}s | Since: {since}")
-    print(f"  Hunk spread min: {args.hunk_spread:.0%} | Trend window: {args.trend_checks} checks")
+    print(f"  Hunk spread min: {args.hunk_spread:.0%} | Hunk count min: {args.hunk_count_min}")
+    print(f"  Scope threshold: {args.scope_threshold:.0f}% outside | Trend window: {args.trend_checks} checks")
     if scope_files:
         print(f"  Scope:      {', '.join(scope_files)}")
     else:
@@ -442,6 +449,8 @@ def main():
             args.threshold,
             args.min_lines,
             args.hunk_spread,
+            scope_threshold=args.scope_threshold,
+            hunk_count_min=args.hunk_count_min,
         )
 
         print(f"[{ts}] Check #{checks} | {total} lines | top: {top_name} ({top_pct:.0f}%) | {verdict}")

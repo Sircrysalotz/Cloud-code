@@ -24,9 +24,11 @@ python3 /home/user/Cloud-code/PROJECT_PHANTOM/agents/drift_guard.py \
 ```
 
 Optional flags:
-- `--scope file1 file2` — declare intended focus files; drift guard treats concentration there as CLEAN and flags changes outside scope as SCOPE_CREEP
-- `--trend-checks N` — number of consecutive checks above threshold before a TRENDING verdict fires (default 3)
-- `--hunk-spread N` — minimum hunk count before spread analysis exempts a file (default 4)
+- `--scope file1 file2` — override scope files (default: reads from session state set by `phantom.py start --scope`)
+- `--scope-threshold N` — % of changes outside declared scope that triggers SCOPE_CREEP (default 30)
+- `--hunk-count-min N` — minimum hunk count required before spread analysis can exempt a file (default 4)
+- `--hunk-spread N` — minimum hunk spread ratio (0–1) to consider work horizontal (default 0.3)
+- `--trend-checks N` — history window: checks above threshold before TRENDING fires (default 3)
 
 Four-gate evaluation order:
 1. **Declared scope** — if scope_files set and dominant file is in scope, CLEAN; if outside scope > 30%, SCOPE_CREEP
