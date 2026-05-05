@@ -1,6 +1,6 @@
 {
   "task": "save test",
-  "last_active": "2026-05-05 23:52:42",
+  "last_active": "2026-05-05 23:52:53",
   "turns_taken": 1,
   "turns_target": 5,
   "rounds_remaining": 5,
@@ -14,13 +14,13 @@
   "heartbeat_active": false,
   "last_heartbeat_fired": null,
   "progress_note": "saved progress",
-  "started": "2026-05-05 23:52:42",
+  "started": "2026-05-05 23:52:53",
   "status": "active",
-  "workspace_dir": "/home/user/Cloud-code/PROJECT_PHANTOM",
+  "workspace_dir": "/home/user/Cloud-code",
   "profile": null,
   "scope_files": [],
-  "session_start_ref": "f785f0d5023b912719b18950933d5e9407414507",
+  "session_start_ref": "7b00ce43e65149b7db996d1ce248cf9b79607d3d",
   "tracked_extensions": [],
   "scan_depth": 5,
-  "saved_at": "2026-05-05 23:52:42"
+  "saved_at": "2026-05-05 23:52:53"
 }
