@@ -805,6 +805,21 @@ def test_heartbeat_runner():
     check("v6 runner banner includes done criterion", "criterion alpha" in out)
     check("v6 RESUME line includes anchor check step", "anchor check" in out.lower() or "anchor" in out.lower())
 
+    # ── round number in fire banner ──
+    run([PHANTOM, "start", "round num test", "--rounds", "3", "--interval", "1", "--force"])
+    state = read_state()
+    state["heartbeat_active"] = True
+    state["last_active"] = "2020-01-01 00:00:00"
+    state["rounds_used"] = 1   # simulate one already used
+    with tempfile.TemporaryDirectory() as tmpws:
+        state["workspace_dir"] = tmpws
+        with open(STATE, "w") as f:
+            json.dump(state, f)
+        rc, out, err = run([RUNNER], timeout=10)
+    check("fire banner shows round number", "round" in out.lower())
+    # rounds_used=1 on entry, fire increments it to 2; rounds_total = used(1) + remaining(3) = 4
+    check("fire banner shows round N/total format", "/" in out and "round" in out.lower())
+
     cleanup()
 
 
@@ -1488,6 +1503,14 @@ def test_check():
     check("watchdog_events initialized []",       state.get("watchdog_events")    == [])
     check("ping_log initialized []",              state.get("ping_log")           == [])
 
+    # anchor_a and anchor_b initialized at start
+    check("anchor_a initialized on start", isinstance(state.get("anchor_a"), dict))
+    check("anchor_b initialized on start", isinstance(state.get("anchor_b"), dict))
+    check("anchor_a has ref key",          "ref" in (state.get("anchor_a") or {}))
+    check("anchor_a has timestamp key",    "timestamp" in (state.get("anchor_a") or {}))
+    check("anchor_b has goal key",         "goal" in (state.get("anchor_b") or {}))
+    check("anchor_b goal matches task",    state.get("anchor_b", {}).get("goal") == "default auto-save")
+
     cleanup()
 
 
@@ -1570,6 +1593,21 @@ def test_anchor():
     check("anchor show shows criterion one", "criterion one" in out)
     check("anchor show shows criterion two", "criterion two" in out)
 
+    # anchor check shows criteria Progress line
+    rc, out, err = run([PHANTOM, "anchor", "check"])
+    check("anchor check shows Progress N/M line", "Progress:" in out)
+
+    # _eval_criteria: coverage criterion auto-marks [x] when coverage is full
+    # Set up a session with a "coverage" criterion and mark one target touched via git diff
+    # (Hard to test end-to-end without real git changes; test the [ ] → shown behavior)
+    run([PHANTOM, "start", "criteria eval test", "--turns", "5", "--force",
+         "--done-criteria", "coverage full", "drift clean", "no drift warning"])
+    run([PHANTOM, "ping", "evaluating criteria"])
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("anchor show shows [ ] for unmet criteria", "[ ]" in out)
+    # With no drift warning, 'drift clean' criterion should show [x]
+    check("anchor show marks drift clean as [x] when clean", "[x]" in out)
+
     cleanup()
 
 
@@ -1643,6 +1681,22 @@ def test_checkpoint():
     rc, out, err = run([PHANTOM, "checkpoint"])
     check("checkpoint fails with stale ping", rc == 1)
     check("checkpoint shows Stale ping message", "Stale ping" in out)
+
+    cleanup()
+
+    # complete — soft pre-complete checkpoint warns on issues but doesn't block
+    run([PHANTOM, "start", "complete warn test", "--turns", "3",
+         "--coverage-targets", "agents/phantom.py"])
+    # inject stale ping so soft checkpoint fires
+    s = _json.load(open(STATE))
+    s["last_active"] = "2020-01-01 00:00:00"
+    with open(STATE + ".tmp", "w") as f:
+        _json.dump(s, f)
+    _os.rename(STATE + ".tmp", STATE)
+    rc, out, err = run([PHANTOM, "complete"])
+    check("complete exits 0 even with soft checkpoint issues", rc == 0)
+    check("complete shows pre-complete warning", "Pre-complete" in out or "pre-complete" in out.lower())
+    check("complete still shows SESSION COMPLETE", "SESSION COMPLETE" in out)
 
     cleanup()
 

@@ -538,8 +538,37 @@ def cmd_status(args):
     print("=" * 50)
 
 
+def _soft_checkpoint(state: dict) -> list[str]:
+    """Return list of checkpoint failures without side effects or exit calls."""
+    issues = []
+    last_active = state.get("last_active", "")
+    threshold   = state.get("idle_threshold_seconds", 180)
+    if last_active:
+        try:
+            age = (datetime.now() - datetime.strptime(last_active, "%Y-%m-%d %H:%M:%S")).total_seconds()
+            if age > threshold * 0.75:
+                issues.append(f"stale ping ({age:.0f}s since last ping)")
+        except Exception:
+            pass
+    if state.get("drift_warning"):
+        issues.append("unresolved drift warning")
+    targets = state.get("coverage_targets") or []
+    if targets:
+        cov = _quick_coverage(state)
+        if cov and int(cov.split("/")[0]) == 0:
+            issues.append("zero coverage — no targets touched")
+    return issues
+
+
 def cmd_complete(args):
     state = require_state()
+    # Soft pre-complete checkpoint — warn on issues but don't block
+    issues = _soft_checkpoint(state)
+    if issues:
+        print("⚠  Pre-complete check found issues (run 'checkpoint' to review):")
+        for iss in issues:
+            print(f"    • {iss}")
+        print()
     state["status"]    = "complete"
     state["completed"] = now_str()
     atomic_write(state)
@@ -1114,6 +1143,41 @@ def cmd_drift_status(args):
 
 # --- Anchor system ---
 
+def _eval_criteria(state: dict) -> list[tuple[str, bool]]:
+    """
+    Evaluate each done criterion against observable session state.
+    Returns list of (criterion_text, is_done) pairs.
+
+    Heuristics (simple keyword matching against measurable signals):
+      - "coverage" + fraction → check _quick_coverage() for full coverage
+      - "tests pass" / "passing" → not checkable live; always False (needs manual verify)
+      - "all" + "pass" / "complete" → not checkable; False
+      - anything else → False (unknown, needs manual verify)
+    """
+    criteria = (state.get("anchor_b") or {}).get("done_criteria") or []
+    results = []
+    cov_str = _quick_coverage(state)
+    full_cov = cov_str is not None and "FULL COVERAGE" in cov_str
+
+    for c in criteria:
+        c_lower = c.lower()
+        done = False
+        # Coverage criterion: "coverage 4/4", "full coverage", "coverage complete"
+        if "coverage" in c_lower:
+            if "full" in c_lower or ("/" in c_lower and c_lower.split("/")[0].strip().split()[-1] ==
+                                      c_lower.split("/")[1].strip().split()[0]):
+                done = full_cov
+            else:
+                done = full_cov
+        # Drift criterion: "drift clean", "no drift"
+        elif "drift" in c_lower and ("clean" in c_lower or "no" in c_lower):
+            done = not bool(state.get("drift_warning"))
+        # Checkpoint criterion: "checkpoint pass" — can't verify live
+        # Tests criterion: "tests pass" — can't verify live
+        results.append((c, done))
+    return results
+
+
 def cmd_anchor(args):
     """Anchor-based navigation: Point A (origin) never changes, Point B (goal) is the target."""
     sub   = args.anchor_cmd
@@ -1135,8 +1199,10 @@ def cmd_anchor(args):
         criteria = b.get("done_criteria") or []
         if criteria:
             print(f"    Done when:")
-            for c in criteria:
-                print(f"      [ ] {c}")
+            evaluated = _eval_criteria(state)
+            for c, done in evaluated:
+                mark = "x" if done else " "
+                print(f"      [{mark}] {c}")
         else:
             print(f"    Done when: (not set — use 'anchor set-goal --criteria ...' to define)")
         print(f"    Set at:    {b.get('set_at', '?')}")
@@ -1161,8 +1227,12 @@ def cmd_anchor(args):
         criteria = b.get("done_criteria") or []
         if criteria:
             print(f"  Done criteria:")
-            for c in criteria:
-                print(f"    [ ] {c}")
+            evaluated = _eval_criteria(state)
+            done_count = sum(1 for _, d in evaluated if d)
+            for c, done in evaluated:
+                mark = "x" if done else " "
+                print(f"    [{mark}] {c}")
+            print(f"  Progress: {done_count}/{len(criteria)} criteria verifiably met")
         print()
         print(f"  CURRENT:")
         print(f"    Turn:     {state.get('turns_taken', 0)}/{state.get('turns_target', '?')}")

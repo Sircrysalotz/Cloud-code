@@ -377,8 +377,10 @@ def main():
         dg_active = state.get("drift_guard_active", False)
         dw        = state.get("drift_warning")
 
+        rounds_used  = state.get("rounds_used", 0)
+        rounds_total = rounds_used + state["rounds_remaining"]  # used + remaining = original
         print("=" * 54)
-        print("  HEARTBEAT FIRED")
+        print(f"  HEARTBEAT FIRED  (round {rounds_used}/{rounds_total})")
         print(f"  Idle:      {gap:.0f}s (threshold: {idle_threshold}s, drift: +{drift:.0f}s)")
         print(f"  Polls:     {consecutive_idle} consecutive above threshold")
         print(f"  Signal:    {activity_source}")
