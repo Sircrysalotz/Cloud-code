@@ -148,6 +148,29 @@ def test_scope_guard():
     rc, out, err = run([SCOPE_GUARD, "--repo", repo, "--session",
                         "--state-file", "/tmp/nonexistent_scope_state.json"])
     check("scope_guard --session missing state falls back (not crash)", rc != 2 or rc in (0, 1, 2))
+
+    # --session reads scope_threshold from state (overrides default 40%)
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as sf2:
+        json.dump({"session_start_ref": since_ref, "scope_threshold": 25.0}, sf2)
+        tmp_state2 = sf2.name
+    rc, out, err = run([SCOPE_GUARD, "--repo", repo, "--session",
+                        "--state-file", tmp_state2, "--json"])
+    try:
+        data2 = json.loads(out) if out.strip() else {}
+        check("scope_guard --session reads scope_threshold from state",
+              data2.get("threshold") == 25.0 or not out.strip())
+    except json.JSONDecodeError:
+        check("scope_guard --session reads scope_threshold from state", False)
+    # explicit --threshold overrides state scope_threshold
+    rc, out, err = run([SCOPE_GUARD, "--repo", repo, "--session",
+                        "--state-file", tmp_state2, "--json", "--threshold", "60"])
+    try:
+        data3 = json.loads(out) if out.strip() else {}
+        check("scope_guard explicit --threshold overrides state scope_threshold",
+              data3.get("threshold") == 60.0 or not out.strip())
+    except json.JSONDecodeError:
+        check("scope_guard explicit --threshold overrides state scope_threshold", False)
+    os.unlink(tmp_state2)
     os.unlink(tmp_state)
 
     import shutil

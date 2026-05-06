@@ -1139,6 +1139,40 @@ def test_scope_guard():
     ref2 = sg.read_session_start_ref("/tmp/nonexistent_xyz.json")
     check("read_session_start_ref returns None for missing file", ref2 is None)
 
+    # --session reads scope_threshold from state when CLI threshold is at default (40)
+    run([PHANTOM, "start", "scope_guard threshold test", "--turns", "3", "--scope-threshold", "25"])
+    rc, out, err = run([SCOPE_GUARD, "--repo", "/home/user/Cloud-code",
+                        "--session", "--state-file", STATE, "--json", "--since", "HEAD~1"])
+    check("scope_guard --session --json exits 0 or 1", rc in (0, 1))
+    try:
+        data = json.loads(out)
+        check("scope_guard --session reads scope_threshold: threshold is 25", data.get("threshold") == 25.0)
+    except json.JSONDecodeError:
+        check("scope_guard --session reads scope_threshold: threshold is 25", False)
+
+    # --session explicit --threshold overrides state scope_threshold
+    rc, out, err = run([SCOPE_GUARD, "--repo", "/home/user/Cloud-code",
+                        "--session", "--state-file", STATE, "--json", "--since", "HEAD~1",
+                        "--threshold", "35"])
+    check("scope_guard --session explicit --threshold exits 0 or 1", rc in (0, 1))
+    try:
+        data = json.loads(out)
+        check("scope_guard explicit --threshold overrides state: threshold is 35", data.get("threshold") == 35.0)
+    except json.JSONDecodeError:
+        check("scope_guard explicit --threshold overrides state: threshold is 35", False)
+
+    # --session with no explicit --scope-threshold uses phantom.py start default (50.0)
+    run([PHANTOM, "reset"])
+    run([PHANTOM, "start", "scope_guard no-threshold test", "--turns", "3"])
+    rc, out, err = run([SCOPE_GUARD, "--repo", "/home/user/Cloud-code",
+                        "--session", "--state-file", STATE, "--json", "--since", "HEAD~1"])
+    check("scope_guard --session no scope_threshold exits 0 or 1", rc in (0, 1))
+    try:
+        data = json.loads(out)
+        check("scope_guard --session uses phantom start default scope_threshold 50", data.get("threshold") == 50.0)
+    except json.JSONDecodeError:
+        check("scope_guard --session uses phantom start default scope_threshold 50", False)
+
     cleanup()
 
 

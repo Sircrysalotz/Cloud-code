@@ -403,3 +403,71 @@ phantom.py check [--threshold N] [--targets file1 file2 ...]
 
 New tests (45): `check` command (11), coverage_tracker --session (14),
 scope_guard --session (14, moved from v2.3), ping_log round-trip (6).
+
+---
+
+## v2.5 — Protocol fixes + coverage_targets + scope_threshold propagation
+
+### Critical bug fix: `agent-start` for drift-guard blocked heartbeat forever
+
+**Root cause:** CLAUDE.md protocol called `agent-start --id "drift-guard"` before spawning the drift guard sub-agent. This incremented `agents_running` to 1, permanently blocking the heartbeat runner (which holds while `agents_running > 0`). All prior sessions had `rounds_used: 0` as a result.
+
+**Fix:** Removed `agent-start`/`agent-done` calls for drift-guard and heartbeat from CLAUDE.md.
+Both are monitors, not workers — they use `drift-arm`/`drift-done` and `heartbeat-arm` only.
+Added explicit IMPORTANT warnings in the protocol and anti-drift rules.
+
+### phantom.py — `--coverage-targets` on start
+
+`--coverage-targets` was declared in the profile schema but never registered in `start`'s argparse subparser. Flag silently ignored. Fixed — now stored in state and automatically loaded by `check`.
+
+### phantom.py — `--scope-threshold` on start
+
+`--scope-threshold` on `start` now stores in state, read by:
+- `drift_guard.py` — when CLI `--scope-threshold` is at default (30%), loads from state
+- `phantom.py scope` — when CLI `--threshold` is at default (50%), loads from state
+- `phantom.py check` — uses state scope_threshold
+- `scope_guard.py --session` — when CLI `--threshold` is at default (40%), loads from state
+
+### Profile list fields resolved from profile
+
+`scope_files`, `coverage_targets`, `tracked_extensions`, `scan_depth` now fall through to profile defaults when not explicitly given on CLI. Previously only scalar fields (turns, rounds, threshold) loaded from profiles.
+
+### phantom.py — status/complete/report coverage display
+
+All three commands now show a Coverage summary line when `coverage_targets` or `scope_files` is set in state.
+
+### phantom.py — `check` command
+
+`check` now also supports `--json` flag:
+```json
+{
+  "task": "...", "since": "...", "threshold": 40,
+  "scope": {"files": [...], "max_pct": 33.1, "clean": true},
+  "coverage": {"targets": [...], "touched": [...], "untouched": [...], "pct": 66.7, "full": false}
+}
+```
+
+### scope_guard.py — `--session` reads `scope_threshold`
+
+Previously `--session` only read `session_start_ref` from state. Now also reads `scope_threshold` and uses it when the CLI `--threshold` is at default (40%). This ensures `scope_guard --session` respects the threshold configured at session start without requiring a separate flag.
+
+### drift_guard.py — reads `scope_threshold` from state
+
+When `--scope-threshold` CLI is at default (30%), drift_guard now reads `scope_threshold` from session state. Ensures drift guard respects `--scope-threshold` set at `phantom.py start`.
+
+### Test count stability
+
+Fixed conditional `check()` blocks (`if out.strip(): check(...)`) that caused test count to vary between 340 and 346 depending on run order. All checks are now unconditional.
+
+### Test coverage
+
+| Version | Tests |
+|---|---|
+| v2.0 | 46 |
+| v2.1 | 152 |
+| v2.2 | 168 |
+| v2.3 | 284 |
+| v2.4 | 329 |
+| v2.5 | 352 |
+
+New tests (23): `check` --json (14), coverage_targets profile loading (2), status/complete/report coverage display (3), scope --session scope_threshold (1), scope_guard --session scope_threshold (3).

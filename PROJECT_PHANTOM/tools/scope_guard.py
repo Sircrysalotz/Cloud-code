@@ -138,18 +138,30 @@ def run(args):
             print(f"ERROR: Not a git repository: {repo}", file=sys.stderr)
         return 2
 
-    # Determine diff base
+    # Determine diff base and threshold
     since = args.since
     session_label = ""
-    if since is None and getattr(args, "session", False):
+    threshold = args.threshold
+    if getattr(args, "session", False):
         state_file = getattr(args, "state_file", None)
-        session_ref = read_session_start_ref(state_file)
-        if session_ref:
-            since = session_ref
-            session_label = " (session)"
-        elif not args.quiet:
-            print("WARNING: --session specified but no session_start_ref found in state. "
-                  "Falling back to auto-detect.", file=sys.stderr)
+        path = state_file or os.environ.get("PHANTOM_STATE", "/tmp/phantom_session.json")
+        try:
+            with open(path) as f:
+                _state = json.load(f)
+            session_ref = _state.get("session_start_ref")
+            if session_ref and since is None:
+                since = session_ref
+                session_label = " (session)"
+            elif since is None and not args.quiet:
+                print("WARNING: --session specified but no session_start_ref found in state. "
+                      "Falling back to auto-detect.", file=sys.stderr)
+            # Use session scope_threshold when CLI threshold is at default
+            if args.threshold == 40.0 and "scope_threshold" in _state:
+                threshold = _state["scope_threshold"]
+        except (FileNotFoundError, json.JSONDecodeError):
+            if since is None and not args.quiet:
+                print("WARNING: --session specified but state file not found. "
+                      "Falling back to auto-detect.", file=sys.stderr)
     if since is None:
         since = find_since(repo, args.base_branch)
     if since is None:
@@ -186,14 +198,14 @@ def run(args):
         key=lambda x: -x[2],
     )
 
-    drift_files = [(n, l, p) for n, l, p in scored if p > args.threshold]
+    drift_files = [(n, l, p) for n, l, p in scored if p > threshold]
     clean = len(drift_files) == 0
 
     if args.json:
         print(json.dumps({
             "since": since,
             "session": bool(session_label),
-            "threshold": args.threshold,
+            "threshold": threshold,
             "total_lines": total,
             "files": [{"file": n, "lines": l, "pct": round(p, 1)} for n, l, p in scored],
             "drift": [{"file": n, "lines": l, "pct": round(p, 1)} for n, l, p in drift_files],
@@ -202,17 +214,17 @@ def run(args):
         return 0 if clean else 1
 
     if not args.quiet:
-        print(f"Scope check — diff since: {since}{session_label}  |  threshold: {args.threshold:.0f}%  |  total lines: {total}")
+        print(f"Scope check — diff since: {since}{session_label}  |  threshold: {threshold:.0f}%  |  total lines: {total}")
         print()
         for name, lines, pct in scored:
             bar = "█" * int(pct / 5)
-            flag = "  ← DRIFT" if pct > args.threshold else ""
+            flag = "  ← DRIFT" if pct > threshold else ""
             print(f"  {pct:5.1f}%  {bar:<20}  {lines:4d}  {name}{flag}")
         print()
         if clean:
             print("  ✓ CLEAN — no file exceeds threshold")
         else:
-            print(f"  ✗ DRIFT DETECTED — {len(drift_files)} file(s) over {args.threshold:.0f}%:")
+            print(f"  ✗ DRIFT DETECTED — {len(drift_files)} file(s) over {threshold:.0f}%:")
             for name, lines, pct in drift_files:
                 print(f"      {name}  ({pct:.1f}% of changes)")
 

@@ -85,7 +85,9 @@ Do NOT call it:
 | `--scope-threshold` only settable per-run in drift_guard | `--scope-threshold` on `start` — stored in state, read by drift_guard + check |
 | Profile list fields not loaded from profile | scope_files, coverage_targets, tracked_extensions, scan_depth all profile-resolved |
 | Status/complete/report hide coverage status | All three commands show coverage summary when coverage_targets or scope_files set |
-| Test count varies between runs | Fixed conditional check() blocks — always 338 tests |
+| Test count varies between runs | Fixed conditional check() blocks — always 346 tests |
+| `agent-start` for drift-guard blocked heartbeat forever | Protocol fix: drift-guard uses `drift-arm`/`drift-done` only — never `agent-start` |
+| `agent-start` for heartbeat also blocks heartbeat | Protocol fix: heartbeat uses `heartbeat-arm` only — never `agent-start` |
 
 ### Files
 
@@ -179,10 +181,11 @@ python3 PROJECT_PHANTOM/agents/phantom.py ping "what I just did / what's next"
 ### 4. Start drift guard (run alongside heartbeat)
 ```bash
 python3 PROJECT_PHANTOM/agents/phantom.py drift-arm
-python3 PROJECT_PHANTOM/agents/phantom.py agent-start --id "drift-guard"
 # Spawn: "Read /home/user/Cloud-code/PROJECT_PHANTOM/agents/DRIFT_GUARD.md and execute."
 # use run_in_background: true
 ```
+**IMPORTANT:** Do NOT call `agent-start` for drift guard. It uses `drift-arm`/`drift-done` only.
+Calling `agent-start` would increment `agents_running`, permanently blocking the heartbeat.
 
 ### 5. Start heartbeat (check exit code first)
 ```bash
@@ -192,6 +195,7 @@ python3 PROJECT_PHANTOM/agents/phantom.py heartbeat-arm
 ```
 Spawn prompt: `"Read /home/user/Cloud-code/PROJECT_PHANTOM/agents/HEARTBEAT.md and execute."`
 Use `run_in_background: true`.
+**IMPORTANT:** Do NOT call `agent-start` for heartbeat either. Use `heartbeat-arm` only.
 
 ### 6. When heartbeat fires
 ```bash
@@ -203,7 +207,6 @@ python3 PROJECT_PHANTOM/agents/phantom.py heartbeat-arm   # check exit code
 
 ### 7. When drift guard returns
 ```bash
-python3 PROJECT_PHANTOM/agents/phantom.py agent-done --id "drift-guard"
 python3 PROJECT_PHANTOM/agents/phantom.py drift-done
 # exit 0 → clean, re-arm if continuing: phantom.py drift-arm
 # exit 1 → drift detected — spread changes then re-arm
@@ -216,6 +219,7 @@ python3 PROJECT_PHANTOM/agents/phantom.py agent-start --id "worker-name"
 # when it returns:
 python3 PROJECT_PHANTOM/agents/phantom.py agent-done --id "worker-name"
 ```
+**Worker agents only** — NOT for heartbeat or drift guard. Those have their own arm/done commands.
 
 ### 9. Explicitly end the session (when truly done)
 ```bash
@@ -409,3 +413,5 @@ python3 PROJECT_PHANTOM/agents/phantom.py restore   # recovers saved state
 - The correct flow: work continuously → stop when genuinely done → heartbeat fires → resume → repeat
 - **Never call `complete` because you hit the turn count — only when the work is truly done**
 - Use `scope --session` to verify horizontal distribution after each commit batch
+- **Never call `agent-start` for heartbeat or drift-guard** — they use their own arm/done commands
+- `agents_running` must stay 0 while heartbeat and drift-guard run, or the heartbeat is blocked forever
