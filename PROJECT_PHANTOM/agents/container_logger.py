@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Container vitals logger v2. Runs as a background daemon.
+Container vitals logger v3. Runs as a background daemon.
 
 v2 additions:
   - PID file prevents duplicate loggers from running simultaneously
@@ -8,6 +8,14 @@ v2 additions:
   - Git push retry logic (3 attempts with backoff)
   - CLI args for configurable intervals
   - Graceful SIGTERM handling
+
+v3 additions:
+  - Memory threshold alerts (--mem-alert N, default 80%)
+    Logs ALERT line and prints warning when memory exceeds threshold
+  - Disk threshold alerts (--disk-alert N, default 90%)
+    Same for disk usage
+  - Alert deduplication: only logs the alert once until usage drops then rises again
+  - ALERT prefix in log line replaces ALIVE when any threshold exceeded
 """
 
 import argparse
@@ -84,7 +92,8 @@ def read_load() -> str:
         return "?"
 
 
-def read_mem() -> str:
+def read_mem() -> tuple[str, float]:
+    """Returns (formatted string, usage percent)."""
     try:
         info = {}
         with open("/proc/meminfo") as f:
@@ -95,21 +104,22 @@ def read_mem() -> str:
         avail = info.get("MemAvailable", 0)
         used  = total - avail
         pct   = used / total * 100 if total else 0
-        return f"{used // 1024}MB/{total // 1024}MB ({pct:.0f}%)"
+        return f"{used // 1024}MB/{total // 1024}MB ({pct:.0f}%)", pct
     except Exception:
-        return "?"
+        return "?", 0.0
 
 
-def read_disk() -> str:
+def read_disk() -> tuple[str, float]:
+    """Returns (formatted string, usage percent)."""
     try:
         st = os.statvfs(REPO_DIR)
         total = st.f_blocks * st.f_frsize
         free  = st.f_bavail * st.f_frsize
         used  = total - free
         pct   = used / total * 100 if total else 0
-        return f"{used // (1024**3)}GB/{total // (1024**3)}GB ({pct:.0f}%)"
+        return f"{used // (1024**3)}GB/{total // (1024**3)}GB ({pct:.0f}%)", pct
     except Exception:
-        return "?"
+        return "?", 0.0
 
 
 def rotate_log(max_lines: int = 500):
@@ -157,7 +167,8 @@ def git_push(entry_count: int) -> str:
     return "push failed after 3 attempts"
 
 
-def main(log_interval: int, push_every: int):
+def main(log_interval: int, push_every: int,
+         mem_alert: float = 80.0, disk_alert: float = 90.0):
     if check_duplicate():
         sys.exit(1)
 
@@ -168,32 +179,58 @@ def main(log_interval: int, push_every: int):
     os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
     entry_count = 0
 
+    # Alert deduplication: only re-alert after dropping below threshold then rising
+    mem_alerted  = False
+    disk_alerted = False
+
     with open(LOG_FILE, "a") as f:
-        f.write(f"[{now()}] LOGGER STARTED — pid={os.getpid()} interval={log_interval}s push_every={push_every}\n")
+        f.write(f"[{now()}] LOGGER STARTED — pid={os.getpid()} interval={log_interval}s "
+                f"push_every={push_every} mem_alert={mem_alert:.0f}% disk_alert={disk_alert:.0f}%\n")
         f.flush()
 
-    print(f"Container vitals logger v2 | PID={os.getpid()}")
-    print(f"  Log:     {LOG_FILE}")
+    print(f"Container vitals logger v3 | PID={os.getpid()}")
+    print(f"  Log:      {LOG_FILE}")
     print(f"  Interval: {log_interval}s | Push every: {push_every} entries (~{push_every * log_interval // 60}m)")
+    print(f"  Alerts:   mem>{mem_alert:.0f}%  disk>{disk_alert:.0f}%")
 
     try:
         while True:
             time.sleep(log_interval)
             entry_count += 1
-            uptime = read_uptime()
-            load   = read_load()
-            mem    = read_mem()
-            disk   = read_disk()
+            uptime        = read_uptime()
+            load          = read_load()
+            mem_str, mem_pct   = read_mem()
+            disk_str, disk_pct = read_disk()
             push_status = ""
+
+            # Alert deduplication — reset flag when usage drops back below threshold
+            if mem_pct < mem_alert * 0.9:
+                mem_alerted = False
+            if disk_pct < disk_alert * 0.9:
+                disk_alerted = False
+
+            # Determine alert severity
+            alerts = []
+            if mem_pct >= mem_alert:
+                alerts.append(f"MEM {mem_pct:.0f}%>={mem_alert:.0f}%")
+                if not mem_alerted:
+                    mem_alerted = True
+            if disk_pct >= disk_alert:
+                alerts.append(f"DISK {disk_pct:.0f}%>={disk_alert:.0f}%")
+                if not disk_alerted:
+                    disk_alerted = True
 
             if entry_count % push_every == 0:
                 rotate_log()
                 push_status = " | " + git_push(entry_count)
 
+            prefix = "ALERT" if alerts else "ALIVE"
+            alert_str = f" | ⚠ {', '.join(alerts)}" if alerts else ""
+
             line = (
-                f"[{now()}] ALIVE #{entry_count:04d} | "
+                f"[{now()}] {prefix} #{entry_count:04d} | "
                 f"up={uptime} | load={load} | "
-                f"mem={mem} | disk={disk}{push_status}\n"
+                f"mem={mem_str} | disk={disk_str}{alert_str}{push_status}\n"
             )
 
             with open(LOG_FILE, "a") as f:
@@ -201,13 +238,19 @@ def main(log_interval: int, push_every: int):
                 f.flush()
 
             print(line.strip())
+            if alerts:
+                print(f"  ⚠ ALERT: {', '.join(alerts)} — check container resources")
     finally:
         cleanup_pid()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Container vitals logger v2")
-    parser.add_argument("--interval",    type=int, default=60, help="Seconds between log entries")
-    parser.add_argument("--push-every",  type=int, default=5,  help="Push to git every N entries")
+    parser = argparse.ArgumentParser(description="Container vitals logger v3")
+    parser.add_argument("--interval",   type=int,   default=60,   help="Seconds between log entries")
+    parser.add_argument("--push-every", type=int,   default=5,    help="Push to git every N entries")
+    parser.add_argument("--mem-alert",  type=float, default=80.0, dest="mem_alert",
+                        help="Memory alert threshold %% (default 80)")
+    parser.add_argument("--disk-alert", type=float, default=90.0, dest="disk_alert",
+                        help="Disk alert threshold %% (default 90)")
     args = parser.parse_args()
-    main(args.interval, args.push_every)
+    main(args.interval, args.push_every, args.mem_alert, args.disk_alert)
