@@ -1,119 +1,54 @@
 {
-  "task": "Dogfood PHANTOM v2.9 \u2014 run the full system live, observe friction, fix what breaks or annoys, improve horizontal spread across all 5 core files",
-  "last_active": "2026-05-06 20:36:45",
-  "turns_taken": 10,
-  "turns_target": 30,
-  "rounds_remaining": 10,
+  "task": "save test",
+  "last_active": "2026-05-06 20:36:51",
+  "turns_taken": 1,
+  "turns_target": 5,
+  "rounds_remaining": 5,
   "idle_threshold_seconds": 180,
   "check_interval_seconds": 30,
   "cooldown_factor": 1.0,
-  "min_idle_polls": 2,
+  "min_idle_polls": 1,
   "rounds_used": 0,
   "agents_running": 0,
   "active_agent_ids": [],
-  "heartbeat_active": true,
+  "heartbeat_active": false,
   "last_heartbeat_fired": null,
-  "progress_note": "testing --tests confirmation output",
-  "started": "2026-05-06 20:15:07",
+  "progress_note": "saved progress",
+  "started": "2026-05-06 20:36:51",
   "status": "active",
   "workspace_dir": "/home/user/Cloud-code",
   "profile": null,
-  "scope_files": [
-    "agents/phantom.py",
-    "agents/heartbeat_runner.py",
-    "agents/drift_guard.py",
-    "test_phantom.py",
-    "CLAUDE.md"
-  ],
-  "coverage_targets": [
-    "agents/phantom.py",
-    "agents/heartbeat_runner.py",
-    "agents/drift_guard.py",
-    "test_phantom.py"
-  ],
-  "scope_threshold": 35.0,
-  "session_start_ref": "8bc5538cef4a730f8cea1ff32ba052ca52314fce",
+  "scope_files": [],
+  "coverage_targets": [],
+  "scope_threshold": 50.0,
+  "session_start_ref": "4e5c55805d7db920113f8825d62b119acac660d4",
   "tracked_extensions": [],
   "scan_depth": 5,
   "auto_save_every": 5,
-  "drift_guard_active": true,
+  "drift_guard_active": false,
   "drift_warning": null,
-  "drift_warned_at": "2026-05-06 20:18:25",
+  "drift_warned_at": null,
   "heartbeat_fires": [],
   "watchdog_events": [],
   "ping_log": [
     {
       "turn": 1,
-      "note": "Session started. Dogfood run begins \u2014 observing friction as I use anchor, checkpoint, drift-arm, heartbeat-arm live. First: arm the guards.",
-      "at": "2026-05-06 20:15:10"
-    },
-    {
-      "turn": 2,
-      "note": "448/448 tests pass \u2014 all 4 friction fixes done. Handling drift false-positive then committing.",
-      "at": "2026-05-06 20:19:59"
-    },
-    {
-      "turn": 3,
-      "note": "Committed and pushed v3.0. Drift guard re-armed with new ignore-patterns code. Running anchor check.",
-      "at": "2026-05-06 20:20:36"
-    },
-    {
-      "turn": 4,
-      "note": "Tests pass 468/468 \u2014 status --brief tested; committing final v3.0 changes",
-      "at": "2026-05-06 20:24:52"
-    },
-    {
-      "turn": 5,
-      "note": "anchor criteria tracking: check/HB-fire auto-mark; 466/466 tests pass",
-      "at": "2026-05-06 20:29:29"
-    },
-    {
-      "turn": 6,
-      "note": "checkpoint tracking added; 475/475 pass. Drift guard v4 confirmed running clean",
-      "at": "2026-05-06 20:31:09"
-    },
-    {
-      "turn": 7,
-      "note": "added --tests flag to ping; testing criteria eval",
-      "at": "2026-05-06 20:33:16"
-    },
-    {
-      "turn": 8,
-      "note": "ping --tests flag + criteria eval for tests/hb-fire; 472/472",
-      "at": "2026-05-06 20:34:43"
-    },
-    {
-      "turn": 9,
-      "note": "CLAUDE.md updated with v3.1 improvements",
-      "at": "2026-05-06 20:35:17"
-    },
-    {
-      "turn": 10,
-      "note": "testing --tests confirmation output",
-      "at": "2026-05-06 20:36:45"
+      "note": "saved progress",
+      "at": "2026-05-06 20:36:51"
     }
   ],
-  "last_activity_source": "git:index",
-  "last_activity_ts": "2026-05-06 20:35:21",
-  "next_heartbeat_at": "2026-05-06 20:38:21",
+  "last_activity_source": "ping",
+  "last_activity_ts": "2026-05-06 20:36:51",
+  "next_heartbeat_at": null,
   "completed": null,
-  "saved_at": "2026-05-06 20:36:45",
+  "saved_at": "2026-05-06 20:36:51",
   "anchor_a": {
-    "ref": "8bc5538cef4a730f8cea1ff32ba052ca52314fce",
-    "timestamp": "2026-05-06 20:15:07"
+    "ref": "4e5c55805d7db920113f8825d62b119acac660d4",
+    "timestamp": "2026-05-06 20:36:51"
   },
   "anchor_b": {
-    "goal": "Dogfood PHANTOM v2.9 \u2014 run the full system live, observe friction, fix what breaks or annoys, improve horizontal spread across all 5 core files",
-    "done_criteria": [
-      "observed at least 1 real heartbeat fire and resumed correctly",
-      "anchor check used at least once mid-session",
-      "checkpoint used before completion",
-      "at least 2 real improvements made per covered file",
-      "434+ tests passing on all changes"
-    ],
-    "set_at": "2026-05-06 20:15:07"
-  },
-  "anchor_checks_count": 5,
-  "checkpoint_calls_count": 1,
-  "tests_last_count": 472
+    "goal": "save test",
+    "done_criteria": [],
+    "set_at": "2026-05-06 20:36:51"
+  }
 }
