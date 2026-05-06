@@ -1,16 +1,39 @@
 #!/usr/bin/env python3
 """
-Phantom session manager v2. Single interface for all session state operations.
-All writes are atomic (write-to-temp + rename) to prevent race conditions.
+Phantom session manager v2.6. Single interface for all session state operations.
+All writes are atomic (write-to-temp + rename) with a lock file to prevent races.
 
-Usage:
-  phantom.py start "task" [--turns N] [--rounds N] [--threshold N] [--interval N] [--force]
-  phantom.py ping ["progress note"]
-  phantom.py agent-start [--id AGENT_ID]
-  phantom.py agent-done [--id AGENT_ID]
-  phantom.py heartbeat-arm
-  phantom.py status
-  phantom.py reset
+Session lifecycle:
+  phantom.py start "task" [--turns N] [--rounds N] [--threshold N] [--interval N]
+                          [--scope f1 f2] [--coverage-targets f1 f2]
+                          [--scope-threshold N] [--min-idle-polls N]
+                          [--profile NAME] [--force]
+  phantom.py ping ["note"]          # call at start of every turn
+  phantom.py status                 # rich session status panel
+  phantom.py report                 # full session overview (fires, scope, watchdog)
+  phantom.py history                # turn history and fire log
+  phantom.py check                  # unified scope + coverage check
+  phantom.py scope [--session]      # git diff horizontal balance
+  phantom.py complete               # mark session done, print summary
+  phantom.py save / restore         # persist/recover state across container restarts
+  phantom.py recover                # clear stuck flags (heartbeat_active, agents_running)
+  phantom.py reset                  # emergency: clear all state and lock files
+  phantom.py env                    # environment check: paths, tools, session
+
+Heartbeat and drift guard:
+  phantom.py heartbeat-arm          # arm heartbeat; check exit code before spawning
+  phantom.py drift-arm / drift-done # arm/read drift guard
+  phantom.py drift-status           # show drift guard state and last warning
+
+Worker sub-agents (NOT for heartbeat or drift guard):
+  phantom.py agent-start [--id ID]
+  phantom.py agent-done  [--id ID]
+
+Profile management:
+  phantom.py config create|list|show|set|delete [NAME] [flags]
+
+Paths are self-located from __file__ — no hardcoded machine paths.
+PHANTOM_STATE env var overrides the default state file (/tmp/phantom_session.json).
 """
 
 import argparse
@@ -425,6 +448,16 @@ def cmd_status(args):
     else:
         print(f"  Heartbeat:  idle")
 
+    # Drift guard status
+    if state.get("drift_guard_active"):
+        print(f"  Drift Guard: ARMED")
+    else:
+        dw = state.get("drift_warning")
+        if dw:
+            print(f"  Drift Guard: idle  ⚠ WARNING PENDING — run 'drift-done' to review")
+        else:
+            print(f"  Drift Guard: idle")
+
     print(f"  Last ping:  {state.get('last_active', '?')}")
     print(f"  Last fired: {state.get('last_heartbeat_fired', 'never')}")
     if state.get("min_idle_polls", 1) > 1:
@@ -436,6 +469,15 @@ def cmd_status(args):
         print(f"  Coverage:  {' '.join(cov_targets)}")
     if scope_files:
         print(f"  Scope:     {' '.join(scope_files)}")
+
+    # Pending drift warning block
+    dw = state.get("drift_warning")
+    if dw:
+        print()
+        print(f"  ⚠ DRIFT WARNING:")
+        for line in dw.strip().splitlines():
+            print(f"    {line}")
+
     fires = state.get("heartbeat_fires", [])
     if fires:
         print(f"  Fire log:   (last {len(fires)})")

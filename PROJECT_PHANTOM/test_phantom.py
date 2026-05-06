@@ -151,6 +151,24 @@ def test_phantom():
     check("status exits 0", rc == 0)
     check("status shows task", "status test" in out)
     check("status shows PHANTOM SESSION STATUS", "PHANTOM SESSION STATUS" in out)
+    check("status shows Drift Guard idle line", "Drift Guard: idle" in out)
+
+    # status shows drift guard ARMED when drift_guard_active=true
+    run([PHANTOM, "drift-arm"])
+    rc, out, _ = run([PHANTOM, "status"])
+    check("status shows Drift Guard ARMED when armed", "Drift Guard: ARMED" in out)
+    # disarm via drift-done (no warning in state — should exit 0 cleanly)
+    run([PHANTOM, "drift-done"])
+
+    # status shows ⚠ WARNING PENDING and warning text when drift_warning set
+    state = read_state()
+    state["drift_warning"] = "SCOPE_CREEP: 80% outside scope"
+    state["drift_guard_active"] = False
+    with open(STATE, "w") as fh:
+        import json as _json; _json.dump(state, fh)
+    rc, out, _ = run([PHANTOM, "status"])
+    check("status shows WARNING PENDING when drift_warning set", "WARNING PENDING" in out)
+    check("status shows drift warning text inline", "SCOPE_CREEP" in out)
 
     # reset
     rc, out, _ = run([PHANTOM, "reset"])
