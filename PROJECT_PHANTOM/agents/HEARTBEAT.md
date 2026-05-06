@@ -25,9 +25,11 @@ Use `$AGENTS_DIR` in every command below.
    ```
    python3 $AGENTS_DIR/heartbeat_runner.py
    ```
-   **CRITICAL:** Run this as a blocking Bash call with `timeout=600000` (10 minutes).
-   Do NOT use `run_in_background: true` — if the shell exits before the runner fires, the runner
-   process dies and heartbeat_active stays stuck True.
+   **CRITICAL — tool choice matters:**
+   - Use the **Bash tool** with `timeout=600000`. This is the ONLY correct approach.
+   - Do NOT use `run_in_background: true` — process dies when the agent returns.
+   - Do NOT use the Monitor tool — Monitor does not keep the process running; the runner
+     will be killed when the Monitor session closes, leaving heartbeat_active stuck True.
 
    The runner polls every `check_interval_seconds` and exits when it fires or session ends.
    This will block for up to several minutes — that is expected. Wait for it.

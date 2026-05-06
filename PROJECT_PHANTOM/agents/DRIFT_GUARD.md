@@ -25,8 +25,11 @@ If either check fails, exit immediately without doing anything.
 
 ## Main execution
 
-Run **blocking** with explicit 10-minute timeout — do NOT use `run_in_background: true`.
-If the shell exits before drift_guard finishes, `drift_guard_active` stays stuck True.
+**CRITICAL — tool choice matters:**
+- Use the **Bash tool** with `timeout=600000`. This is the ONLY correct approach.
+- Do NOT use `run_in_background: true` — process dies when the agent returns.
+- Do NOT use the Monitor tool — Monitor does not keep the process running; drift_guard
+  will be killed when the Monitor session closes, leaving drift_guard_active stuck True.
 
 ```bash
 python3 $AGENTS_DIR/drift_guard.py \
