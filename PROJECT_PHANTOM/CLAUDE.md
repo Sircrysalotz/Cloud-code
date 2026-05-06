@@ -115,7 +115,7 @@ Do NOT call it:
 | `tools/scope_guard.py` | Portable drift checker for any git repo |
 | `tools/coverage_tracker.py` | Target file coverage checker |
 | `tools/setup.sh` | Drop-in environment checker for fresh machines |
-| `test_phantom.py` | Full integration test suite (429 tests) |
+| `test_phantom.py` | Full integration test suite (~472 tests) |
 | `DIFF.md` | Version changelog (v2.0 → v2.5) |
 | `PLAN.md` | Horizontal improvement tracker |
 | `ANTI_DRIFT.md` | Anti-drift observations from sessions |
@@ -412,7 +412,7 @@ Last pushed entry on GitHub = last confirmed alive before container death.
 
 ```bash
 python3 PROJECT_PHANTOM/test_phantom.py
-# 381 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
+# ~472 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
 ```
 
 ---

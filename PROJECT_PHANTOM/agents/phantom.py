@@ -381,6 +381,8 @@ def cmd_ping(args):
     print(f"PING — Turn {turns_taken}/{turns_target} | Rounds left: {rounds} | Agents: {agents} | Elapsed: {elapsed_str}")
     if args.note:
         print(f"  Note: {args.note}")
+    if tests_passed is not None:
+        print(f"  Tests recorded: {tests_passed}")
     auto_save(state)
     if isinstance(turns_target, int) and turns_taken == turns_target:
         # Turn budget met — print milestone but keep session active
