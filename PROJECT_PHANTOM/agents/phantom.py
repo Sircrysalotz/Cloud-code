@@ -1183,21 +1183,27 @@ def _eval_criteria(state: dict) -> list[tuple[str, bool]]:
     cov_str = _quick_coverage(state)
     full_cov = cov_str is not None and "FULL COVERAGE" in cov_str
 
+    anchor_checks = state.get("anchor_checks_count", 0)
+    hb_fires      = len(state.get("heartbeat_fires", []))
+    import re as _re
+
     for c in criteria:
         c_lower = c.lower()
         done = False
         # Coverage criterion: "coverage 4/4", "full coverage", "coverage complete"
         if "coverage" in c_lower:
-            if "full" in c_lower or ("/" in c_lower and c_lower.split("/")[0].strip().split()[-1] ==
-                                      c_lower.split("/")[1].strip().split()[0]):
-                done = full_cov
-            else:
-                done = full_cov
+            done = full_cov
         # Drift criterion: "drift clean", "no drift"
         elif "drift" in c_lower and ("clean" in c_lower or "no" in c_lower):
             done = not bool(state.get("drift_warning"))
-        # Checkpoint criterion: "checkpoint pass" — can't verify live
-        # Tests criterion: "tests pass" — can't verify live
+        # Anchor check criterion: "anchor check used"
+        elif "anchor check" in c_lower:
+            done = anchor_checks > 0
+        # Heartbeat observed: "observed ... heartbeat fire", "heartbeat fire"
+        elif "heartbeat fire" in c_lower or ("heartbeat" in c_lower and "fire" in c_lower):
+            m = _re.search(r'(\d+)', c)
+            needed = int(m.group(1)) if m else 1
+            done = hb_fires >= needed
         results.append((c, done))
     return results
 
@@ -1238,6 +1244,10 @@ def cmd_anchor(args):
         print(sep)
 
     elif sub == "check":
+        # Increment usage counter so _eval_criteria can auto-mark "anchor check used"
+        state["anchor_checks_count"] = state.get("anchor_checks_count", 0) + 1
+        atomic_write(state)
+
         a = state.get("anchor_a", {})
         b = state.get("anchor_b", {})
         print(sep)

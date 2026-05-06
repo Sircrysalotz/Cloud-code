@@ -1610,6 +1610,36 @@ def test_anchor():
 
     cleanup()
 
+    # _eval_criteria: anchor check tracking — criterion auto-marks [x] after first anchor check
+    run([PHANTOM, "start", "anchor check tracking test", "--turns", "5",
+         "--done-criteria", "anchor check used at least once"])
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("anchor check tracking: [ ] before first check", "[ ]" in out)
+    # Run anchor check — increments counter
+    run([PHANTOM, "anchor", "check"])
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("anchor check tracking: [x] after anchor check runs", "[x]" in out)
+
+    cleanup()
+
+    # _eval_criteria: heartbeat fire count — criterion auto-marks [x] when fires >= needed
+    run([PHANTOM, "start", "hb fire tracking test", "--turns", "5",
+         "--done-criteria", "observed at least 1 heartbeat fire"])
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("hb fire criterion: [ ] with zero fires", "[ ]" in out)
+    # Inject a fake heartbeat fire into state
+    import json as _json2, os as _os2
+    s2 = _json2.load(open(STATE))
+    s2["heartbeat_fires"] = [{"fired_at": "2026-01-01 00:00:00", "signal": "ping",
+                               "gap_seconds": 185, "idle_polls": 1, "turns": 1}]
+    with open(STATE + ".tmp", "w") as f:
+        _json2.dump(s2, f)
+    _os2.rename(STATE + ".tmp", STATE)
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("hb fire criterion: [x] after 1 fire injected", "[x]" in out)
+
+    cleanup()
+
 
 def test_checkpoint():
     print("\n── phantom.py checkpoint ──")
