@@ -1,7 +1,7 @@
 {
   "task": "dogfood v3.2 \u2014 run PHANTOM live, observe friction, fix it",
-  "last_active": "2026-05-06 23:40:34",
-  "turns_taken": 10,
+  "last_active": "2026-05-06 23:41:43",
+  "turns_taken": 11,
   "turns_target": 20,
   "rounds_remaining": 6,
   "idle_threshold_seconds": 180,
@@ -13,7 +13,7 @@
   "active_agent_ids": [],
   "heartbeat_active": true,
   "last_heartbeat_fired": null,
-  "progress_note": "status panel polish: agents list + last fired dash \u2014 502/502",
+  "progress_note": "CLAUDE.md: fixed stale auto-save + scope filter references",
   "started": "2026-05-06 23:23:27",
   "status": "active",
   "workspace_dir": "/home/user/Cloud-code",
@@ -88,13 +88,18 @@
       "turn": 10,
       "note": "status panel polish: agents list + last fired dash \u2014 502/502",
       "at": "2026-05-06 23:40:34"
+    },
+    {
+      "turn": 11,
+      "note": "CLAUDE.md: fixed stale auto-save + scope filter references",
+      "at": "2026-05-06 23:41:43"
     }
   ],
   "last_activity_source": "git:index",
-  "last_activity_ts": "2026-05-06 23:39:50",
-  "next_heartbeat_at": "2026-05-06 23:42:50",
+  "last_activity_ts": "2026-05-06 23:41:48",
+  "next_heartbeat_at": "2026-05-06 23:44:48",
   "completed": null,
-  "saved_at": "2026-05-06 23:40:34",
+  "saved_at": "2026-05-06 23:41:58",
   "anchor_a": {
     "ref": "509d741df296cf7fc04d2605c185f365339bf44c",
     "timestamp": "2026-05-06 23:23:27"
@@ -113,7 +118,7 @@
   },
   "tests_last_count": 502,
   "coverage_full": true,
-  "anchor_checks_count": 2,
-  "auto_save_commit": "278fd44bcab44cb5b8553c98c02f323d79c280cc",
+  "anchor_checks_count": 3,
+  "auto_save_commit": "ec1668a7836f541c6387428c6b97d092e8fa4fcd",
   "checkpoint_calls_count": 2
 }
