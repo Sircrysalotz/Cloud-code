@@ -1,9 +1,9 @@
 {
-  "task": "dogfood v3.2 \u2014 run PHANTOM live, observe friction, fix it",
-  "last_active": "2026-05-06 23:41:43",
-  "turns_taken": 11,
-  "turns_target": 20,
-  "rounds_remaining": 6,
+  "task": "save test",
+  "last_active": "2026-05-06 23:43:43",
+  "turns_taken": 1,
+  "turns_target": 5,
+  "rounds_remaining": 5,
   "idle_threshold_seconds": 180,
   "check_interval_seconds": 30,
   "cooldown_factor": 1.0,
@@ -11,29 +11,21 @@
   "rounds_used": 0,
   "agents_running": 0,
   "active_agent_ids": [],
-  "heartbeat_active": true,
+  "heartbeat_active": false,
   "last_heartbeat_fired": null,
-  "progress_note": "CLAUDE.md: fixed stale auto-save + scope filter references",
-  "started": "2026-05-06 23:23:27",
+  "progress_note": "saved progress",
+  "started": "2026-05-06 23:43:43",
   "status": "active",
   "workspace_dir": "/home/user/Cloud-code",
   "profile": null,
-  "scope_files": [
-    "agents/phantom.py",
-    "agents/heartbeat_runner.py",
-    "test_phantom.py"
-  ],
-  "coverage_targets": [
-    "agents/phantom.py",
-    "agents/heartbeat_runner.py",
-    "agents/drift_guard.py"
-  ],
+  "scope_files": [],
+  "coverage_targets": [],
   "scope_threshold": 50.0,
-  "session_start_ref": "509d741df296cf7fc04d2605c185f365339bf44c",
+  "session_start_ref": "78dad19f97e1a90c9046a04c4280b2351b4b85b9",
   "tracked_extensions": [],
   "scan_depth": 5,
   "auto_save_every": 5,
-  "drift_guard_active": true,
+  "drift_guard_active": false,
   "drift_warning": null,
   "drift_warned_at": null,
   "heartbeat_fires": [],
@@ -41,84 +33,22 @@
   "ping_log": [
     {
       "turn": 1,
-      "note": "session started \u2014 checking anchor, arming heartbeat and drift guard",
-      "at": "2026-05-06 23:23:30"
-    },
-    {
-      "turn": 2,
-      "note": "heartbeat + drift guard armed \u2014 starting live observation",
-      "at": "2026-05-06 23:23:45"
-    },
-    {
-      "turn": 3,
-      "note": "492/492 baseline \u2014 now exercising commands live",
-      "at": "2026-05-06 23:24:35"
-    },
-    {
-      "turn": 4,
-      "note": "4 friction fixes: brief cov label, brief note truncation, report scope filter, report ping truncation \u2014 498/498",
-      "at": "2026-05-06 23:28:24"
-    },
-    {
-      "turn": 5,
-      "note": "logs/ dir filter + report coverage markers \u2014 500/500",
-      "at": "2026-05-06 23:31:54"
-    },
-    {
-      "turn": 6,
-      "note": "history ping truncation fixed \u2014 502/502; now touching heartbeat_runner.py",
-      "at": "2026-05-06 23:33:48"
-    },
-    {
-      "turn": 7,
-      "note": "heartbeat runner died \u2014 recovered, re-arming",
-      "at": "2026-05-06 23:35:28"
-    },
-    {
-      "turn": 8,
-      "note": "HEARTBEAT.md + DRIFT_GUARD.md: explicit NOT Monitor tool warning added",
-      "at": "2026-05-06 23:37:52"
-    },
-    {
-      "turn": 9,
-      "note": "502/502 clean \u2014 CLAUDE.md updated with Monitor tool friction",
-      "at": "2026-05-06 23:38:56"
-    },
-    {
-      "turn": 10,
-      "note": "status panel polish: agents list + last fired dash \u2014 502/502",
-      "at": "2026-05-06 23:40:34"
-    },
-    {
-      "turn": 11,
-      "note": "CLAUDE.md: fixed stale auto-save + scope filter references",
-      "at": "2026-05-06 23:41:43"
+      "note": "saved progress",
+      "at": "2026-05-06 23:43:43"
     }
   ],
-  "last_activity_source": "git:index",
-  "last_activity_ts": "2026-05-06 23:41:48",
-  "next_heartbeat_at": "2026-05-06 23:44:48",
+  "last_activity_source": "ping",
+  "last_activity_ts": "2026-05-06 23:43:43",
+  "next_heartbeat_at": null,
   "completed": null,
-  "saved_at": "2026-05-06 23:41:58",
+  "saved_at": "2026-05-06 23:43:43",
   "anchor_a": {
-    "ref": "509d741df296cf7fc04d2605c185f365339bf44c",
-    "timestamp": "2026-05-06 23:23:27"
+    "ref": "78dad19f97e1a90c9046a04c4280b2351b4b85b9",
+    "timestamp": "2026-05-06 23:43:43"
   },
   "anchor_b": {
-    "goal": "dogfood v3.2 \u2014 run PHANTOM live, observe friction, fix it",
-    "done_criteria": [
-      "anchor check used at least once",
-      "checkpoint used before completion",
-      "observed at least 1 heartbeat fire",
-      "492+ tests passing on all changes",
-      "coverage 3/3 targets touched",
-      "no drift warning"
-    ],
-    "set_at": "2026-05-06 23:23:27"
-  },
-  "tests_last_count": 502,
-  "coverage_full": true,
-  "anchor_checks_count": 3,
-  "auto_save_commit": "ec1668a7836f541c6387428c6b97d092e8fa4fcd",
-  "checkpoint_calls_count": 2
+    "goal": "save test",
+    "done_criteria": [],
+    "set_at": "2026-05-06 23:43:43"
+  }
 }
