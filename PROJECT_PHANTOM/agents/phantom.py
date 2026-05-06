@@ -353,7 +353,8 @@ def auto_save(state: dict):
             head_hash = head_r.stdout.strip()
             prev_commit = state.get("auto_save_commit")
             if prev_commit and head_hash == prev_commit:
-                subprocess.run(["git", "commit", "--amend", "--no-edit"],
+                subprocess.run(["git", "commit", "--amend", "-m",
+                                f"[phantom] auto-save turn {state.get('turns_taken')}"],
                                cwd=REPO_DIR, capture_output=True, timeout=30)
                 push_cmd = ["git", "push", "--force-with-lease"]
             else:
@@ -1321,6 +1322,11 @@ def cmd_anchor(args):
         cov = _quick_coverage(state)
         if cov:
             print(f"    Coverage: {cov}")
+            # Keep coverage_full fresh so fire banner shows [x] after anchor check
+            targets = state.get("coverage_targets") or state.get("scope_files") or []
+            if targets:
+                state["coverage_full"] = cov is not None and "FULL COVERAGE" in cov
+                atomic_write(state)
         dw = state.get("drift_warning")
         print(f"    Drift:    {'⚠ WARNING PENDING' if dw else 'clean'}")
         print(f"    Note:     {state.get('progress_note', '—')}")

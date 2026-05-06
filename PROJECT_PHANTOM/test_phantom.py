@@ -1637,6 +1637,11 @@ def test_check():
         ["git", "log", "--oneline"], cwd=GIT_ROOT, capture_output=True, text=True
     ).stdout.strip().splitlines())
     check("second auto-save amends (no extra commit)", after_second == after_first)
+    # commit message reflects current turn after amend
+    last_msg = _sp.run(
+        ["git", "log", "-1", "--format=%s"], cwd=GIT_ROOT, capture_output=True, text=True
+    ).stdout.strip()
+    check("amended auto-save message shows latest turn", "turn 4" in last_msg)
 
     cleanup()
 
@@ -1785,6 +1790,18 @@ def test_anchor():
     import json as _json_t, os as _os_t
     st = _json_t.load(open(STATE))
     check("ping --tests stores tests_last_count in state", st.get("tests_last_count") == 100)
+
+    cleanup()
+
+    # anchor check writes coverage_full to state (keeps fire banner in sync without running check)
+    run([PHANTOM, "start", "anchor cov_full test", "--turns", "5",
+         "--coverage-targets", "agents/phantom.py"])
+    state_before = _json_t.load(open(STATE))
+    check("coverage_full absent before anchor check", "coverage_full" not in state_before)
+    run([PHANTOM, "anchor", "check"])
+    state_after = _json_t.load(open(STATE))
+    check("anchor check writes coverage_full to state", "coverage_full" in state_after)
+    check("coverage_full is bool after anchor check", isinstance(state_after.get("coverage_full"), bool))
 
     cleanup()
 

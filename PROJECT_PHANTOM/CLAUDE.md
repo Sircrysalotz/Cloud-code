@@ -85,7 +85,7 @@ Do NOT call it:
 | `--scope-threshold` only settable per-run in drift_guard | `--scope-threshold` on `start` — stored in state, read by drift_guard + check |
 | Profile list fields not loaded from profile | scope_files, coverage_targets, tracked_extensions, scan_depth all profile-resolved |
 | Status/complete/report hide coverage status | All three commands show coverage summary when coverage_targets or scope_files set |
-| Test count varies between runs | Accepted: count is git-state-dependent (~488 as of v3.2) |
+| Test count varies between runs | Accepted: count is git-state-dependent (~492 as of v3.2) |
 | `agent-start` for drift-guard blocked heartbeat forever | Protocol fix: drift-guard uses `drift-arm`/`drift-done` only — never `agent-start` |
 | `agent-start` for heartbeat also blocks heartbeat | Protocol fix: heartbeat uses `heartbeat-arm` only — never `agent-start` |
 | No navigation aids after resume — Claude loses bearing | `phantom.py anchor show/check` — immovable Point A (origin) and Point B (goal) always visible |
@@ -105,6 +105,8 @@ Do NOT call it:
 | `eval_criteria_quick` in runner duplicates `_eval_criteria` but can't check coverage | `coverage_full` bool written to state by `check` command — runner reads it, no git ops needed |
 | Coverage criterion always shows `[ ]` in fire banner even when full | `eval_criteria_quick` now evaluates coverage via `state["coverage_full"]` — shows `[x]` after `check` runs |
 | Auto-save creates a new commit every N pings → bloated git log | `auto_save` tracks `auto_save_commit` hash in state — amends own prior commit instead of creating new ones |
+| Amended auto-save message stays stale at first turn number | Amend uses `-m` with current turn — git log always shows latest turn number |
+| `anchor check` doesn't update `coverage_full` — fire banner shows `[ ]` until `check` runs | `anchor check` now writes `coverage_full` to state whenever coverage targets are set |
 
 ### Files
 
