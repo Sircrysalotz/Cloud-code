@@ -1972,7 +1972,7 @@ def test_status_brief():
         _json.dump(s, f)
     _os.rename(STATE + ".tmp", STATE)
     rc, out, err = run([PHANTOM, "status", "--brief"])
-    check("status --brief truncates note at 40 chars", ("A" * 40) in out and ("A" * 41) not in out)
+    check("status --brief truncates note with ...", "..." in out and ("A" * 38) not in out)
 
     # Coverage shown when coverage_targets set
     cleanup()
@@ -1981,6 +1981,31 @@ def test_status_brief():
     run([PHANTOM, "ping", "ping"])
     rc, out, err = run([PHANTOM, "status", "--brief"])
     check("status --brief shows coverage fraction with targets", "/" in out)
+    check("status --brief labels coverage with cov: prefix", "cov:" in out)
+
+    # Note truncation: notes > 40 chars get ... suffix, not hard cut
+    cleanup()
+    run([PHANTOM, "start", "truncation test", "--turns", "5"])
+    run([PHANTOM, "ping", "A" * 50])
+    rc, out, err = run([PHANTOM, "status", "--brief"])
+    check("status --brief truncates long note with ...", "..." in out)
+    check("status --brief does not show all 50 chars", ("A" * 41) not in out)
+
+    # report scope section filters auto-save file
+    cleanup()
+    run([PHANTOM, "start", "report scope filter test", "--turns", "5"])
+    run([PHANTOM, "ping", "turn 1"])
+    rc, out, err = run([PHANTOM, "report"])
+    check("report scope section hides last_session_state.json", "last_session_state.json" not in out)
+
+    # report ping log truncates with ... not hard cut
+    cleanup()
+    run([PHANTOM, "start", "report ping truncate test", "--turns", "5"])
+    run([PHANTOM, "ping", "B" * 60])
+    rc, out, err = run([PHANTOM, "report"])
+    check("report ping log truncates with ...", "..." in out)
+    pings_section = out.split("Recent pings")[1].split("\n\n")[0] if "Recent pings" in out else ""
+    check("report ping log does not show all 60 chars in pings section", ("B" * 56) not in pings_section)
 
     cleanup()
 

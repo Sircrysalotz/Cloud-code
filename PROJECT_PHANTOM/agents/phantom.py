@@ -502,9 +502,10 @@ def cmd_status(args):
             else:
                 hb = "HB:armed"
         cov  = _quick_coverage(state)
-        cov_s = cov.split(" ")[0] if cov else "cov:?"
+        cov_s = ("cov:" + cov.split(" ")[0]) if cov else "cov:?"
         drift = "⚠drift" if state.get("drift_warning") else "drift:ok"
-        note  = (state.get("progress_note") or "—")[:40]
+        raw_note = (state.get("progress_note") or "—")
+        note = (raw_note[:37] + "...") if len(raw_note) > 40 else raw_note
         print(f"[{state.get('status','?')}] {turns} {rounds} | {hb} | {cov_s} | {drift} | {note}")
         return
 
@@ -980,7 +981,9 @@ def cmd_report(args):
     if ping_log:
         print(f"\n  Recent pings (last {min(len(ping_log), 5)}):")
         for entry in ping_log[-5:]:
-            print(f"    T{entry['turn']:3d}  {entry['at'][11:16]}  {entry['note'][:55]}")
+            n = entry['note']
+            note_str = (n[:52] + "...") if len(n) > 55 else n
+            print(f"    T{entry['turn']:3d}  {entry['at'][11:16]}  {note_str}")
     print()
 
     # Agent / heartbeat / drift guard state
@@ -1041,6 +1044,8 @@ def cmd_report(args):
                 for line in lines:
                     parts = line.split("|")
                     fname = parts[0].strip()
+                    if fname == _SAVED_REL:
+                        continue  # filter auto-save file (same as scope/check/checkpoint)
                     try:
                         totals[fname] = int(parts[1].strip().split()[0])
                     except (IndexError, ValueError):
