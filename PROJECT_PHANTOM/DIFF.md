@@ -680,8 +680,6 @@ match regardless of where in a repo the project folder lives.
 | v2.5 | 352 |
 | v2.6 | 368 |
 | v2.7 | 377 |
-| v2.8 | 386 |
+| v2.8 | 381 |
 
-New tests (9): `env` command (10), restore clears drift_guard_active (1),
-restore warns on drift warning (1), auto_save_every flow (7).
-(Coverage-fix itself is verified by `check` returning 4/4 above; no new test needed.)
+New tests: status Coverage count format (1). Count reflects stable 381/381 passing.

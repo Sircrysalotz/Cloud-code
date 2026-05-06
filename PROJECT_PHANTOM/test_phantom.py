@@ -1364,6 +1364,9 @@ def test_check():
     rc, out, err = run([PHANTOM, "status"])
     check("status shows Coverage: line when coverage_targets set", "Coverage:" in out)
     check("status shows Scope: line when scope_files set", "Scope:" in out)
+    # Coverage line must show N/M count format, not raw file list
+    cov_status_line = out.split("Coverage:")[1].split("\n")[0] if "Coverage:" in out else ""
+    check("status Coverage line shows N/M count format", "/" in cov_status_line and "%" in cov_status_line)
 
     # complete shows coverage summary when coverage_targets set
     run([PHANTOM, "reset"])

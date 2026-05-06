@@ -63,7 +63,7 @@ Do NOT call it:
 | File-% drift fires on legitimate single-file tasks | Four-gate eval: declared scope → task alignment → hunk depth → trend |
 | No watchdog | Detects poll cycles taking >3x interval |
 | **Turn target stops work early** | **`turns_target` is a budget floor — session stays active past target** |
-| No test coverage | 386 integration tests in `test_phantom.py` |
+| No test coverage | 381 integration tests in `test_phantom.py` |
 | False fire during active coding (no ping) | Filesystem + git index activity signals in heartbeat_runner |
 | All config flags must be typed each session | Profile system — named configs in `~/.phantom_profiles.json` |
 | No horizontal enforcement during sessions | `drift_guard.py` background agent — four-gate evaluation |
@@ -85,7 +85,7 @@ Do NOT call it:
 | `--scope-threshold` only settable per-run in drift_guard | `--scope-threshold` on `start` — stored in state, read by drift_guard + check |
 | Profile list fields not loaded from profile | scope_files, coverage_targets, tracked_extensions, scan_depth all profile-resolved |
 | Status/complete/report hide coverage status | All three commands show coverage summary when coverage_targets or scope_files set |
-| Test count varies between runs | Fixed conditional check() blocks — always 352 tests |
+| Test count varies between runs | Fixed conditional check() blocks — stable count (381 as of v2.8) |
 | `agent-start` for drift-guard blocked heartbeat forever | Protocol fix: drift-guard uses `drift-arm`/`drift-done` only — never `agent-start` |
 | `agent-start` for heartbeat also blocks heartbeat | Protocol fix: heartbeat uses `heartbeat-arm` only — never `agent-start` |
 
@@ -104,7 +104,7 @@ Do NOT call it:
 | `tools/scope_guard.py` | Portable drift checker for any git repo |
 | `tools/coverage_tracker.py` | Target file coverage checker |
 | `tools/setup.sh` | Drop-in environment checker for fresh machines |
-| `test_phantom.py` | Full integration test suite (386 tests) |
+| `test_phantom.py` | Full integration test suite (381 tests) |
 | `DIFF.md` | Version changelog (v2.0 → v2.5) |
 | `PLAN.md` | Horizontal improvement tracker |
 | `ANTI_DRIFT.md` | Anti-drift observations from sessions |
@@ -374,7 +374,7 @@ Last pushed entry on GitHub = last confirmed alive before container death.
 
 ```bash
 python3 PROJECT_PHANTOM/test_phantom.py
-# 386 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
+# 381 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
 ```
 
 ---

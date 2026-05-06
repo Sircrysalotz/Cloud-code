@@ -490,7 +490,8 @@ def cmd_status(args):
     cov_targets = state.get("coverage_targets") or []
     scope_files = state.get("scope_files") or []
     if cov_targets:
-        print(f"  Coverage:  {' '.join(cov_targets)}")
+        cov_line = _quick_coverage(state)
+        print(f"  Coverage:  {cov_line or ' '.join(cov_targets)}")
     if scope_files:
         print(f"  Scope:     {' '.join(scope_files)}")
 
@@ -662,6 +663,9 @@ def cmd_history(args):
     scope = state.get("scope_files", [])
     if scope:
         print(f"\n  Declared scope: {', '.join(scope)}")
+    cov_line = _quick_coverage(state)
+    if cov_line:
+        print(f"  Coverage: {cov_line}")
     print("=" * 50)
 
 

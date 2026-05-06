@@ -151,11 +151,14 @@ def rotate_log(max_lines: int = 500):
         pass
 
 
+_LOG_REL = os.path.relpath(LOG_FILE, REPO_DIR)
+
+
 def git_push(entry_count: int) -> str:
     for attempt in range(1, 4):
         try:
             subprocess.run(
-                ["git", "add", "PROJECT_PHANTOM/logs/container_vitals.log"],
+                ["git", "add", _LOG_REL],
                 cwd=REPO_DIR, capture_output=True, timeout=30
             )
             subprocess.run(
