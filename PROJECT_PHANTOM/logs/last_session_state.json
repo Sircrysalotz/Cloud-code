@@ -1,8 +1,8 @@
 {
-  "task": "save test",
-  "last_active": "2026-05-06 20:33:24",
-  "turns_taken": 1,
-  "turns_target": 5,
+  "task": "ping_log test",
+  "last_active": "2026-05-06 20:33:27",
+  "turns_taken": 5,
+  "turns_target": 10,
   "rounds_remaining": 5,
   "idle_threshold_seconds": 180,
   "check_interval_seconds": 30,
@@ -13,15 +13,15 @@
   "active_agent_ids": [],
   "heartbeat_active": false,
   "last_heartbeat_fired": null,
-  "progress_note": "saved progress",
-  "started": "2026-05-06 20:33:24",
+  "progress_note": "overflow note 0",
+  "started": "2026-05-06 20:33:26",
   "status": "active",
   "workspace_dir": "/home/user/Cloud-code",
   "profile": null,
   "scope_files": [],
   "coverage_targets": [],
   "scope_threshold": 50.0,
-  "session_start_ref": "288a2899e85f0dc2f4058f9008136c3138e1edfc",
+  "session_start_ref": "648325df1c7e6003923b271e4ee7bc4da7aeec21",
   "tracked_extensions": [],
   "scan_depth": 5,
   "auto_save_every": 5,
@@ -33,22 +33,37 @@
   "ping_log": [
     {
       "turn": 1,
-      "note": "saved progress",
-      "at": "2026-05-06 20:33:24"
+      "note": "note A",
+      "at": "2026-05-06 20:33:26"
+    },
+    {
+      "turn": 2,
+      "note": "note B",
+      "at": "2026-05-06 20:33:26"
+    },
+    {
+      "turn": 3,
+      "note": "note C",
+      "at": "2026-05-06 20:33:26"
+    },
+    {
+      "turn": 5,
+      "note": "overflow note 0",
+      "at": "2026-05-06 20:33:27"
     }
   ],
   "last_activity_source": "ping",
-  "last_activity_ts": "2026-05-06 20:33:24",
+  "last_activity_ts": "2026-05-06 20:33:26",
   "next_heartbeat_at": null,
   "completed": null,
-  "saved_at": "2026-05-06 20:33:24",
+  "saved_at": "2026-05-06 20:33:27",
   "anchor_a": {
-    "ref": "288a2899e85f0dc2f4058f9008136c3138e1edfc",
-    "timestamp": "2026-05-06 20:33:24"
+    "ref": "648325df1c7e6003923b271e4ee7bc4da7aeec21",
+    "timestamp": "2026-05-06 20:33:26"
   },
   "anchor_b": {
-    "goal": "save test",
+    "goal": "ping_log test",
     "done_criteria": [],
-    "set_at": "2026-05-06 20:33:24"
+    "set_at": "2026-05-06 20:33:26"
   }
 }
