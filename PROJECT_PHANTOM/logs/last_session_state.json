@@ -1,8 +1,8 @@
 {
-  "task": "ping_log test",
-  "last_active": "2026-05-06 20:33:32",
-  "turns_taken": 20,
-  "turns_target": 10,
+  "task": "save test",
+  "last_active": "2026-05-06 20:34:09",
+  "turns_taken": 1,
+  "turns_target": 5,
   "rounds_remaining": 5,
   "idle_threshold_seconds": 180,
   "check_interval_seconds": 30,
@@ -13,15 +13,15 @@
   "active_agent_ids": [],
   "heartbeat_active": false,
   "last_heartbeat_fired": null,
-  "progress_note": "overflow note 15",
-  "started": "2026-05-06 20:33:26",
+  "progress_note": "saved progress",
+  "started": "2026-05-06 20:34:09",
   "status": "active",
   "workspace_dir": "/home/user/Cloud-code",
   "profile": null,
   "scope_files": [],
   "coverage_targets": [],
   "scope_threshold": 50.0,
-  "session_start_ref": "648325df1c7e6003923b271e4ee7bc4da7aeec21",
+  "session_start_ref": "e8f671b7b9e552071fc1573f6d5033850bfa6223",
   "tracked_extensions": [],
   "scan_depth": 5,
   "auto_save_every": 5,
@@ -33,112 +33,22 @@
   "ping_log": [
     {
       "turn": 1,
-      "note": "note A",
-      "at": "2026-05-06 20:33:26"
-    },
-    {
-      "turn": 2,
-      "note": "note B",
-      "at": "2026-05-06 20:33:26"
-    },
-    {
-      "turn": 3,
-      "note": "note C",
-      "at": "2026-05-06 20:33:26"
-    },
-    {
-      "turn": 5,
-      "note": "overflow note 0",
-      "at": "2026-05-06 20:33:27"
-    },
-    {
-      "turn": 6,
-      "note": "overflow note 1",
-      "at": "2026-05-06 20:33:28"
-    },
-    {
-      "turn": 7,
-      "note": "overflow note 2",
-      "at": "2026-05-06 20:33:28"
-    },
-    {
-      "turn": 8,
-      "note": "overflow note 3",
-      "at": "2026-05-06 20:33:28"
-    },
-    {
-      "turn": 9,
-      "note": "overflow note 4",
-      "at": "2026-05-06 20:33:28"
-    },
-    {
-      "turn": 10,
-      "note": "overflow note 5",
-      "at": "2026-05-06 20:33:28"
-    },
-    {
-      "turn": 11,
-      "note": "overflow note 6",
-      "at": "2026-05-06 20:33:30"
-    },
-    {
-      "turn": 12,
-      "note": "overflow note 7",
-      "at": "2026-05-06 20:33:30"
-    },
-    {
-      "turn": 13,
-      "note": "overflow note 8",
-      "at": "2026-05-06 20:33:30"
-    },
-    {
-      "turn": 14,
-      "note": "overflow note 9",
-      "at": "2026-05-06 20:33:30"
-    },
-    {
-      "turn": 15,
-      "note": "overflow note 10",
-      "at": "2026-05-06 20:33:30"
-    },
-    {
-      "turn": 16,
-      "note": "overflow note 11",
-      "at": "2026-05-06 20:33:32"
-    },
-    {
-      "turn": 17,
-      "note": "overflow note 12",
-      "at": "2026-05-06 20:33:32"
-    },
-    {
-      "turn": 18,
-      "note": "overflow note 13",
-      "at": "2026-05-06 20:33:32"
-    },
-    {
-      "turn": 19,
-      "note": "overflow note 14",
-      "at": "2026-05-06 20:33:32"
-    },
-    {
-      "turn": 20,
-      "note": "overflow note 15",
-      "at": "2026-05-06 20:33:32"
+      "note": "saved progress",
+      "at": "2026-05-06 20:34:09"
     }
   ],
   "last_activity_source": "ping",
-  "last_activity_ts": "2026-05-06 20:33:26",
+  "last_activity_ts": "2026-05-06 20:34:09",
   "next_heartbeat_at": null,
   "completed": null,
-  "saved_at": "2026-05-06 20:33:32",
+  "saved_at": "2026-05-06 20:34:09",
   "anchor_a": {
-    "ref": "648325df1c7e6003923b271e4ee7bc4da7aeec21",
-    "timestamp": "2026-05-06 20:33:26"
+    "ref": "e8f671b7b9e552071fc1573f6d5033850bfa6223",
+    "timestamp": "2026-05-06 20:34:09"
   },
   "anchor_b": {
-    "goal": "ping_log test",
+    "goal": "save test",
     "done_criteria": [],
-    "set_at": "2026-05-06 20:33:26"
+    "set_at": "2026-05-06 20:34:09"
   }
 }
