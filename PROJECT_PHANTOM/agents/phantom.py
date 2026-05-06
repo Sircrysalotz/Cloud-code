@@ -21,8 +21,25 @@ import sys
 import time
 from datetime import datetime
 
-REPO_DIR         = "/home/user/Cloud-code"
-SAVED_STATE_FILE = os.path.join(REPO_DIR, "PROJECT_PHANTOM/logs/last_session_state.json")
+_AGENTS_DIR  = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_DIR = os.path.dirname(_AGENTS_DIR)
+
+def _find_repo_dir() -> str:
+    """Find git repo root from this file's location; fall back to parent of project dir."""
+    try:
+        r = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=_AGENTS_DIR, capture_output=True, text=True, timeout=5
+        )
+        if r.returncode == 0:
+            return r.stdout.strip()
+    except Exception:
+        pass
+    return os.path.dirname(_PROJECT_DIR)
+
+REPO_DIR         = _find_repo_dir()
+SAVED_STATE_FILE = os.path.join(_PROJECT_DIR, "logs", "last_session_state.json")
+_SAVED_REL       = os.path.relpath(SAVED_STATE_FILE, REPO_DIR)
 
 STATE_FILE = os.environ.get("PHANTOM_STATE", "/tmp/phantom_session.json")
 TEMP_FILE  = STATE_FILE + ".tmp"
@@ -270,10 +287,10 @@ def auto_save(state: dict):
         with open(SAVED_STATE_FILE, "w") as f:
             json.dump(state, f, indent=2)
         try:
-            subprocess.run(["git", "add", "PROJECT_PHANTOM/logs/last_session_state.json"],
+            subprocess.run(["git", "add", _SAVED_REL],
                            cwd=REPO_DIR, capture_output=True, timeout=30)
             subprocess.run(["git", "commit", "-m",
-                            f"[phantom] auto-save turn {state.get('turns_taken')}\n\nhttps://claude.ai/code/session_01URz48AEdtJbKdvuHxoBEJ6"],
+                            f"[phantom] auto-save turn {state.get('turns_taken')}"],
                            cwd=REPO_DIR, capture_output=True, timeout=30)
             r = subprocess.run(["git", "push"], cwd=REPO_DIR, capture_output=True, timeout=30)
             if r.returncode == 0:
@@ -447,10 +464,10 @@ def cmd_save(args):
     with open(SAVED_STATE_FILE, "w") as f:
         json.dump(state, f, indent=2)
     try:
-        subprocess.run(["git", "add", "PROJECT_PHANTOM/logs/last_session_state.json"],
+        subprocess.run(["git", "add", _SAVED_REL],
                        cwd=REPO_DIR, capture_output=True, timeout=30)
         subprocess.run(["git", "commit", "-m",
-                        f"[phantom] session state saved — turn {state.get('turns_taken')}\n\nhttps://claude.ai/code/session_01URz48AEdtJbKdvuHxoBEJ6"],
+                        f"[phantom] session state saved — turn {state.get('turns_taken')}"],
                        cwd=REPO_DIR, capture_output=True, timeout=30)
         result = subprocess.run(["git", "push"], cwd=REPO_DIR, capture_output=True, timeout=30)
         if result.returncode == 0:

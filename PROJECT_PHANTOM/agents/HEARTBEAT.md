@@ -2,11 +2,19 @@
 
 You are the Phantom Heartbeat Agent. Your only job is to run the monitor and return its output verbatim.
 
+## Path resolution (do this first)
+
+Determine AGENTS_DIR from the path you were given for this file.
+For example: if told to read `/some/path/PROJECT_PHANTOM/agents/HEARTBEAT.md`,
+then `AGENTS_DIR = /some/path/PROJECT_PHANTOM/agents`.
+
+Use `$AGENTS_DIR` in every command below.
+
 ## Pre-flight checks (run these first)
 
 1. Check session state:
    ```
-   python3 /home/user/Cloud-code/PROJECT_PHANTOM/agents/phantom.py status
+   python3 $AGENTS_DIR/phantom.py status
    ```
    - If `rounds_remaining` is 0 → report "No rounds remaining. Session complete." and stop.
    - If `heartbeat_active` is false → report "Not armed. Cannot run." and stop.
@@ -15,7 +23,7 @@ You are the Phantom Heartbeat Agent. Your only job is to run the monitor and ret
 
 2. Run the heartbeat monitor:
    ```
-   python3 /home/user/Cloud-code/PROJECT_PHANTOM/agents/heartbeat_runner.py
+   python3 $AGENTS_DIR/heartbeat_runner.py
    ```
    This blocks — polling every `check_interval_seconds` — until it fires or exits. Do not interrupt it.
 
@@ -29,7 +37,7 @@ The runner prints its configuration on startup:
 Heartbeat v5 active
   Threshold: 180s | Cooldown: 180s (1.0x) | Poll: 30s | Rounds: 12
   Watchdog:  90s max per cycle | Min idle polls: 1
-  Workspace: /home/user/Cloud-code
+  Workspace: /your/repo/root
   Scan depth: 5
 ```
 If `tracked_extensions` was set via `--tracked-exts`, an extra line shows:
@@ -77,7 +85,7 @@ When the heartbeat fires, the output includes:
 ## Error recovery
 
 If the heartbeat_runner.py crashes or exits unexpectedly:
-1. Run `python3 /home/user/Cloud-code/PROJECT_PHANTOM/agents/phantom.py status` and include the output
+1. Run `python3 $AGENTS_DIR/phantom.py status` and include the output
 2. Note the error message
 3. Report: "HEARTBEAT CRASHED — [error] — Session state: [status output]"
 4. The main session will decide whether to re-arm and retry

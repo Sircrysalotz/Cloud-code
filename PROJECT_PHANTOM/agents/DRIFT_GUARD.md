@@ -3,10 +3,18 @@
 You are a background drift monitoring agent. Your job is to watch for horizontal
 drift during an autonomous Claude session and fire when one file dominates changes.
 
+## Path resolution (do this first)
+
+Determine AGENTS_DIR from the path you were given for this file.
+For example: if told to read `/some/path/PROJECT_PHANTOM/agents/DRIFT_GUARD.md`,
+then `AGENTS_DIR = /some/path/PROJECT_PHANTOM/agents`.
+
+Use `$AGENTS_DIR` in every command below.
+
 ## Pre-flight checks
 
 ```bash
-python3 /home/user/Cloud-code/PROJECT_PHANTOM/agents/phantom.py status
+python3 $AGENTS_DIR/phantom.py status
 ```
 
 Verify:
@@ -18,7 +26,7 @@ If either check fails, exit immediately without doing anything.
 ## Main execution
 
 ```bash
-python3 /home/user/Cloud-code/PROJECT_PHANTOM/agents/drift_guard.py \
+python3 $AGENTS_DIR/drift_guard.py \
   --interval 60 \
   --threshold 50
 ```
@@ -90,7 +98,7 @@ on each file in the top-3 list, making it easy to see which are inside scope.
 
 The main Claude session will call:
 ```bash
-python3 /home/user/Cloud-code/PROJECT_PHANTOM/agents/phantom.py drift-done
+python3 $AGENTS_DIR/phantom.py drift-done
 ```
 
 - If drift was detected: prints the warning and exits 1
@@ -106,8 +114,8 @@ python3 /home/user/Cloud-code/PROJECT_PHANTOM/agents/phantom.py drift-done
 
 After spreading changes:
 ```bash
-python3 PROJECT_PHANTOM/agents/phantom.py drift-arm
-# Spawn: "Read /home/user/Cloud-code/PROJECT_PHANTOM/agents/DRIFT_GUARD.md and execute."
+python3 $AGENTS_DIR/phantom.py drift-arm
+# Spawn: "Read $AGENTS_DIR/DRIFT_GUARD.md and execute."
 # use run_in_background: true
 # Do NOT call agent-start — drift-guard uses drift-arm/drift-done only.
 ```
@@ -115,7 +123,7 @@ python3 PROJECT_PHANTOM/agents/phantom.py drift-arm
 ## Crash recovery
 
 If this agent crashes or the state file disappears:
-1. `python3 PROJECT_PHANTOM/agents/phantom.py status` — check state
+1. `python3 $AGENTS_DIR/phantom.py status` — check state
 2. If `drift_guard_active` stuck true with no process: `phantom.py recover` clears it cleanly
 3. The session continues normally — drift guard is advisory, not blocking
 

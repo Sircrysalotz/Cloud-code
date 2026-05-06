@@ -14,6 +14,7 @@ import time
 from datetime import datetime
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+GIT_ROOT    = os.path.dirname(PROJECT_DIR)   # repo root (one level above PROJECT_DIR)
 AGENTS_DIR  = os.path.join(PROJECT_DIR, "agents")
 TOOLS_DIR   = os.path.join(PROJECT_DIR, "tools")
 PHANTOM   = os.path.join(AGENTS_DIR, "phantom.py")
@@ -847,10 +848,8 @@ def test_drift_guard():
     dg   = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(dg)
 
-    git_workspace = os.path.dirname(PROJECT_DIR)
-
     # find_since returns a string
-    since = dg.find_since(git_workspace)
+    since = dg.find_since(GIT_ROOT)
     check("find_since returns non-empty string", isinstance(since, str) and len(since) > 0)
 
     # session_start_ref preferred over find_since in drift_guard main
@@ -862,14 +861,14 @@ def test_drift_guard():
     check("session_start_ref is a valid git hash (40 chars)", ref is not None and len(ref) == 40)
 
     # get_file_scores returns raw dict and scored list
-    raw, scored = dg.get_file_scores(git_workspace, since)
+    raw, scored = dg.get_file_scores(GIT_ROOT, since)
     check("get_file_scores returns scored list", isinstance(scored, list))
     check("scored list has tuples of 3", all(len(x) == 3 for x in scored[:3]))
     check("scored pct sums to ~100",
           bool(scored) and abs(sum(p for _, _, p in scored) - 100.0) < 1.0)
 
     # count_hunks returns per-file hunk analysis
-    hunks = dg.count_hunks(git_workspace, since)
+    hunks = dg.count_hunks(GIT_ROOT, since)
     check("count_hunks returns dict", isinstance(hunks, dict))
     for fname, data in list(hunks.items())[:3]:
         check(f"hunk data has hunk_count for {fname[:30]}", "hunk_count" in data)
@@ -1082,7 +1081,7 @@ def test_scope_guard():
     check("--quiet flag present", "--quiet" in out)
 
     # Run against live repo — should exit 0 or 1 (not 2)
-    rc, out, err = run([SCOPE_GUARD, "--repo", "/home/user/Cloud-code"])
+    rc, out, err = run([SCOPE_GUARD, "--repo", GIT_ROOT])
     check("scope_guard runs against live repo (not error)", rc != 2)
 
     # --session: reads session_start_ref from phantom state
@@ -1090,20 +1089,20 @@ def test_scope_guard():
     state = read_state()
     session_ref = state.get("session_start_ref")
     check("phantom state has session_start_ref for scope_guard test", session_ref is not None)
-    rc, out, err = run([SCOPE_GUARD, "--repo", "/home/user/Cloud-code",
+    rc, out, err = run([SCOPE_GUARD, "--repo", GIT_ROOT,
                         "--session", "--state-file", STATE])
     check("scope_guard --session exits 0 or 1 (not error)", rc != 2)
     check("scope_guard --session output mentions session", "session" in out.lower() or rc == 0)
 
     # --session with no session state falls back gracefully
     run([PHANTOM, "reset"])
-    rc, out, err = run([SCOPE_GUARD, "--repo", "/home/user/Cloud-code",
+    rc, out, err = run([SCOPE_GUARD, "--repo", GIT_ROOT,
                         "--session", "--state-file", "/tmp/nonexistent_state.json"])
     # Should still run (falls back to auto-detect), not crash with exit 2
     check("scope_guard --session fallback when state missing", rc != 2 or "ERROR" not in out)
 
     # --json output is valid JSON
-    rc, out, err = run([SCOPE_GUARD, "--repo", "/home/user/Cloud-code",
+    rc, out, err = run([SCOPE_GUARD, "--repo", GIT_ROOT,
                         "--json", "--since", "HEAD~1"])
     check("scope_guard --json exits 0 or 1", rc in (0, 1))
     try:
@@ -1119,7 +1118,7 @@ def test_scope_guard():
             check(f"scope_guard --json has '{k}' key", False)
 
     # --quiet: suppresses output
-    rc, out, err = run([SCOPE_GUARD, "--repo", "/home/user/Cloud-code",
+    rc, out, err = run([SCOPE_GUARD, "--repo", GIT_ROOT,
                         "--quiet", "--since", "HEAD~1"])
     check("scope_guard --quiet suppresses stdout", len(out.strip()) == 0)
 
@@ -1142,7 +1141,7 @@ def test_scope_guard():
 
     # --session reads scope_threshold from state when CLI threshold is at default (40)
     run([PHANTOM, "start", "scope_guard threshold test", "--turns", "3", "--scope-threshold", "25"])
-    rc, out, err = run([SCOPE_GUARD, "--repo", "/home/user/Cloud-code",
+    rc, out, err = run([SCOPE_GUARD, "--repo", GIT_ROOT,
                         "--session", "--state-file", STATE, "--json", "--since", "HEAD~1"])
     check("scope_guard --session --json exits 0 or 1", rc in (0, 1))
     try:
@@ -1152,7 +1151,7 @@ def test_scope_guard():
         check("scope_guard --session reads scope_threshold: threshold is 25", False)
 
     # --session explicit --threshold overrides state scope_threshold
-    rc, out, err = run([SCOPE_GUARD, "--repo", "/home/user/Cloud-code",
+    rc, out, err = run([SCOPE_GUARD, "--repo", GIT_ROOT,
                         "--session", "--state-file", STATE, "--json", "--since", "HEAD~1",
                         "--threshold", "35"])
     check("scope_guard --session explicit --threshold exits 0 or 1", rc in (0, 1))
@@ -1165,7 +1164,7 @@ def test_scope_guard():
     # --session with no explicit --scope-threshold uses phantom.py start default (50.0)
     run([PHANTOM, "reset"])
     run([PHANTOM, "start", "scope_guard no-threshold test", "--turns", "3"])
-    rc, out, err = run([SCOPE_GUARD, "--repo", "/home/user/Cloud-code",
+    rc, out, err = run([SCOPE_GUARD, "--repo", GIT_ROOT,
                         "--session", "--state-file", STATE, "--json", "--since", "HEAD~1"])
     check("scope_guard --session no scope_threshold exits 0 or 1", rc in (0, 1))
     try:
@@ -1194,7 +1193,7 @@ def test_coverage_tracker():
 
     # run against live repo with specific targets
     rc, out, err = run([COVERAGE_TRACKER,
-                        "--repo", "/home/user/Cloud-code",
+                        "--repo", GIT_ROOT,
                         "--targets",
                         "PROJECT_PHANTOM/agents/phantom.py",
                         "PROJECT_PHANTOM/agents/heartbeat_runner.py",
@@ -1208,7 +1207,7 @@ def test_coverage_tracker():
     session_ref = state.get("session_start_ref")
     check("phantom state has session_start_ref for coverage test", session_ref is not None)
     rc, out, err = run([COVERAGE_TRACKER,
-                        "--repo", "/home/user/Cloud-code",
+                        "--repo", GIT_ROOT,
                         "--targets", "PROJECT_PHANTOM/agents/phantom.py",
                         "--session", "--state-file", STATE])
     check("coverage_tracker --session exits 0 or 1", rc in (0, 1))
@@ -1216,7 +1215,7 @@ def test_coverage_tracker():
 
     # --json output is valid JSON with session field
     rc, out, err = run([COVERAGE_TRACKER,
-                        "--repo", "/home/user/Cloud-code",
+                        "--repo", GIT_ROOT,
                         "--targets", "PROJECT_PHANTOM/agents/phantom.py",
                         "--json", "--since", "HEAD~2"])
     check("coverage_tracker --json exits 0 or 1", rc in (0, 1))
@@ -1249,7 +1248,7 @@ def test_coverage_tracker():
 
     # --quiet suppresses output
     rc, out, err = run([COVERAGE_TRACKER,
-                        "--repo", "/home/user/Cloud-code",
+                        "--repo", GIT_ROOT,
                         "--targets", "PROJECT_PHANTOM/agents/phantom.py",
                         "--quiet", "--since", "HEAD~1"])
     check("coverage_tracker --quiet suppresses stdout", len(out.strip()) == 0)

@@ -63,7 +63,7 @@ Do NOT call it:
 | File-% drift fires on legitimate single-file tasks | Four-gate eval: declared scope → task alignment → hunk depth → trend |
 | No watchdog | Detects poll cycles taking >3x interval |
 | **Turn target stops work early** | **`turns_target` is a budget floor — session stays active past target** |
-| No test coverage | 358 integration tests in `test_phantom.py` |
+| No test coverage | 352 integration tests in `test_phantom.py` |
 | False fire during active coding (no ping) | Filesystem + git index activity signals in heartbeat_runner |
 | All config flags must be typed each session | Profile system — named configs in `~/.phantom_profiles.json` |
 | No horizontal enforcement during sessions | `drift_guard.py` background agent — four-gate evaluation |
@@ -159,8 +159,8 @@ Do NOT call it:
 ### 1. Start container logger (once per container boot)
 ```bash
 ps aux | grep container_logger | grep -v grep
-# If not running:
-nohup python3 /home/user/Cloud-code/PROJECT_PHANTOM/agents/container_logger.py \
+# If not running (run from repo root):
+nohup python3 PROJECT_PHANTOM/agents/container_logger.py \
   --interval 60 --push-every 5 > /tmp/container_logger.out 2>&1 &
 ```
 
@@ -196,7 +196,7 @@ python3 PROJECT_PHANTOM/agents/phantom.py ping "what I just did / what's next"
 ### 4. Start drift guard (run alongside heartbeat)
 ```bash
 python3 PROJECT_PHANTOM/agents/phantom.py drift-arm
-# Spawn: "Read /home/user/Cloud-code/PROJECT_PHANTOM/agents/DRIFT_GUARD.md and execute."
+# Spawn: "Read <path-to-agents-dir>/DRIFT_GUARD.md and execute."
 # use run_in_background: true
 ```
 **IMPORTANT:** Do NOT call `agent-start` for drift guard. It uses `drift-arm`/`drift-done` only.
@@ -208,7 +208,7 @@ python3 PROJECT_PHANTOM/agents/phantom.py heartbeat-arm
 # exit 0 → spawn heartbeat
 # exit 2 → already active OR rounds=0 — do NOT spawn
 ```
-Spawn prompt: `"Read /home/user/Cloud-code/PROJECT_PHANTOM/agents/HEARTBEAT.md and execute."`
+Spawn prompt: `"Read <path-to-agents-dir>/HEARTBEAT.md and execute."`
 Use `run_in_background: true`.
 **IMPORTANT:** Do NOT call `agent-start` for heartbeat either. Use `heartbeat-arm` only.
 
@@ -370,7 +370,7 @@ Last pushed entry on GitHub = last confirmed alive before container death.
 
 ```bash
 python3 PROJECT_PHANTOM/test_phantom.py
-# 358 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
+# 352 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
 ```
 
 ---

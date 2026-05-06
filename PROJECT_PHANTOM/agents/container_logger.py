@@ -26,8 +26,23 @@ import sys
 import time
 from datetime import datetime
 
-REPO_DIR  = "/home/user/Cloud-code"
-LOG_FILE  = os.path.join(REPO_DIR, "PROJECT_PHANTOM/logs/container_vitals.log")
+_LOGGER_DIR  = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_DIR = os.path.dirname(_LOGGER_DIR)
+
+def _find_repo_dir() -> str:
+    try:
+        r = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=_LOGGER_DIR, capture_output=True, text=True, timeout=5
+        )
+        if r.returncode == 0:
+            return r.stdout.strip()
+    except Exception:
+        pass
+    return os.path.dirname(_PROJECT_DIR)
+
+REPO_DIR  = _find_repo_dir()
+LOG_FILE  = os.path.join(_PROJECT_DIR, "logs", "container_vitals.log")
 PID_FILE  = "/tmp/phantom_container_logger.pid"
 
 
