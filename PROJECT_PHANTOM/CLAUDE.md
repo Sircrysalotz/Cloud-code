@@ -63,7 +63,7 @@ Do NOT call it:
 | File-% drift fires on legitimate single-file tasks | Four-gate eval: declared scope → task alignment → hunk depth → trend |
 | No watchdog | Detects poll cycles taking >3x interval |
 | **Turn target stops work early** | **`turns_target` is a budget floor — session stays active past target** |
-| No test coverage | 368 integration tests in `test_phantom.py` |
+| No test coverage | 377 integration tests in `test_phantom.py` |
 | False fire during active coding (no ping) | Filesystem + git index activity signals in heartbeat_runner |
 | All config flags must be typed each session | Profile system — named configs in `~/.phantom_profiles.json` |
 | No horizontal enforcement during sessions | `drift_guard.py` background agent — four-gate evaluation |
@@ -374,7 +374,7 @@ Last pushed entry on GitHub = last confirmed alive before container death.
 
 ```bash
 python3 PROJECT_PHANTOM/test_phantom.py
-# 368 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
+# 377 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
 ```
 
 ---

@@ -295,6 +295,12 @@ def print_session_summary(state: dict):
     cov = _quick_coverage(state)
     if cov:
         print(f"  Coverage:  {cov}")
+    dw = state.get("drift_warning")
+    if dw:
+        print()
+        print(f"  ⚠ Unresolved drift warning — run 'drift-done' to review:")
+        for line in dw.strip().splitlines()[:3]:
+            print(f"    {line}")
     print("=" * 54)
 
 

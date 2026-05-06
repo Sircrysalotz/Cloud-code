@@ -581,3 +581,73 @@ Excludes `logs/container_vitals.log` from accidental `git add -A` adds on fresh 
 
 New tests (16): `env` command (10), `test_env()` function covering no-session warning,
 paths section, tools section, active-session display (6 additional).
+
+---
+
+## v2.7 — Observability polish + bug fixes
+
+### `status` and `report` show drift guard state
+
+Both `phantom.py status` and `phantom.py report` previously showed heartbeat state but
+silently skipped drift guard state. Now both show:
+
+```
+Drift Guard: ARMED            ← when drift_guard_active = true
+Drift Guard: idle             ← when idle, no pending warning
+Drift Guard: idle  ⚠ WARNING PENDING — run 'drift-done' to review
+                              ← when drift_warning is set but guard is idle
+```
+
+`status` also prints the full warning text inline (after the scope/coverage lines).
+`report` prints it before the watchdog section.
+`complete` (session summary) also shows a truncated warning notice if one is pending.
+
+### Bug fix: `--auto-save-every` flag silently ignored since session start
+
+**Root cause:** `--auto-save-every` was registered in the `config create` subparser but never
+added to the `start` subparser. Any `--auto-save-every N` passed at session start was silently
+dropped by argparse. Additionally, the `resolve()` call used `5` as `cli_default` instead of
+`None`, so `auto_save_every` was stored as `None` in state when the flag was not given.
+
+This caused a `TypeError: unsupported operand type(s) for %: 'int' and 'NoneType'` in
+`auto_save()` on every ping, silently breaking all ping commands with exit code 1.
+
+**Fixes:**
+- Added `--auto-save-every` to the `start` subparser
+- Fixed `resolve()` call to use `None` as `cli_default` (consistent with other optional flags)
+
+### `cmd_start` initializes all runtime fields
+
+Previously, runtime fields were absent from the initial state dict and populated lazily by
+the code that used them. Now `cmd_start` initializes them all explicitly:
+
+```
+drift_guard_active, drift_warning, drift_warned_at, heartbeat_fires, watchdog_events,
+ping_log, last_activity_source, last_activity_ts, next_heartbeat_at,
+completed, saved_at, auto_save_every
+```
+
+This makes the state self-describing from the first `phantom.py start`, and prevents any
+field from being `None` when other code expects a list or bool.
+
+### Module docstring updated
+
+`phantom.py` docstring updated from stale 7-command list to full 20-command reference
+with section headers (lifecycle, heartbeat/drift, worker agents, profile management).
+
+### Test coverage
+
+| Version | Tests |
+|---|---|
+| v2.0 | 46 |
+| v2.1 | 152 |
+| v2.2 | 168 |
+| v2.3 | 284 |
+| v2.4 | 329 |
+| v2.5 | 352 |
+| v2.6 | 368 |
+| v2.7 | 377 |
+
+New tests (9): drift guard in `status` (4), drift guard in `report` (4),
+`--auto-save-every` stored at start (1), `auto_save_every` default=5 (1),
+runtime fields initialized at start (5).
