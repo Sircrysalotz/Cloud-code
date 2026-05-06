@@ -99,6 +99,7 @@ Do NOT call it:
 | `ping --tests N` confirmation not shown | Prints "Tests recorded: N" so recording is auditable |
 | HB ETA ignores `min_idle_polls` extra delay | ETA = threshold + (min_idle_polls-1) × interval — accurately reflects actual fire time |
 | Heartbeat agent uses `run_in_background: true` → runner dies on agent return | `HEARTBEAT.md` v4: CRITICAL note — blocking Bash with `timeout=600000`, never `run_in_background` |
+| `scope`, `check`, `checkpoint` show `last_session_state.json` inflating % | All three now filter the auto-save file via `_SAVED_REL` constant, same as `drift_guard` |
 
 ### Files
 

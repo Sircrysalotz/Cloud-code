@@ -685,12 +685,11 @@ def cmd_scope(args):
             print(f"No file changes found ({label}).")
             return
         # Filter auto-save state file (same as drift_guard v4 default ignore)
-        _saved_rel = os.path.relpath(SAVED_STATE_FILE, REPO_DIR) if SAVED_STATE_FILE else ""
         totals = {}
         for line in lines:
             parts = line.split("|")
             fname = parts[0].strip()
-            if _saved_rel and fname == _saved_rel:
+            if _SAVED_REL and fname == _SAVED_REL:
                 continue
             try:
                 changes = int(parts[1].strip().split()[0])
@@ -1368,12 +1367,11 @@ def cmd_checkpoint(args):
             )
             lines = [l for l in r.stdout.splitlines() if "|" in l]
             if lines:
-                _saved_rel = os.path.relpath(SAVED_STATE_FILE, REPO_DIR) if SAVED_STATE_FILE else ""
                 totals: dict[str, int] = {}
                 for line in lines:
                     parts = line.split("|")
                     fname = parts[0].strip()
-                    if _saved_rel and fname == _saved_rel:
+                    if _SAVED_REL and fname == _SAVED_REL:
                         continue
                     try:
                         totals[fname] = int(parts[1].strip().split()[0])
