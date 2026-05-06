@@ -1656,6 +1656,21 @@ def test_checkpoint():
     check("checkpoint exits 0 with no targets and fresh ping", rc == 0)
     check("checkpoint shows CHECKPOINT header", "CHECKPOINT" in out)
     check("checkpoint shows gates passed", "gates passed" in out.lower() or "All gates" in out)
+    # checkpoint call should have incremented checkpoint_calls_count
+    import json as _json3, os as _os3
+    s3 = _json3.load(open(STATE))
+    check("checkpoint increments checkpoint_calls_count", s3.get("checkpoint_calls_count", 0) >= 1)
+
+    # _eval_criteria: checkpoint criterion auto-marks [x] after checkpoint runs
+    cleanup()
+    run([PHANTOM, "start", "checkpoint criteria test", "--turns", "5",
+         "--done-criteria", "checkpoint used before completion"])
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("checkpoint criterion: [ ] before first checkpoint", "[ ]" in out)
+    run([PHANTOM, "ping", "ready to checkpoint"])
+    run([PHANTOM, "checkpoint"])
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("checkpoint criterion: [x] after checkpoint runs", "[x]" in out)
 
     cleanup()
 

@@ -1199,6 +1199,9 @@ def _eval_criteria(state: dict) -> list[tuple[str, bool]]:
         # Anchor check criterion: "anchor check used"
         elif "anchor check" in c_lower:
             done = anchor_checks > 0
+        # Checkpoint criterion: "checkpoint used", "checkpoint before completion"
+        elif "checkpoint" in c_lower and ("used" in c_lower or "before" in c_lower or "run" in c_lower):
+            done = state.get("checkpoint_calls_count", 0) > 0
         # Heartbeat observed: "observed ... heartbeat fire", "heartbeat fire"
         elif "heartbeat fire" in c_lower or ("heartbeat" in c_lower and "fire" in c_lower):
             m = _re.search(r'(\d+)', c)
@@ -1303,6 +1306,10 @@ def cmd_anchor(args):
 def cmd_checkpoint(args):
     """Run non-negotiable gate checks. Exits 1 if any gate fails."""
     state         = require_state()
+    # Track usage so _eval_criteria can auto-mark "checkpoint used" criteria
+    state["checkpoint_calls_count"] = state.get("checkpoint_calls_count", 0) + 1
+    atomic_write(state)
+
     gate_mode     = getattr(args, "gate", False)
     require_full  = getattr(args, "require_full_coverage", False)
     failures: list[str] = []
