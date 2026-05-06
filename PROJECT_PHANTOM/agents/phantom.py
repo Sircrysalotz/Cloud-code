@@ -546,6 +546,9 @@ def cmd_status(args):
         print(f"  Coverage:  {cov_line or ' '.join(cov_targets)}")
     if scope_files:
         print(f"  Scope:     {' '.join(scope_files)}")
+    tests_count = state.get("tests_last_count")
+    if tests_count:
+        print(f"  Tests:     {tests_count} (recorded via ping --tests)")
 
     # Pending drift warning block
     dw = state.get("drift_warning")
