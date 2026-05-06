@@ -170,11 +170,15 @@ def cmd_start(args):
         "status":                 "active",
         "workspace_dir":          os.getcwd(),
         "profile":                args.profile if hasattr(args, "profile") and args.profile else None,
-        "scope_files":            getattr(args, "scope", None) or [],
-        "coverage_targets":       getattr(args, "coverage_targets", None) or [],
-        "session_start_ref":      session_start_ref,
-        "tracked_extensions":     getattr(args, "tracked_exts", None) or [],
-        "scan_depth":             getattr(args, "scan_depth", None) or 5,
+        "scope_files":        (getattr(args, "scope", None)
+                              or profile_defaults.get("scope_files") or []),
+        "coverage_targets":   (getattr(args, "coverage_targets", None)
+                              or profile_defaults.get("coverage_targets") or []),
+        "session_start_ref":  session_start_ref,
+        "tracked_extensions": (getattr(args, "tracked_exts", None)
+                              or profile_defaults.get("tracked_extensions") or []),
+        "scan_depth":         (getattr(args, "scan_depth", None)
+                              or profile_defaults.get("scan_depth") or 5),
     }
     atomic_write(state)
     print(f"Session started.")

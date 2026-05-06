@@ -531,6 +531,23 @@ def test_config():
     rc, out, _ = run([PHANTOM, "config", "list"])
     check("config list shows sprint as overridden by user", "overridden by user" in out)
 
+    # profile with coverage_targets — loads into state at start
+    run([PHANTOM, "config", "create", "cov_profile",
+         "--coverage-targets", "agents/phantom.py", "v2/phantom.py"])
+    rc, out, _ = run([PHANTOM, "start", "profile cov test", "--profile", "cov_profile", "--force"])
+    check("start with coverage_targets profile exits 0", rc == 0)
+    state = read_state()
+    cov = state.get("coverage_targets", [])
+    check("start --profile loads coverage_targets into state",
+          "agents/phantom.py" in cov and "v2/phantom.py" in cov)
+
+    # CLI --coverage-targets overrides profile's coverage_targets
+    rc, out, _ = run([PHANTOM, "start", "cov override", "--profile", "cov_profile",
+                      "--coverage-targets", "only_this.py", "--force"])
+    state = read_state()
+    check("CLI --coverage-targets overrides profile value",
+          state.get("coverage_targets") == ["only_this.py"])
+
     cleanup()
 
 
