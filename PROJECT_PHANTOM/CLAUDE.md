@@ -85,7 +85,7 @@ Do NOT call it:
 | `--scope-threshold` only settable per-run in drift_guard | `--scope-threshold` on `start` — stored in state, read by drift_guard + check |
 | Profile list fields not loaded from profile | scope_files, coverage_targets, tracked_extensions, scan_depth all profile-resolved |
 | Status/complete/report hide coverage status | All three commands show coverage summary when coverage_targets or scope_files set |
-| Test count varies between runs | Accepted: count is git-state-dependent (~479 as of v3.1) |
+| Test count varies between runs | Accepted: count is git-state-dependent (~488 as of v3.2) |
 | `agent-start` for drift-guard blocked heartbeat forever | Protocol fix: drift-guard uses `drift-arm`/`drift-done` only — never `agent-start` |
 | `agent-start` for heartbeat also blocks heartbeat | Protocol fix: heartbeat uses `heartbeat-arm` only — never `agent-start` |
 | No navigation aids after resume — Claude loses bearing | `phantom.py anchor show/check` — immovable Point A (origin) and Point B (goal) always visible |
@@ -102,6 +102,9 @@ Do NOT call it:
 | `scope`, `check`, `checkpoint` show `last_session_state.json` inflating % | All three now filter the auto-save file via `_SAVED_REL` constant, same as `drift_guard` |
 | Fire banner shows `[ ]` for all criteria even when met | `eval_criteria_quick()` in runner evaluates state counters — shows `[x]` for met criteria |
 | `DRIFT_GUARD.md` agent uses `run_in_background: true` → process dies on return | `DRIFT_GUARD.md` v4: CRITICAL note — blocking Bash with `timeout=600000`, never `run_in_background` |
+| `eval_criteria_quick` in runner duplicates `_eval_criteria` but can't check coverage | `coverage_full` bool written to state by `check` command — runner reads it, no git ops needed |
+| Coverage criterion always shows `[ ]` in fire banner even when full | `eval_criteria_quick` now evaluates coverage via `state["coverage_full"]` — shows `[x]` after `check` runs |
+| Auto-save creates a new commit every N pings → bloated git log | `auto_save` tracks `auto_save_commit` hash in state — amends own prior commit instead of creating new ones |
 
 ### Files
 
@@ -163,6 +166,8 @@ Do NOT call it:
   "tracked_extensions": [],
   "scan_depth": 5,
   "auto_save_every": 5,
+  "auto_save_commit": null,
+  "coverage_full": null,
   "profile": null,
   "anchor_a": {"ref": "abc123...", "timestamp": "2026-05-05 20:00:00"},
   "anchor_b": {"goal": "task description", "done_criteria": [], "set_at": "2026-05-05 20:00:00"}

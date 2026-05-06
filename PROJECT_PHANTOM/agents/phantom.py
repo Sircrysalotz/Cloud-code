@@ -346,10 +346,27 @@ def auto_save(state: dict):
         try:
             subprocess.run(["git", "add", _SAVED_REL],
                            cwd=REPO_DIR, capture_output=True, timeout=30)
-            subprocess.run(["git", "commit", "-m",
-                            f"[phantom] auto-save turn {state.get('turns_taken')}"],
-                           cwd=REPO_DIR, capture_output=True, timeout=30)
-            r = subprocess.run(["git", "push"], cwd=REPO_DIR, capture_output=True, timeout=30)
+            # Amend if HEAD is the commit we created last auto-save (reduces log bloat).
+            # Comparing hashes (not messages) avoids matching prior-session auto-saves.
+            head_r = subprocess.run(["git", "rev-parse", "HEAD"],
+                                    cwd=REPO_DIR, capture_output=True, text=True, timeout=10)
+            head_hash = head_r.stdout.strip()
+            prev_commit = state.get("auto_save_commit")
+            if prev_commit and head_hash == prev_commit:
+                subprocess.run(["git", "commit", "--amend", "--no-edit"],
+                               cwd=REPO_DIR, capture_output=True, timeout=30)
+                push_cmd = ["git", "push", "--force-with-lease"]
+            else:
+                subprocess.run(["git", "commit", "-m",
+                                f"[phantom] auto-save turn {state.get('turns_taken')}"],
+                               cwd=REPO_DIR, capture_output=True, timeout=30)
+                push_cmd = ["git", "push"]
+            # Record new HEAD so next auto-save knows which commit to amend
+            new_head = subprocess.run(["git", "rev-parse", "HEAD"],
+                                      cwd=REPO_DIR, capture_output=True, text=True, timeout=10)
+            state["auto_save_commit"] = new_head.stdout.strip()
+            atomic_write(state)
+            r = subprocess.run(push_cmd, cwd=REPO_DIR, capture_output=True, timeout=30)
             if r.returncode == 0:
                 print(f"  [auto-saved to git]")
             else:
@@ -817,6 +834,11 @@ def cmd_check(args):
             cov_result["full"] = len(cov_result["untouched"]) == 0
         except Exception as e:
             cov_result["error"] = str(e)
+
+    # ── Persist coverage result to state so heartbeat runner can show [x] ───
+    if coverage_targets:
+        state["coverage_full"] = cov_result["full"]
+        atomic_write(state)
 
     # ── Output ───────────────────────────────────────────────────────────────
     if use_json:

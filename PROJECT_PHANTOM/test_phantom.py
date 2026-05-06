@@ -883,6 +883,34 @@ def test_heartbeat_runner():
         rc, out, err = run([RUNNER], timeout=10)
     check("fire banner shows [x] for met criteria (anchor check)", "[x]" in out)
 
+    # coverage criterion uses coverage_full from state
+    run([PHANTOM, "start", "coverage criteria test", "--rounds", "1", "--interval", "1",
+         "--done-criteria", "coverage 2/2 done", "--force"])
+    state = read_state()
+    state["heartbeat_active"] = True
+    state["last_active"] = "2020-01-01 00:00:00"
+    state["coverage_full"] = True
+    with tempfile.TemporaryDirectory() as tmpws:
+        state["workspace_dir"] = tmpws
+        with open(STATE, "w") as f:
+            json.dump(state, f)
+        rc, out, err = run([RUNNER], timeout=10)
+    check("fire banner shows [x] for coverage criterion when coverage_full=True", "[x]" in out)
+
+    # coverage criterion shows [ ] when coverage_full absent
+    run([PHANTOM, "start", "coverage absent test", "--rounds", "1", "--interval", "1",
+         "--done-criteria", "coverage 2/2 done", "--force"])
+    state = read_state()
+    state["heartbeat_active"] = True
+    state["last_active"] = "2020-01-01 00:00:00"
+    # deliberately no coverage_full key
+    with tempfile.TemporaryDirectory() as tmpws:
+        state["workspace_dir"] = tmpws
+        with open(STATE, "w") as f:
+            json.dump(state, f)
+        rc, out, err = run([RUNNER], timeout=10)
+    check("fire banner shows [ ] for coverage criterion when coverage_full absent", "[ ]" in out)
+
     cleanup()
 
 
@@ -1546,6 +1574,22 @@ def test_check():
     rc, out, err = run([PHANTOM, "check"])
     check("check coverage_targets take precedence over scope_files", "COVERAGE" in out)
 
+    # check writes coverage_full to state when coverage targets are set
+    run([PHANTOM, "reset"])
+    run([PHANTOM, "start", "cov-full test", "--turns", "3",
+         "--coverage-targets", "agents/phantom.py"])
+    run([PHANTOM, "check"])
+    state = read_state()
+    check("check writes coverage_full to state", "coverage_full" in state)
+    check("coverage_full is bool", isinstance(state.get("coverage_full"), bool))
+
+    # check does NOT write coverage_full when no targets declared
+    run([PHANTOM, "reset"])
+    run([PHANTOM, "start", "no-cov test", "--turns", "3"])
+    run([PHANTOM, "check"])
+    state = read_state()
+    check("check does not write coverage_full when no targets", "coverage_full" not in state)
+
     cleanup()
 
     # -- auto_save_every stored at start --
@@ -1573,6 +1617,26 @@ def test_check():
     check("anchor_a has timestamp key",    "timestamp" in (state.get("anchor_a") or {}))
     check("anchor_b has goal key",         "goal" in (state.get("anchor_b") or {}))
     check("anchor_b goal matches task",    state.get("anchor_b", {}).get("goal") == "default auto-save")
+
+    # auto-save amend: second auto-save should amend the first (no new commit)
+    import subprocess as _sp
+    run([PHANTOM, "reset"])
+    run([PHANTOM, "start", "amend test", "--turns", "10", "--auto-save-every", "2"])
+    before_count = len(_sp.run(
+        ["git", "log", "--oneline"], cwd=GIT_ROOT, capture_output=True, text=True
+    ).stdout.strip().splitlines())
+    run([PHANTOM, "ping", "turn 1"])
+    run([PHANTOM, "ping", "turn 2"])  # triggers first auto-save (new commit)
+    after_first = len(_sp.run(
+        ["git", "log", "--oneline"], cwd=GIT_ROOT, capture_output=True, text=True
+    ).stdout.strip().splitlines())
+    check("first auto-save creates one new commit", after_first == before_count + 1)
+    run([PHANTOM, "ping", "turn 3"])
+    run([PHANTOM, "ping", "turn 4"])  # triggers second auto-save (should amend)
+    after_second = len(_sp.run(
+        ["git", "log", "--oneline"], cwd=GIT_ROOT, capture_output=True, text=True
+    ).stdout.strip().splitlines())
+    check("second auto-save amends (no extra commit)", after_second == after_first)
 
     cleanup()
 
