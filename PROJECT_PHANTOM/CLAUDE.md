@@ -113,6 +113,7 @@ Do NOT call it:
 | `report` ping log note hard-truncated mid-word | Truncates at 52 chars with `...` — consistent with brief mode |
 | `history` ping log note hard-truncated mid-word | Truncates at 57 chars with `...` |
 | heartbeat_runner.py docstring still says v6 despite v7 changes | Updated to v7 with ETA and coverage_full entries |
+| Agents use Monitor tool for runner — process dies when Monitor closes (stuck flag) | HEARTBEAT.md + DRIFT_GUARD.md v5: explicit "NOT Monitor tool" warning with root cause |
 | `container_vitals.log` in scope analysis (10% inflation) — only `last_session_state.json` was filtered | `_is_auto_generated()` helper filters entire `logs/` dir from all scope paths (phantom.py + drift_guard.py) |
 | `report` coverage section lists targets without ✓/✗ — `check` shows them, `report` doesn't | `report` now runs git diff and shows ✓/✗ per target, consistent with `check` |
 
