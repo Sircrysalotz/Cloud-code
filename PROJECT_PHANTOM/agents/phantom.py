@@ -766,7 +766,9 @@ def cmd_history(args):
     if ping_log:
         print(f"\n  Ping log ({len(ping_log)} entries):")
         for entry in ping_log:
-            print(f"    Turn {entry['turn']:3d}  {entry['at']}  {entry['note'][:60]}")
+            n = entry['note']
+            note_str = (n[:57] + "...") if len(n) > 60 else n
+            print(f"    Turn {entry['turn']:3d}  {entry['at']}  {note_str}")
     fires = state.get("heartbeat_fires", [])
     if fires:
         print(f"\n  Heartbeat fires ({len(fires)} total):")

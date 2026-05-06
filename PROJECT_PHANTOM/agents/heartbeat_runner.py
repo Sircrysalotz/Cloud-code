@@ -38,6 +38,11 @@ v6 additions:
   - Anchor context in fire banner: shows anchor_b goal + done criteria
     so re-orientation is automatic on every heartbeat fire
   - RESUME line updated to include anchor check step
+
+v7 additions:
+  - eval_criteria_quick: ETA corrects for min_idle_polls extra delay
+  - eval_criteria_quick: reads coverage_full from state (written by check/anchor-check)
+    so coverage criterion shows [x] without git ops
 """
 
 import json

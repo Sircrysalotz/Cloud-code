@@ -304,6 +304,12 @@ def test_phantom():
     rc, out, _ = run([PHANTOM, "history"])
     check("history shows Ping log section", "Ping log" in out)
     check("history shows note A in ping log", "note A" in out)
+    # history ping log truncates long notes with ...
+    run([PHANTOM, "ping", "C" * 70])
+    rc, out, _ = run([PHANTOM, "history"])
+    check("history ping log truncates with ...", "..." in out)
+    hist_log = out.split("Ping log")[1].split("Heartbeat")[0] if "Ping log" in out else ""
+    check("history ping log does not show all 70 chars", ("C" * 61) not in hist_log)
     # report shows recent pings
     rc, out, _ = run([PHANTOM, "report"])
     check("report shows Recent pings section", "Recent pings" in out)
