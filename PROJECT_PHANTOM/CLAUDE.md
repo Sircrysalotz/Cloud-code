@@ -95,7 +95,10 @@ Do NOT call it:
 | Heartbeat fire doesn't say which round it is | Fire banner: "HEARTBEAT FIRED (round N/total)" |
 | auto-save `last_session_state.json` fires SCOPE_CREEP on every commit | `drift_guard` v4 auto-detects and ignores that path by default |
 | Full status is 20+ lines — too much for quick sanity check | `status --brief` — one-line compact summary: turns, HB ETA, coverage, drift, note |
-| Test count varies between runs | 448 tests stable as of v3.0 |
+| Anchor check/checkpoint usage not tracked — criteria stay `[ ]` forever | `anchor check` increments `anchor_checks_count`; `checkpoint` increments `checkpoint_calls_count` — both auto-mark criteria |
+| No way to record test pass count for criteria eval | `ping --tests N` stores `tests_last_count` — "N+ tests passing" criterion auto-[x] when count ≥ N |
+| Heartbeat fire count not tracked for criteria eval | `_eval_criteria` reads `heartbeat_fires[]` length — "N heartbeat fire(s)" criterion auto-[x] |
+| Test count varies between runs | ~472 tests (varies slightly with git-state branches) |
 
 ### Files
 
@@ -206,6 +209,9 @@ python3 PROJECT_PHANTOM/agents/phantom.py start "task" \
 ### 3. Ping at the start of every turn (no exceptions)
 ```bash
 python3 PROJECT_PHANTOM/agents/phantom.py ping "what I just did / what's next"
+
+# After running tests, record the count so criteria eval can auto-mark "N+ tests passing":
+python3 PROJECT_PHANTOM/agents/phantom.py ping "note" --tests 472
 ```
 
 ### 4. Start drift guard (run alongside heartbeat)
