@@ -93,13 +93,13 @@ Do NOT call it:
 | Anchor criteria always show `[ ]` even when verifiably met | `_eval_criteria()` — auto-marks coverage and drift criteria `[x]` when observable |
 | `complete` silently skips pre-flight checks | `_soft_checkpoint()` in `complete` — warns on stale ping, drift, zero coverage |
 | Heartbeat fire doesn't say which round it is | Fire banner: "HEARTBEAT FIRED (round N/total)" |
-| auto-save `last_session_state.json` fires SCOPE_CREEP on every commit | `drift_guard` v4 auto-detects and ignores that path by default |
+| auto-save `last_session_state.json` fires SCOPE_CREEP on every commit | `drift_guard` v4 auto-detects and ignores `logs/` dir by default |
 | Full status is 20+ lines — too much for quick sanity check | `status --brief` — one-line compact summary: turns, HB ETA, coverage, drift, note |
 | Anchor/checkpoint/HB-fire/test criteria unverifiable at runtime | `anchor_checks_count`, `checkpoint_calls_count`, `tests_last_count`, `heartbeat_fires[]` — all 4 tracked and auto-eval |
 | `ping --tests N` confirmation not shown | Prints "Tests recorded: N" so recording is auditable |
 | HB ETA ignores `min_idle_polls` extra delay | ETA = threshold + (min_idle_polls-1) × interval — accurately reflects actual fire time |
 | Heartbeat agent uses `run_in_background: true` → runner dies on agent return | `HEARTBEAT.md` v4: CRITICAL note — blocking Bash with `timeout=600000`, never `run_in_background` |
-| `scope`, `check`, `checkpoint` show `last_session_state.json` inflating % | All three now filter the auto-save file via `_SAVED_REL` constant, same as `drift_guard` |
+| `scope`, `check`, `checkpoint` show `last_session_state.json` inflating % | All now filter via `_is_auto_generated()` — excludes entire `logs/` dir |
 | Fire banner shows `[ ]` for all criteria even when met | `eval_criteria_quick()` in runner evaluates state counters — shows `[x]` for met criteria |
 | `DRIFT_GUARD.md` agent uses `run_in_background: true` → process dies on return | `DRIFT_GUARD.md` v4: CRITICAL note — blocking Bash with `timeout=600000`, never `run_in_background` |
 | `eval_criteria_quick` in runner duplicates `_eval_criteria` but can't check coverage | `coverage_full` bool written to state by `check` command — runner reads it, no git ops needed |
@@ -494,4 +494,4 @@ python3 PROJECT_PHANTOM/agents/phantom.py restore   # recovers saved state
 - `agents_running` must stay 0 while heartbeat and drift-guard run, or the heartbeat is blocked forever
 - Run `anchor check` after every heartbeat resume — always re-orient before working
 - Run `checkpoint` before calling `complete` — ensure all gates pass first
-- `last_session_state.json` auto-saves on every ping-divisible turn and appears in git diff — this is expected, not drift
+- `logs/` directory auto-saves on every ping-divisible turn (amends one commit, no new commits) — this is expected, not drift; the entire `logs/` dir is filtered from scope analysis
