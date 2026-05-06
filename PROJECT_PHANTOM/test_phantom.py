@@ -844,12 +844,17 @@ def test_drift_guard():
     check("drift_guard exits on missing state", rc != 0)
     check("drift_guard prints ERROR on missing state", "ERROR" in out or "ERROR" in err)
 
-    # drift-arm command
-    run([PHANTOM, "start", "drift test task", "--turns", "5"])
+    # drift-arm command shows scope context
+    run([PHANTOM, "start", "drift test task", "--turns", "5",
+         "--scope-threshold", "35",
+         "--scope", "agents/phantom.py", "agents/drift_guard.py"])
     rc, out, _ = run([PHANTOM, "drift-arm"])
     check("drift-arm exits 0", rc == 0)
     state = read_state()
     check("drift_guard_active=true after arm", state.get("drift_guard_active") == True)
+    check("drift-arm shows Threshold in output", "Threshold:" in out or "Threshold" in out)
+    check("drift-arm shows Since in output", "Since:" in out or "Since" in out)
+    check("drift-arm shows Scope when scope_files set", "Scope:" in out or "agents/phantom.py" in out)
 
     # double drift-arm warns
     rc, out, _ = run([PHANTOM, "drift-arm"])
