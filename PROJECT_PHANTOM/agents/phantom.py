@@ -782,12 +782,14 @@ def cmd_check(args):
             for line in lines:
                 parts = line.split("|")
                 fname = parts[0].strip()
+                if fname == _SAVED_REL:
+                    continue  # filter auto-save file same as drift_guard/scope
                 try:
                     scope_result["files"][fname] = int(parts[1].strip().split()[0])
                 except (IndexError, ValueError):
                     pass
             grand = sum(scope_result["files"].values()) or 1
-            scope_result["max_pct"] = max(scope_result["files"].values()) / grand * 100
+            scope_result["max_pct"] = max(scope_result["files"].values()) / grand * 100 if scope_result["files"] else 0
             scope_result["clean"] = scope_result["max_pct"] <= threshold
     except Exception as e:
         scope_result["error"] = str(e)
@@ -1366,10 +1368,13 @@ def cmd_checkpoint(args):
             )
             lines = [l for l in r.stdout.splitlines() if "|" in l]
             if lines:
+                _saved_rel = os.path.relpath(SAVED_STATE_FILE, REPO_DIR) if SAVED_STATE_FILE else ""
                 totals: dict[str, int] = {}
                 for line in lines:
                     parts = line.split("|")
                     fname = parts[0].strip()
+                    if _saved_rel and fname == _saved_rel:
+                        continue
                     try:
                         totals[fname] = int(parts[1].strip().split()[0])
                     except (IndexError, ValueError):
