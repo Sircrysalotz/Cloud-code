@@ -1239,6 +1239,28 @@ def test_check():
     rc, out, err = run([PHANTOM, "complete"])
     check("complete shows Coverage line when targets set", "Coverage:" in out)
 
+    # report shows coverage summary when coverage_targets set
+    run([PHANTOM, "reset"])
+    run([PHANTOM, "start", "report test", "--turns", "3",
+         "--coverage-targets", "agents/phantom.py"])
+    rc, out, err = run([PHANTOM, "report"])
+    check("report shows Coverage section when targets set", "Coverage" in out)
+
+    # start --scope-threshold stored in state
+    run([PHANTOM, "reset"])
+    rc, out, err = run([PHANTOM, "start", "threshold test", "--turns", "3",
+                        "--scope-threshold", "30"])
+    check("start --scope-threshold exits 0", rc == 0)
+    state = read_state()
+    check("start --scope-threshold stored in state", state.get("scope_threshold") == 30.0)
+
+    # start without --scope-threshold defaults to 50.0
+    run([PHANTOM, "reset"])
+    run([PHANTOM, "start", "default threshold", "--turns", "3"])
+    state = read_state()
+    check("start without --scope-threshold defaults to 50.0",
+          state.get("scope_threshold") == 50.0)
+
     # --coverage-targets stored in state at start
     run([PHANTOM, "reset"])
     rc, out, err = run([PHANTOM, "start", "coverage target test", "--turns", "3",

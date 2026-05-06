@@ -174,6 +174,8 @@ def cmd_start(args):
                               or profile_defaults.get("scope_files") or []),
         "coverage_targets":   (getattr(args, "coverage_targets", None)
                               or profile_defaults.get("coverage_targets") or []),
+        "scope_threshold":    (getattr(args, "scope_threshold", None)
+                              or profile_defaults.get("scope_threshold") or 50.0),
         "session_start_ref":  session_start_ref,
         "tracked_extensions": (getattr(args, "tracked_exts", None)
                               or profile_defaults.get("tracked_extensions") or []),
@@ -796,6 +798,16 @@ def cmd_report(args):
     if declared:
         print(f"\n  Declared scope: {', '.join(declared)}")
 
+    # Coverage summary
+    cov_targets = state.get("coverage_targets") or []
+    cov_display = cov_targets or declared
+    if cov_display:
+        source = "coverage_targets" if cov_targets else "scope_files"
+        cov_line = _quick_coverage(state)
+        print(f"\n  Coverage ({source}): {cov_line or '?'}")
+        for t in cov_display:
+            print(f"    {t}")
+
     # Watchdog events
     wdevents = state.get("watchdog_events", [])
     if wdevents:
@@ -1056,6 +1068,8 @@ p.add_argument("--profile",          default=None,            help="Load default
 p.add_argument("--scope",   nargs="+", default=None,          help="Declared focus files for drift guard (e.g. --scope auth.py crypto.py)")
 p.add_argument("--coverage-targets", nargs="+", default=None, dest="coverage_targets",
                help="Files/dirs to track for coverage in 'check' command")
+p.add_argument("--scope-threshold", type=float, default=None, dest="scope_threshold",
+               help="Drift guard scope threshold %% (default 50)")
 p.add_argument("--tracked-exts", nargs="+", default=None, dest="tracked_exts",
                help="File extensions to watch for activity signals (e.g. --tracked-exts .py .ts)")
 p.add_argument("--scan-depth",  type=int, default=None, dest="scan_depth",
