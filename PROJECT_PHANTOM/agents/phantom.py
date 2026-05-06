@@ -527,7 +527,9 @@ def cmd_status(args):
     print(f"  Rounds:     {state.get('rounds_remaining', 0)} remaining")
     print(f"  Threshold:  {state.get('idle_threshold_seconds', '?')}s")
     print(f"  Poll:       every {state.get('check_interval_seconds', 30)}s")
-    print(f"  Agents:     {state.get('agents_running', 0)} running {state.get('active_agent_ids', [])}")
+    ag_ids = state.get("active_agent_ids", [])
+    ag_str = f" [{', '.join(ag_ids)}]" if ag_ids else ""
+    print(f"  Agents:     {state.get('agents_running', 0)} running{ag_str}")
 
     # Heartbeat status with ETA and held-by signal
     if state.get("heartbeat_active"):
@@ -560,7 +562,7 @@ def cmd_status(args):
             print(f"  Drift Guard: idle")
 
     print(f"  Last ping:  {state.get('last_active', '?')}")
-    print(f"  Last fired: {state.get('last_heartbeat_fired', 'never')}")
+    print(f"  Last fired: {state.get('last_heartbeat_fired') or '—'}")
     if state.get("min_idle_polls", 1) > 1:
         print(f"  Min polls:  {state.get('min_idle_polls')} consecutive idle polls required")
     print(f"  Progress:   {state.get('progress_note', '—')}")
