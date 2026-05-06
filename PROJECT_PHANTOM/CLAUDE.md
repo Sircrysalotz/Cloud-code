@@ -350,7 +350,7 @@ Last pushed entry on GitHub = last confirmed alive before container death.
 
 ```bash
 python3 PROJECT_PHANTOM/v2/test_v2.py
-# 338 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
+# 346 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
 ```
 
 ---
