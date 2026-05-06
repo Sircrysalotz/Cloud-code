@@ -1365,6 +1365,36 @@ def test_check():
     cleanup()
 
 
+def test_env():
+    print("\n── phantom.py env ──")
+    cleanup()
+
+    # env exits 0 (no session required)
+    rc, out, err = run([PHANTOM, "env"])
+    check("env exits 0", rc == 0)
+    check("env shows PHANTOM Environment header", "PHANTOM Environment" in out)
+
+    # Paths section shows expected keys
+    check("env shows agents_dir", "agents_dir" in out)
+    check("env shows repo_dir",   "repo_dir"   in out)
+    check("env shows state_file", "state_file" in out)
+
+    # Tools section shows python3 ok
+    check("env shows python3 ok", "[OK]" in out and "python3" in out)
+
+    # Session section shows warning when no session
+    check("env warns no active session", "no active session" in out.lower())
+
+    # With active session — shows session info
+    run([PHANTOM, "start", "env test session", "--turns", "3"])
+    rc, out, err = run([PHANTOM, "env"])
+    check("env exits 0 with active session", rc == 0)
+    check("env shows active session info", "active" in out.lower())
+    check("env shows task text", "env test session" in out)
+
+    cleanup()
+
+
 # ─── Run all ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -1382,6 +1412,7 @@ if __name__ == "__main__":
         test_scope_guard()
         test_coverage_tracker()
         test_check()
+        test_env()
     finally:
         cleanup()
 

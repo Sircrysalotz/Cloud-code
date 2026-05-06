@@ -889,6 +889,57 @@ def cmd_report(args):
     print(sep)
 
 
+def cmd_env(args):
+    """Print resolved environment paths and tool availability — useful for verifying portability."""
+    import shutil
+    ok   = lambda msg: print(f"  [OK]   {msg}")
+    warn = lambda msg: print(f"  [WARN] {msg}")
+
+    print("=== PHANTOM Environment ===")
+
+    # Paths
+    logs_dir = os.path.join(_PROJECT_DIR, "logs")
+    print("Paths:")
+    print(f"  agents_dir:  {_AGENTS_DIR}")
+    print(f"  project_dir: {_PROJECT_DIR}")
+    print(f"  repo_dir:    {REPO_DIR}")
+    print(f"  state_file:  {STATE_FILE}")
+    print(f"  profiles:    {PROFILES_FILE}")
+    print(f"  logs_dir:    {logs_dir}")
+
+    # Tools
+    print("Tools:")
+    py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    ok(f"python3 {py_ver}")
+    if shutil.which("git"):
+        try:
+            gv = subprocess.check_output(["git", "--version"], text=True).strip()
+            ok(gv)
+        except Exception:
+            ok("git (version unknown)")
+    else:
+        warn("git not found")
+
+    # Directories
+    print("Directories:")
+    for label, path in [("logs_dir", logs_dir), ("agents_dir", _AGENTS_DIR)]:
+        if os.path.isdir(path):
+            ok(f"{label} exists")
+        else:
+            warn(f"{label} missing: {path}")
+
+    # Session state
+    print("Session:")
+    state = read_state()
+    if state:
+        ok(f"active — task: {state.get('task', '?')[:60]}")
+        ok(f"turns {state.get('turns_taken',0)}/{state.get('turns_target',0)} | rounds {state.get('rounds_remaining',0)} remaining")
+    else:
+        warn("no active session (run 'phantom.py start' to begin)")
+
+    print("===========================")
+
+
 def cmd_reset(args):
     for f in [STATE_FILE, TEMP_FILE, LOCK_FILE]:
         try:
@@ -1200,6 +1251,7 @@ p.add_argument("--json", action="store_true",
 sub.add_parser("drift-arm",     help="Arm the drift guard before spawning drift_guard.py")
 sub.add_parser("drift-done",    help="Read drift guard findings after sub-agent returns")
 sub.add_parser("drift-status",  help="Show drift guard state and last warning")
+sub.add_parser("env",           help="Show resolved paths and environment check")
 
 args = parser.parse_args()
 {
@@ -1222,4 +1274,5 @@ args = parser.parse_args()
     "drift-arm":     cmd_drift_arm,
     "drift-done":    cmd_drift_done,
     "drift-status":  cmd_drift_status,
+    "env":           cmd_env,
 }[args.cmd](args)

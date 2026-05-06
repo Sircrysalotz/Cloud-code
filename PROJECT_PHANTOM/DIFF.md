@@ -471,3 +471,113 @@ Fixed conditional `check()` blocks (`if out.strip(): check(...)`) that caused te
 | v2.5 | 352 |
 
 New tests (23): `check` --json (14), coverage_targets profile loading (2), status/complete/report coverage display (3), scope --session scope_threshold (1), scope_guard --session scope_threshold (3).
+
+---
+
+## v2.6 — Portability: no hardcoded machine paths + env command
+
+### Problem: all scripts contained hardcoded `/home/user/Cloud-code` paths
+
+Every `.py` file, `.md` file, and test used absolute paths tied to one machine.
+Cloning to a different path broke everything silently.
+
+### Fix: self-locating paths everywhere
+
+**phantom.py + container_logger.py** — `_find_repo_dir()` pattern:
+```python
+_AGENTS_DIR  = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_DIR = os.path.dirname(_AGENTS_DIR)
+
+def _find_repo_dir() -> str:
+    try:
+        r = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+            cwd=_AGENTS_DIR, capture_output=True, text=True, timeout=5)
+        if r.returncode == 0:
+            return r.stdout.strip()
+    except Exception:
+        pass
+    return os.path.dirname(_PROJECT_DIR)
+
+REPO_DIR = _find_repo_dir()
+```
+`git rev-parse` finds the actual repo root on any machine; pure-filesystem fallback handles
+the no-git edge case. `_SAVED_REL` uses `os.path.relpath(SAVED_STATE_FILE, REPO_DIR)` so
+`git add` works regardless of where the repo is checked out.
+
+**HEARTBEAT.md + DRIFT_GUARD.md** — `$AGENTS_DIR` path-resolution preamble:
+```
+Determine AGENTS_DIR from the path you were given for this file.
+For example: if told to read `/some/path/PROJECT_PHANTOM/agents/HEARTBEAT.md`,
+then `AGENTS_DIR = /some/path/PROJECT_PHANTOM/agents`.
+```
+All `python3 /home/user/Cloud-code/...` commands replaced with `python3 $AGENTS_DIR/...`.
+Sub-agents derive the correct path from wherever they were spawned — works on any machine.
+
+**test_phantom.py** — `GIT_ROOT` computed from `__file__`:
+```python
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+GIT_ROOT    = os.path.dirname(PROJECT_DIR)
+```
+All 12 hardcoded `"/home/user/Cloud-code"` literals replaced with `GIT_ROOT`.
+
+**CLAUDE.md** — spawn prompts use `<path-to-agents-dir>` placeholder; container logger
+command uses repo-relative path; test count corrected to 352.
+
+### New: `phantom.py env` command
+
+Environment inspector for verifying portability on a new machine:
+```
+python3 PROJECT_PHANTOM/agents/phantom.py env
+```
+
+Output:
+```
+=== PHANTOM Environment ===
+Paths:
+  agents_dir:  /path/to/PROJECT_PHANTOM/agents
+  project_dir: /path/to/PROJECT_PHANTOM
+  repo_dir:    /path/to/repo
+  state_file:  /tmp/phantom_session.json
+  profiles:    /root/.phantom_profiles.json
+  logs_dir:    /path/to/PROJECT_PHANTOM/logs
+Tools:
+  [OK]   python3 3.11.15
+  [OK]   git version 2.43.0
+Directories:
+  [OK]   logs_dir exists
+  [OK]   agents_dir exists
+Session:
+  [OK]   active — task: ...
+  [OK]   turns 2/25 | rounds 8 remaining
+===========================
+```
+Shows `[WARN]` for missing directories or absent git. No active session → warns instead of failing.
+
+### New: `tools/setup.sh`
+
+Drop-in environment checker for fresh machines:
+```bash
+bash PROJECT_PHANTOM/tools/setup.sh          # checks + creates logs dir
+bash PROJECT_PHANTOM/tools/setup.sh --check  # verify only (no side effects)
+```
+Checks: python3 present, git present + valid repo, logs dir exists.
+Exits 1 if any check fails; prints quick-start command on success.
+
+### New: `PROJECT_PHANTOM/.gitignore`
+
+Excludes `logs/container_vitals.log` from accidental `git add -A` adds on fresh machines.
+
+### Test coverage
+
+| Version | Tests |
+|---|---|
+| v2.0 | 46 |
+| v2.1 | 152 |
+| v2.2 | 168 |
+| v2.3 | 284 |
+| v2.4 | 329 |
+| v2.5 | 352 |
+| v2.6 | 368 |
+
+New tests (16): `env` command (10), `test_env()` function covering no-session warning,
+paths section, tools section, active-session display (6 additional).
