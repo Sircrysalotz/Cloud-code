@@ -81,6 +81,11 @@ Do NOT call it:
 | `scope_guard.py` ignores session boundaries | `--session` flag reads `session_start_ref` from phantom state |
 | Common profiles must be recreated each project | Built-in presets: `sprint`, `marathon`, `debug`, `focus` — always available |
 | Separate scope/coverage checks require two commands | `phantom.py check` — unified scope + coverage in one shot, session-anchored |
+| Coverage targets must be re-specified every run | `--coverage-targets` stored in state at start; loaded by `check` automatically |
+| `--scope-threshold` only settable per-run in drift_guard | `--scope-threshold` on `start` — stored in state, read by drift_guard + check |
+| Profile list fields not loaded from profile | scope_files, coverage_targets, tracked_extensions, scan_depth all profile-resolved |
+| Status/complete/report hide coverage status | All three commands show coverage summary when coverage_targets or scope_files set |
+| Test count varies between runs | Fixed conditional check() blocks — always 338 tests |
 
 ### Files
 
@@ -154,6 +159,13 @@ python3 PROJECT_PHANTOM/agents/phantom.py start "task" --profile sprint
 # With declared scope (drift guard uses this — prevents false SCOPE_CREEP)
 python3 PROJECT_PHANTOM/agents/phantom.py start "task" \
   --scope agents/phantom.py agents/heartbeat_runner.py v2/test_v2.py
+
+# With coverage targets (used by 'check' command)
+python3 PROJECT_PHANTOM/agents/phantom.py start "task" \
+  --coverage-targets agents/phantom.py agents/heartbeat_runner.py v2/phantom.py
+
+# With custom scope threshold (used by drift guard + check)
+python3 PROJECT_PHANTOM/agents/phantom.py start "task" --scope-threshold 30
 
 # With min-idle-polls (require 2 consecutive idle polls before firing)
 python3 PROJECT_PHANTOM/agents/phantom.py start "task" --min-idle-polls 2
@@ -338,7 +350,7 @@ Last pushed entry on GitHub = last confirmed alive before container death.
 
 ```bash
 python3 PROJECT_PHANTOM/v2/test_v2.py
-# 329 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
+# 338 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
 ```
 
 ---

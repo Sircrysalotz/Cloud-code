@@ -1099,16 +1099,17 @@ def test_scope_guard():
     rc, out, err = run([SCOPE_GUARD, "--repo", "/home/user/Cloud-code",
                         "--json", "--since", "HEAD~1"])
     check("scope_guard --json exits 0 or 1", rc in (0, 1))
-    if out.strip():
-        try:
-            data = json.loads(out)
-            check("scope_guard --json output is valid JSON", True)
-            check("scope_guard --json has 'since' key", "since" in data)
-            check("scope_guard --json has 'clean' key", "clean" in data)
-            check("scope_guard --json has 'files' key", "files" in data)
-            check("scope_guard --json has 'session' key (v3)", "session" in data)
-        except json.JSONDecodeError:
-            check("scope_guard --json output is valid JSON", False)
+    try:
+        data = json.loads(out)
+        check("scope_guard --json output is valid JSON", True)
+        check("scope_guard --json has 'since' key", "since" in data)
+        check("scope_guard --json has 'clean' key", "clean" in data)
+        check("scope_guard --json has 'files' key", "files" in data)
+        check("scope_guard --json has 'session' key (v3)", "session" in data)
+    except json.JSONDecodeError:
+        check("scope_guard --json output is valid JSON", False)
+        for k in ("since", "clean", "files", "session"):
+            check(f"scope_guard --json has '{k}' key", False)
 
     # --quiet: suppresses output
     rc, out, err = run([SCOPE_GUARD, "--repo", "/home/user/Cloud-code",
@@ -1178,16 +1179,17 @@ def test_coverage_tracker():
                         "--targets", "PROJECT_PHANTOM/agents/phantom.py",
                         "--json", "--since", "HEAD~2"])
     check("coverage_tracker --json exits 0 or 1", rc in (0, 1))
-    if out.strip():
-        try:
-            data = json.loads(out)
-            check("coverage_tracker --json is valid JSON", True)
-            check("coverage_tracker --json has 'since' key", "since" in data)
-            check("coverage_tracker --json has 'session' key", "session" in data)
-            check("coverage_tracker --json has 'full_coverage' key", "full_coverage" in data)
-            check("coverage_tracker --json has 'touched_files' key", "touched_files" in data)
-        except json.JSONDecodeError:
-            check("coverage_tracker --json is valid JSON", False)
+    try:
+        data = json.loads(out)
+        check("coverage_tracker --json is valid JSON", True)
+        check("coverage_tracker --json has 'since' key", "since" in data)
+        check("coverage_tracker --json has 'session' key", "session" in data)
+        check("coverage_tracker --json has 'full_coverage' key", "full_coverage" in data)
+        check("coverage_tracker --json has 'touched_files' key", "touched_files" in data)
+    except json.JSONDecodeError:
+        check("coverage_tracker --json is valid JSON", False)
+        for k in ("since", "session", "full_coverage", "touched_files"):
+            check(f"coverage_tracker --json has '{k}' key", False)
 
     # read_session_start_ref function
     import importlib.util as _ilu
