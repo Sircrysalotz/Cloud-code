@@ -684,15 +684,22 @@ def cmd_scope(args):
         if not lines:
             print(f"No file changes found ({label}).")
             return
+        # Filter auto-save state file (same as drift_guard v4 default ignore)
+        _saved_rel = os.path.relpath(SAVED_STATE_FILE, REPO_DIR) if SAVED_STATE_FILE else ""
         totals = {}
         for line in lines:
             parts = line.split("|")
             fname = parts[0].strip()
+            if _saved_rel and fname == _saved_rel:
+                continue
             try:
                 changes = int(parts[1].strip().split()[0])
                 totals[fname] = changes
             except (IndexError, ValueError):
                 pass
+        if not totals:
+            print(f"No file changes found ({label}) after filtering.")
+            return
         grand_total = sum(totals.values()) or 1
         # Use session scope_threshold when CLI threshold is at default and session active
         cli_threshold = getattr(args, "threshold", 50.0)
