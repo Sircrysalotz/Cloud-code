@@ -33,7 +33,7 @@ that improve multiple files per turn and keep test_phantom.py passing.
 - [x] Pre-flight checks + crash recovery path (HEARTBEAT.md)
 - [x] Explicit rounds=0 early exit (heartbeat_runner.py)
 - [x] Log rotation, cap at 500 lines (container_logger.py)
-- [x] test_phantom.py — 377-test integration suite
+- [x] test_phantom.py — 386-test integration suite
 - [x] DIFF.md — changelog v2.0 → v2.7
 - [x] v2/ collapsed — single canonical codebase in agents/ and tools/
 - [x] Full portability — no hardcoded machine paths (v2.6)

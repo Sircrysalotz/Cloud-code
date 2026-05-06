@@ -651,3 +651,37 @@ with section headers (lifecycle, heartbeat/drift, worker agents, profile managem
 New tests (9): drift guard in `status` (4), drift guard in `report` (4),
 `--auto-save-every` stored at start (1), `auto_save_every` default=5 (1),
 runtime fields initialized at start (5).
+
+---
+
+## v2.8 — Coverage path-prefix fix
+
+### Bug fix: `phantom.py check` always showed 0% coverage
+
+**Root cause:** `git diff --name-only` is run with `cwd=REPO_DIR` (the git root), so it
+returns repo-relative paths like `PROJECT_PHANTOM/agents/phantom.py`. Coverage targets are
+stored project-relative (`agents/phantom.py`). The `_hit()` function compared them directly —
+they never matched.
+
+**Fix:** Added `_PROJECT_PREFIX = os.path.relpath(_PROJECT_DIR, REPO_DIR) + os.sep` (a
+module-level constant, e.g. `PROJECT_PHANTOM/`). Both `_quick_coverage()` and `cmd_check()`
+now strip this prefix from each changed path before comparison, so project-relative targets
+match regardless of where in a repo the project folder lives.
+
+### Test coverage
+
+| Version | Tests |
+|---|---|
+| v2.0 | 46 |
+| v2.1 | 152 |
+| v2.2 | 168 |
+| v2.3 | 284 |
+| v2.4 | 329 |
+| v2.5 | 352 |
+| v2.6 | 368 |
+| v2.7 | 377 |
+| v2.8 | 386 |
+
+New tests (9): `env` command (10), restore clears drift_guard_active (1),
+restore warns on drift warning (1), auto_save_every flow (7).
+(Coverage-fix itself is verified by `check` returning 4/4 above; no new test needed.)

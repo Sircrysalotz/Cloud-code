@@ -63,6 +63,9 @@ def _find_repo_dir() -> str:
 REPO_DIR         = _find_repo_dir()
 SAVED_STATE_FILE = os.path.join(_PROJECT_DIR, "logs", "last_session_state.json")
 _SAVED_REL       = os.path.relpath(SAVED_STATE_FILE, REPO_DIR)
+# Prefix used to normalize git diff paths (repo-relative) to project-relative.
+# e.g. "PROJECT_PHANTOM/" — stripped so coverage targets match without full prefix.
+_PROJECT_PREFIX  = os.path.relpath(_PROJECT_DIR, REPO_DIR) + os.sep
 
 STATE_FILE = os.environ.get("PHANTOM_STATE", "/tmp/phantom_session.json")
 TEMP_FILE  = STATE_FILE + ".tmp"
@@ -269,7 +272,8 @@ def _quick_coverage(state: dict) -> str | None:
             ["git", "diff", "--name-only"] + diff_range,
             cwd=REPO_DIR, capture_output=True, text=True, timeout=10
         )
-        changed = set(r.stdout.strip().splitlines())
+        raw = set(r.stdout.strip().splitlines())
+        changed = {(c[len(_PROJECT_PREFIX):] if c.startswith(_PROJECT_PREFIX) else c) for c in raw}
         def _hit(t):
             t = t.rstrip("/")
             return t in changed or any(c.startswith(t + "/") for c in changed)
@@ -705,7 +709,8 @@ def cmd_check(args):
         try:
             r2 = subprocess.run(["git", "diff", "--name-only"] + diff_range,
                                 cwd=REPO_DIR, capture_output=True, text=True, timeout=15)
-            changed = set(r2.stdout.strip().splitlines())
+            raw2 = set(r2.stdout.strip().splitlines())
+            changed = {(c[len(_PROJECT_PREFIX):] if c.startswith(_PROJECT_PREFIX) else c) for c in raw2}
             def _hit(t):
                 t = t.rstrip("/")
                 return t in changed or any(c.startswith(t + "/") for c in changed)
