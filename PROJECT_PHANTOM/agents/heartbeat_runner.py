@@ -317,7 +317,9 @@ def main():
                 prev_activity_ts     = last_activity_ts
                 prev_activity_source = activity_source
                 consecutive_idle     = 0  # new activity resets idle streak
-                fire_eta = datetime.fromtimestamp(last_activity_ts + idle_threshold)
+                # ETA accounts for min_idle_polls: threshold + (polls-1)*interval
+                extra_secs = max(0, min_idle_polls - 1) * check_interval
+                fire_eta = datetime.fromtimestamp(last_activity_ts + idle_threshold + extra_secs)
                 state["last_activity_source"] = activity_source
                 state["last_activity_ts"]     = datetime.fromtimestamp(last_activity_ts).strftime("%Y-%m-%d %H:%M:%S")
                 state["next_heartbeat_at"]    = fire_eta.strftime("%Y-%m-%d %H:%M:%S")
