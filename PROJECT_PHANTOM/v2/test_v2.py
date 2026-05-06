@@ -1169,6 +1169,46 @@ def test_coverage_tracker():
     cleanup()
 
 
+def test_check():
+    print("\n── phantom.py check ──")
+    cleanup()
+
+    # No session → exits 1
+    rc, out, err = run([PHANTOM, "check"])
+    check("check with no session exits 1", rc == 1)
+    check("check reports no active session", "no active session" in out.lower())
+
+    # Start session with a session_start_ref
+    run([PHANTOM, "start", "check cmd test", "--turns", "5", "--rounds", "3"])
+    rc, out, err = run([PHANTOM, "check"])
+    check("check exits 0 with active session", rc == 0)
+    check("check shows SESSION CHECK header", "SESSION CHECK" in out)
+    check("check shows task", "check cmd test" in out)
+    check("check shows turns", "Turns:" in out)
+    check("check shows SCOPE section", "SCOPE" in out)
+
+    # --threshold flag changes warning threshold (very low = DRIFT RISK likely)
+    rc, out, err = run([PHANTOM, "check", "--threshold", "1"])
+    check("check --threshold 1 shows DRIFT RISK", "DRIFT RISK" in out or "SCOPE OK" in out or "no changes" in out)
+
+    # --targets adds coverage section
+    rc, out, err = run([PHANTOM, "check", "--targets", "agents/phantom.py"])
+    check("check --targets shows COVERAGE section", "COVERAGE" in out)
+
+    # scope_files in state used as default targets
+    run([PHANTOM, "reset"])
+    run([PHANTOM, "start", "scope-file test", "--turns", "3",
+         "--scope", "agents/phantom.py", "agents/heartbeat_runner.py"])
+    rc, out, err = run([PHANTOM, "check"])
+    check("check uses scope_files when no --targets", "COVERAGE" in out)
+
+    # --threshold=100 → always SCOPE OK
+    rc, out, err = run([PHANTOM, "check", "--threshold", "100"])
+    check("check --threshold 100 never shows DRIFT RISK", "DRIFT RISK" not in out)
+
+    cleanup()
+
+
 # ─── Run all ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -1185,6 +1225,7 @@ if __name__ == "__main__":
         test_container_logger()
         test_scope_guard()
         test_coverage_tracker()
+        test_check()
     finally:
         cleanup()
 

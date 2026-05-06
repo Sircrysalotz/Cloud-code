@@ -344,3 +344,62 @@ User-created profiles override built-ins by name.
 New tests added: report command (7), recover command (11), tracked_extensions/scan_depth (7),
 watchdog events (3), scope_match/verdict triggers (7), SCOPE_CREEP/VERTICAL/TRENDING (3),
 container_logger v3 (10), scope_guard --session (14), built-in profiles (29).
+
+---
+
+## v2.4 — Phase ∞: cmd_check + coverage_tracker --session + ping_log + HEARTBEAT.md v3
+
+### phantom.py — `check` command
+
+New unified command that prints scope + coverage in one shot, anchored to `session_start_ref`:
+
+```
+phantom.py check [--threshold N] [--targets file1 file2 ...]
+```
+
+- Scope section: git diff stat parsed into per-file percentages; warns `⚠ DRIFT RISK` when any file exceeds threshold
+- Coverage section: uses `--targets` if given, else falls back to `scope_files` from state
+- Shows `✓ FULL COVERAGE` or `⚠ INCOMPLETE: N target(s) not yet touched`
+- Session-anchored: uses `session_start_ref` so it never bleeds into previous sessions
+- No session → exits 1 with clear message
+
+### scope_guard.py — `--session` flag
+
+- `--session` reads `session_start_ref` from phantom session state
+- `--state-file` overrides default state path (for test isolation)
+- `--json` output includes `"session": bool` field
+- Fallback: if state missing, prints WARNING and falls back to auto-detect
+
+### coverage_tracker.py — `--session` flag
+
+- Same `--session` + `--state-file` pattern as scope_guard
+- `read_session_start_ref()` function reads from `PHANTOM_STATE` or given path
+- `--json` output includes `"session": bool` field
+- Fallback: WARNING + auto-detect when state missing
+
+### phantom.py — `ping_log` entries
+
+- `ping` appends `{turn, note, at}` to `ping_log[]` (capped at 20)
+- `history` command shows full ping log with turn/timestamp/note
+- `report` command shows last 5 pings
+
+### HEARTBEAT.md v3
+
+- Documents v5 runner startup banner (scan_depth, tracked_exts lines)
+- HOLD signal table: `[ping]`, `[file:path]`, `[git:index]`
+- Watchdog format + state write behavior
+- `recover` command for stuck flags
+- Test isolation via `PHANTOM_STATE` env var
+
+### Test coverage
+
+| Version | Tests |
+|---|---|
+| v2.0 | 46 |
+| v2.1 | 152 |
+| v2.2 | 168 |
+| v2.3 | 284 |
+| v2.4 | 329 |
+
+New tests (45): `check` command (11), coverage_tracker --session (14),
+scope_guard --session (14, moved from v2.3), ping_log round-trip (6).

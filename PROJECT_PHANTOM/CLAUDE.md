@@ -80,6 +80,7 @@ Do NOT call it:
 | No resource alerts in container logger | `container_logger v3` — mem/disk threshold alerts with deduplication |
 | `scope_guard.py` ignores session boundaries | `--session` flag reads `session_start_ref` from phantom state |
 | Common profiles must be recreated each project | Built-in presets: `sprint`, `marathon`, `debug`, `focus` — always available |
+| Separate scope/coverage checks require two commands | `phantom.py check` — unified scope + coverage in one shot, session-anchored |
 
 ### Files
 
@@ -235,6 +236,15 @@ python3 PROJECT_PHANTOM/agents/phantom.py scope --session
 # Scope check with custom threshold
 python3 PROJECT_PHANTOM/agents/phantom.py scope --threshold 30
 
+# Unified scope + coverage check (anchored to session_start_ref)
+python3 PROJECT_PHANTOM/agents/phantom.py check
+
+# Check with explicit coverage targets
+python3 PROJECT_PHANTOM/agents/phantom.py check --targets agents/phantom.py agents/heartbeat_runner.py
+
+# Check with custom drift threshold
+python3 PROJECT_PHANTOM/agents/phantom.py check --threshold 30
+
 # Save state to git (survives container restart)
 python3 PROJECT_PHANTOM/agents/phantom.py save
 
@@ -328,7 +338,7 @@ Last pushed entry on GitHub = last confirmed alive before container death.
 
 ```bash
 python3 PROJECT_PHANTOM/v2/test_v2.py
-# 180 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
+# 329 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
 ```
 
 ---

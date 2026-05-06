@@ -529,6 +529,88 @@ def cmd_history(args):
     print("=" * 50)
 
 
+def cmd_check(args):
+    """Run scope + optional coverage check in one shot using session_start_ref."""
+    state = read_state()
+    if not state:
+        print("No active session — cannot run session-anchored checks.")
+        sys.exit(1)
+
+    sep = "=" * 56
+    session_ref = state.get("session_start_ref")
+    print(sep)
+    print("  SESSION CHECK")
+    print(sep)
+    print(f"  Task:   {state.get('task', '?')}")
+    print(f"  Turns:  {state.get('turns_taken', 0)}/{state.get('turns_target', '?')}")
+    print(f"  Since:  {session_ref or 'HEAD~5'} (session_start_ref)")
+    print()
+
+    # Scope check
+    threshold = getattr(args, "threshold", 50)
+    try:
+        diff_range = [session_ref, "HEAD"] if session_ref else ["HEAD~5", "HEAD"]
+        result = subprocess.run(
+            ["git", "diff", "--stat"] + diff_range,
+            cwd=REPO_DIR, capture_output=True, text=True, timeout=15
+        )
+        lines = [l for l in result.stdout.splitlines() if "|" in l]
+        if lines:
+            totals = {}
+            for line in lines:
+                parts = line.split("|")
+                fname = parts[0].strip()
+                try:
+                    totals[fname] = int(parts[1].strip().split()[0])
+                except (IndexError, ValueError):
+                    pass
+            grand = sum(totals.values()) or 1
+            max_pct = max(totals.values()) / grand * 100 if totals else 0
+            print(f"  SCOPE ({len(totals)} files, {sum(totals.values())} lines):")
+            for fname, cnt in sorted(totals.items(), key=lambda x: -x[1])[:5]:
+                pct = cnt / grand * 100
+                bar = "█" * min(int(pct / 5), 20)
+                warn = " ⚠" if pct > threshold else ""
+                print(f"    {pct:4.0f}% {bar:<20} {cnt:4d}  {fname}{warn}")
+            if max_pct > threshold:
+                print(f"  ⚠ DRIFT RISK: one file has {max_pct:.0f}% of changes (threshold {threshold}%)")
+            else:
+                print(f"  ✓ SCOPE OK: max {max_pct:.0f}% (threshold {threshold}%)")
+        else:
+            print(f"  SCOPE: no changes since session start")
+    except Exception as e:
+        print(f"  SCOPE: error — {e}")
+    print()
+
+    # Coverage check (only if coverage_targets declared)
+    coverage_targets = getattr(args, "targets", None) or state.get("scope_files", [])
+    if coverage_targets:
+        try:
+            diff_range = [session_ref, "HEAD"] if session_ref else ["HEAD~5", "HEAD"]
+            result = subprocess.run(
+                ["git", "diff", "--name-only"] + diff_range,
+                cwd=REPO_DIR, capture_output=True, text=True, timeout=15
+            )
+            changed = set(result.stdout.strip().splitlines())
+            touched = [t for t in coverage_targets if any(t in c or c.endswith(t) or t in c for c in changed)]
+            untouched = [t for t in coverage_targets if t not in touched]
+            pct = 100.0 * len(touched) / len(coverage_targets) if coverage_targets else 0
+            print(f"  COVERAGE ({len(touched)}/{len(coverage_targets)} targets, {pct:.0f}%):")
+            for t in touched:
+                print(f"    ✓  {t}")
+            for t in untouched:
+                print(f"    ✗  {t}  ← not yet modified")
+            if untouched:
+                print(f"  ⚠ INCOMPLETE: {len(untouched)} target(s) not yet touched")
+            else:
+                print(f"  ✓ FULL COVERAGE: all {len(coverage_targets)} targets touched")
+        except Exception as e:
+            print(f"  COVERAGE: error — {e}")
+    else:
+        print(f"  COVERAGE: no targets declared (use --scope on start or --targets here)")
+    print(sep)
+
+
 def cmd_recover(args):
     """Soft reset: clears stuck flags without touching task, turns, or history."""
     state = read_state()
@@ -975,6 +1057,12 @@ sub.add_parser("drift-arm",     help="Arm the drift guard before spawning drift_
 sub.add_parser("drift-done",    help="Read drift guard findings after sub-agent returns")
 sub.add_parser("drift-status",  help="Show drift guard state and last warning")
 
+p = sub.add_parser("check", help="Unified scope + coverage check anchored to session_start_ref")
+p.add_argument("--threshold", type=int, default=50,
+               help="Warn when one file exceeds this %% of changes (default: 50)")
+p.add_argument("--targets", nargs="+", default=None,
+               help="Coverage targets (files/dirs); defaults to scope_files in state")
+
 args = parser.parse_args()
 {
     "start":         cmd_start,
@@ -991,6 +1079,7 @@ args = parser.parse_args()
     "reset":         cmd_reset,
     "recover":       cmd_recover,
     "report":        cmd_report,
+    "check":         cmd_check,
     "config":        cmd_config,
     "drift-arm":     cmd_drift_arm,
     "drift-done":    cmd_drift_done,

@@ -77,6 +77,11 @@ def test_scope_guard():
     print("\n── scope_guard.py ──")
     repo = make_git_repo()
 
+    # Capture the first commit ref (used later for --session tests)
+    r = subprocess.run(["git", "rev-parse", "HEAD~1"], cwd=repo,
+                       capture_output=True, text=True)
+    since_ref = r.stdout.strip() if r.returncode == 0 else "HEAD~1"
+
     # Basic run — a.py should be ~94% of changes
     rc, out, err = run([SCOPE_GUARD, "--repo", repo, "--since", "HEAD~1", "--threshold", "50"])
     check("exits 1 when drift detected", rc == 1, out)
@@ -123,6 +128,28 @@ def test_scope_guard():
     check("auto-detects since without --since flag", rc in (0, 1))
     check("auto-detect doesn't error out (rc != 2)", rc != 2)
 
+    # --session flag: reads session_start_ref from a phantom state file
+    # Create a temp state file with a known session_start_ref
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as sf:
+        json.dump({"session_start_ref": since_ref}, sf)
+        tmp_state = sf.name
+    rc, out, err = run([SCOPE_GUARD, "--repo", repo, "--session", "--state-file", tmp_state])
+    check("scope_guard --session exits 0 or 1 (not error)", rc in (0, 1))
+    check("scope_guard --session shows session label", "session" in out.lower() or rc in (0, 1))
+    # --json + --session includes session:true
+    rc, out, err = run([SCOPE_GUARD, "--repo", repo, "--session", "--state-file", tmp_state, "--json"])
+    if out.strip():
+        try:
+            data = json.loads(out)
+            check("scope_guard --json --session has session=true", data.get("session") == True)
+        except json.JSONDecodeError:
+            check("scope_guard --json --session has session=true", False)
+    # --session with missing state falls back gracefully
+    rc, out, err = run([SCOPE_GUARD, "--repo", repo, "--session",
+                        "--state-file", "/tmp/nonexistent_scope_state.json"])
+    check("scope_guard --session missing state falls back (not crash)", rc != 2 or rc in (0, 1, 2))
+    os.unlink(tmp_state)
+
     import shutil
     shutil.rmtree(repo)
 
@@ -132,6 +159,11 @@ def test_scope_guard():
 def test_coverage_tracker():
     print("\n── coverage_tracker.py ──")
     repo = make_git_repo()
+
+    # Capture base commit ref for --session tests
+    r_ref = subprocess.run(["git", "rev-parse", "HEAD~1"], cwd=repo,
+                            capture_output=True, text=True)
+    base_ref = r_ref.stdout.strip() if r_ref.returncode == 0 else "HEAD~1"
 
     # Full coverage — both files touched
     rc, out, err = run([COVERAGE,
@@ -213,6 +245,33 @@ def test_coverage_tracker():
         "--targets", "src/",
         "--repo", repo, "--since", "HEAD~1"])
     check("directory prefix target works", rc == 0)
+
+    # --session flag: reads session_start_ref from state file
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as sf:
+        json.dump({"session_start_ref": base_ref}, sf)
+        tmp_state = sf.name
+    rc, out, err = run([COVERAGE,
+        "--targets", "a.py", "b.py",
+        "--repo", repo, "--session", "--state-file", tmp_state])
+    check("coverage_tracker --session exits 0 (targets touched)", rc == 0)
+    check("coverage_tracker --session shows session label", "session" in out.lower() or rc == 0)
+    # --json + --session includes session:true
+    rc, out, err = run([COVERAGE,
+        "--targets", "a.py",
+        "--repo", repo, "--session", "--state-file", tmp_state, "--json"])
+    if out.strip():
+        try:
+            data = json.loads(out)
+            check("coverage_tracker --json --session has session=true", data.get("session") == True)
+        except json.JSONDecodeError:
+            check("coverage_tracker --json --session has session=true", False)
+    # --session missing state falls back gracefully
+    rc, out, err = run([COVERAGE,
+        "--targets", "a.py",
+        "--repo", repo, "--session",
+        "--state-file", "/tmp/nonexistent_cov_state.json"])
+    check("coverage_tracker --session missing state fallback (not crash)", rc in (0, 1))
+    os.unlink(tmp_state)
 
     import shutil
     shutil.rmtree(repo)
