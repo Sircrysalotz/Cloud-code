@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Integration test suite for PHANTOM v2.
+Integration test suite for PROJECT PHANTOM.
 Tests all components: phantom.py, heartbeat_runner.py, container_logger.py
 
-Run: python3 test_v2.py
+Run: python3 test_phantom.py
 """
 
 import json
@@ -13,13 +13,15 @@ import sys
 import time
 from datetime import datetime
 
-V2_DIR    = os.path.dirname(os.path.abspath(__file__))
-PHANTOM   = os.path.join(V2_DIR, "phantom.py")
-RUNNER    = os.path.join(V2_DIR, "heartbeat_runner.py")
-LOGGER    = os.path.join(V2_DIR, "container_logger.py")
-DRIFT     = os.path.join(V2_DIR, "drift_guard.py")
-SCOPE_GUARD      = os.path.join(V2_DIR, "scope_guard.py")
-COVERAGE_TRACKER = os.path.join(V2_DIR, "coverage_tracker.py")
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+AGENTS_DIR  = os.path.join(PROJECT_DIR, "agents")
+TOOLS_DIR   = os.path.join(PROJECT_DIR, "tools")
+PHANTOM   = os.path.join(AGENTS_DIR, "phantom.py")
+RUNNER    = os.path.join(AGENTS_DIR, "heartbeat_runner.py")
+LOGGER    = os.path.join(AGENTS_DIR, "container_logger.py")
+DRIFT     = os.path.join(AGENTS_DIR, "drift_guard.py")
+SCOPE_GUARD      = os.path.join(TOOLS_DIR, "scope_guard.py")
+COVERAGE_TRACKER = os.path.join(TOOLS_DIR, "coverage_tracker.py")
 STATE     = "/tmp/phantom_TEST_session.json"
 LOCK      = "/tmp/phantom_TEST_session.lock"
 PID_FILE  = "/tmp/phantom_container_logger.pid"
@@ -201,7 +203,7 @@ def test_phantom():
     cleanup()
     run([PHANTOM, "start", "save test", "--turns", "5"])
     run([PHANTOM, "ping", "saved progress"])
-    SAVED = os.path.join(V2_DIR, "../logs/last_session_state.json")
+    SAVED = os.path.join(PROJECT_DIR, "logs/last_session_state.json")
     rc, out, _ = run([PHANTOM, "save"])
     check("save exits 0 or warns on push", rc == 0 or "push" in out.lower())
     check("save writes last_session_state.json", os.path.exists(SAVED))
@@ -533,13 +535,13 @@ def test_config():
 
     # profile with coverage_targets — loads into state at start
     run([PHANTOM, "config", "create", "cov_profile",
-         "--coverage-targets", "agents/phantom.py", "v2/phantom.py"])
+         "--coverage-targets", "agents/phantom.py", "agents/drift_guard.py"])
     rc, out, _ = run([PHANTOM, "start", "profile cov test", "--profile", "cov_profile", "--force"])
     check("start with coverage_targets profile exits 0", rc == 0)
     state = read_state()
     cov = state.get("coverage_targets", [])
     check("start --profile loads coverage_targets into state",
-          "agents/phantom.py" in cov and "v2/phantom.py" in cov)
+          "agents/phantom.py" in cov and "agents/drift_guard.py" in cov)
 
     # CLI --coverage-targets overrides profile's coverage_targets
     rc, out, _ = run([PHANTOM, "start", "cov override", "--profile", "cov_profile",
@@ -846,7 +848,7 @@ def test_drift_guard():
     dg   = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(dg)
 
-    git_workspace = os.path.dirname(os.path.dirname(V2_DIR))
+    git_workspace = os.path.dirname(PROJECT_DIR)
 
     # find_since returns a string
     since = dg.find_since(git_workspace)
@@ -1321,7 +1323,7 @@ def test_check():
     # complete shows coverage summary when coverage_targets set
     run([PHANTOM, "reset"])
     run([PHANTOM, "start", "complete test", "--turns", "3",
-         "--coverage-targets", "agents/phantom.py", "v2/phantom.py"])
+         "--coverage-targets", "agents/phantom.py", "agents/heartbeat_runner.py"])
     rc, out, err = run([PHANTOM, "complete"])
     check("complete shows Coverage line when targets set", "Coverage:" in out)
 
@@ -1350,7 +1352,7 @@ def test_check():
     # --coverage-targets stored in state at start
     run([PHANTOM, "reset"])
     rc, out, err = run([PHANTOM, "start", "coverage target test", "--turns", "3",
-                        "--coverage-targets", "agents/phantom.py", "v2/phantom.py"])
+                        "--coverage-targets", "agents/phantom.py", "agents/heartbeat_runner.py"])
     check("start --coverage-targets shows Coverage line", "Coverage:" in out)
     rc, out, err = run([PHANTOM, "check"])
     check("check uses coverage_targets from state", "COVERAGE" in out)
@@ -1368,7 +1370,7 @@ def test_check():
 # ─── Run all ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    print("PHANTOM v2 Integration Tests")
+    print("PHANTOM Integration Tests")
     print("=" * 50)
 
     cleanup()

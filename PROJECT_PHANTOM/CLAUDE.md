@@ -63,7 +63,7 @@ Do NOT call it:
 | File-% drift fires on legitimate single-file tasks | Four-gate eval: declared scope → task alignment → hunk depth → trend |
 | No watchdog | Detects poll cycles taking >3x interval |
 | **Turn target stops work early** | **`turns_target` is a budget floor — session stays active past target** |
-| No test coverage | 284 integration tests in `v2/test_v2.py` |
+| No test coverage | 358 integration tests in `test_phantom.py` |
 | False fire during active coding (no ping) | Filesystem + git index activity signals in heartbeat_runner |
 | All config flags must be typed each session | Profile system — named configs in `~/.phantom_profiles.json` |
 | No horizontal enforcement during sessions | `drift_guard.py` background agent — four-gate evaluation |
@@ -103,7 +103,10 @@ Do NOT call it:
 | `logs/last_session_state.json` | Git-persisted session state (survives restart) |
 | `tools/scope_guard.py` | Portable drift checker for any git repo |
 | `tools/coverage_tracker.py` | Target file coverage checker |
-| `v2/` | Synced copies + test suite + DIFF.md |
+| `test_phantom.py` | Full integration test suite (358 tests) |
+| `DIFF.md` | Version changelog (v2.0 → v2.5) |
+| `PLAN.md` | Horizontal improvement tracker |
+| `ANTI_DRIFT.md` | Anti-drift observations from sessions |
 
 ### Session State (`/tmp/phantom_session.json`)
 
@@ -160,11 +163,11 @@ python3 PROJECT_PHANTOM/agents/phantom.py start "task" --profile sprint
 
 # With declared scope (drift guard uses this — prevents false SCOPE_CREEP)
 python3 PROJECT_PHANTOM/agents/phantom.py start "task" \
-  --scope agents/phantom.py agents/heartbeat_runner.py v2/test_v2.py
+  --scope agents/phantom.py agents/heartbeat_runner.py test_phantom.py
 
 # With coverage targets (used by 'check' command)
 python3 PROJECT_PHANTOM/agents/phantom.py start "task" \
-  --coverage-targets agents/phantom.py agents/heartbeat_runner.py v2/phantom.py
+  --coverage-targets agents/phantom.py agents/heartbeat_runner.py agents/drift_guard.py
 
 # With custom scope threshold (used by drift guard + check)
 python3 PROJECT_PHANTOM/agents/phantom.py start "task" --scope-threshold 30
@@ -353,8 +356,8 @@ Last pushed entry on GitHub = last confirmed alive before container death.
 ## Testing
 
 ```bash
-python3 PROJECT_PHANTOM/v2/test_v2.py
-# 346 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
+python3 PROJECT_PHANTOM/test_phantom.py
+# 358 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
 ```
 
 ---
