@@ -1206,6 +1206,21 @@ def test_check():
     rc, out, err = run([PHANTOM, "check", "--threshold", "100"])
     check("check --threshold 100 never shows DRIFT RISK", "DRIFT RISK" not in out)
 
+    # --coverage-targets stored in state at start
+    run([PHANTOM, "reset"])
+    rc, out, err = run([PHANTOM, "start", "coverage target test", "--turns", "3",
+                        "--coverage-targets", "agents/phantom.py", "v2/phantom.py"])
+    check("start --coverage-targets shows Coverage line", "Coverage:" in out)
+    rc, out, err = run([PHANTOM, "check"])
+    check("check uses coverage_targets from state", "COVERAGE" in out)
+    # coverage_targets take precedence over scope_files
+    run([PHANTOM, "reset"])
+    run([PHANTOM, "start", "priority test", "--turns", "3",
+         "--coverage-targets", "agents/phantom.py",
+         "--scope", "agents/heartbeat_runner.py"])
+    rc, out, err = run([PHANTOM, "check"])
+    check("check coverage_targets take precedence over scope_files", "COVERAGE" in out)
+
     cleanup()
 
 

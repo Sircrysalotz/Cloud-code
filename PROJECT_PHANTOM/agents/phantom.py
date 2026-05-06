@@ -171,6 +171,7 @@ def cmd_start(args):
         "workspace_dir":          os.getcwd(),
         "profile":                args.profile if hasattr(args, "profile") and args.profile else None,
         "scope_files":            getattr(args, "scope", None) or [],
+        "coverage_targets":       getattr(args, "coverage_targets", None) or [],
         "session_start_ref":      session_start_ref,
         "tracked_extensions":     getattr(args, "tracked_exts", None) or [],
         "scan_depth":             getattr(args, "scan_depth", None) or 5,
@@ -189,6 +190,8 @@ def cmd_start(args):
         print(f"  Tracked:   {' '.join(args.tracked_exts)}")
     if getattr(args, "scan_depth", None):
         print(f"  ScanDepth: {args.scan_depth}")
+    if getattr(args, "coverage_targets", None):
+        print(f"  Coverage:  {' '.join(args.coverage_targets)}")
 
 
 def print_session_summary(state: dict):
@@ -583,7 +586,11 @@ def cmd_check(args):
     print()
 
     # Coverage check (only if coverage_targets declared)
-    coverage_targets = getattr(args, "targets", None) or state.get("scope_files", [])
+    coverage_targets = (
+        getattr(args, "targets", None)
+        or state.get("coverage_targets") or []
+        or state.get("scope_files") or []
+    )
     if coverage_targets:
         try:
             diff_range = [session_ref, "HEAD"] if session_ref else ["HEAD~5", "HEAD"]
@@ -592,7 +599,12 @@ def cmd_check(args):
                 cwd=REPO_DIR, capture_output=True, text=True, timeout=15
             )
             changed = set(result.stdout.strip().splitlines())
-            touched = [t for t in coverage_targets if any(t in c or c.endswith(t) or t in c for c in changed)]
+            def _target_touched(t):
+                t = t.rstrip("/")
+                if t in changed:
+                    return True
+                return any(c == t or c.startswith(t + "/") or c.endswith("/" + t) for c in changed)
+            touched = [t for t in coverage_targets if _target_touched(t)]
             untouched = [t for t in coverage_targets if t not in touched]
             pct = 100.0 * len(touched) / len(coverage_targets) if coverage_targets else 0
             print(f"  COVERAGE ({len(touched)}/{len(coverage_targets)} targets, {pct:.0f}%):")
@@ -1006,6 +1018,8 @@ p.add_argument("--min-idle-polls",   type=int,   default=1,   dest="min_idle_pol
                help="Consecutive polls above threshold required before heartbeat fires (default 1)")
 p.add_argument("--profile",          default=None,            help="Load defaults from named profile (overridable by flags)")
 p.add_argument("--scope",   nargs="+", default=None,          help="Declared focus files for drift guard (e.g. --scope auth.py crypto.py)")
+p.add_argument("--coverage-targets", nargs="+", default=None, dest="coverage_targets",
+               help="Files/dirs to track for coverage in 'check' command")
 p.add_argument("--tracked-exts", nargs="+", default=None, dest="tracked_exts",
                help="File extensions to watch for activity signals (e.g. --tracked-exts .py .ts)")
 p.add_argument("--scan-depth",  type=int, default=None, dest="scan_depth",
