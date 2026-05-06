@@ -1,91 +1,54 @@
 {
-  "task": "Make PHANTOM reliable, dynamic, and self-aligning \u2014 anchor-based navigation, enforced good practices, configurable per codebase, works unsupervised",
-  "last_active": "2026-05-06 19:53:11",
-  "turns_taken": 5,
-  "turns_target": 25,
-  "rounds_remaining": 8,
+  "task": "save test",
+  "last_active": "2026-05-06 20:18:12",
+  "turns_taken": 1,
+  "turns_target": 5,
+  "rounds_remaining": 5,
   "idle_threshold_seconds": 180,
   "check_interval_seconds": 30,
   "cooldown_factor": 1.0,
-  "min_idle_polls": 2,
+  "min_idle_polls": 1,
   "rounds_used": 0,
   "agents_running": 0,
   "active_agent_ids": [],
-  "heartbeat_active": true,
+  "heartbeat_active": false,
   "last_heartbeat_fired": null,
-  "progress_note": "4/4 coverage, all tests pass. Running checkpoint before push.",
-  "started": "2026-05-06 19:38:36",
+  "progress_note": "saved progress",
+  "started": "2026-05-06 20:18:12",
   "status": "active",
   "workspace_dir": "/home/user/Cloud-code",
   "profile": null,
-  "scope_files": [
-    "agents/phantom.py",
-    "agents/heartbeat_runner.py",
-    "agents/drift_guard.py",
-    "test_phantom.py",
-    "CLAUDE.md"
-  ],
-  "coverage_targets": [
-    "agents/phantom.py",
-    "agents/heartbeat_runner.py",
-    "agents/drift_guard.py",
-    "test_phantom.py"
-  ],
-  "scope_threshold": 40.0,
-  "session_start_ref": "e817a0832a0a18ed999735de521920b3a31cc46e",
+  "scope_files": [],
+  "coverage_targets": [],
+  "scope_threshold": 50.0,
+  "session_start_ref": "8bc5538cef4a730f8cea1ff32ba052ca52314fce",
   "tracked_extensions": [],
   "scan_depth": 5,
   "auto_save_every": 5,
   "drift_guard_active": false,
-  "drift_warning": "DRIFT DETECTED [SCOPE_CREEP] after 1 check(s):\n  46% of changes are outside declared scope (PROJECT_PHANTOM/logs/last_session_state.json, PROJECT_PHANTOM/ANTI_DRIFT.md; threshold 40%)\n  Since: e817a0832a0a18ed999735de521920b3a31cc46e\n  Top files:\n     31.3%  PROJECT_PHANTOM/logs/last_session_state.json  (23 hunks, spread=43%)\n     30.7%  PROJECT_PHANTOM/agents/phantom.py  (5 hunks, spread=100%) [in-scope]\n     18.8%  PROJECT_PHANTOM/test_phantom.py  (2 hunks, spread=48%) [in-scope]",
-  "drift_warned_at": "2026-05-06 19:49:24",
+  "drift_warning": null,
+  "drift_warned_at": null,
   "heartbeat_fires": [],
   "watchdog_events": [],
   "ping_log": [
     {
       "turn": 1,
-      "note": "Session started \u2014 goal: anchor-based nav, infinity-stones checkpoints, horizontal gate, sub-agent loop. Planning implementation targets before writing any code.",
-      "at": "2026-05-06 19:38:46"
-    },
-    {
-      "turn": 2,
-      "note": "429/429 tests pass \u2014 anchor + checkpoint system complete; handling drift false-positive on log file then updating CLAUDE.md and ANTI_DRIFT.md",
-      "at": "2026-05-06 19:44:30"
-    },
-    {
-      "turn": 3,
-      "note": "All files updated \u2014 anchor/checkpoint system, 429 tests, CLAUDE.md, ANTI_DRIFT.md. Committing now.",
-      "at": "2026-05-06 19:47:01"
-    },
-    {
-      "turn": 4,
-      "note": "434/434 tests \u2014 heartbeat_runner v6 (anchor context in fire banner) + drift_guard v4 (--ignore-patterns). Committing.",
-      "at": "2026-05-06 19:52:45"
-    },
-    {
-      "turn": 5,
-      "note": "4/4 coverage, all tests pass. Running checkpoint before push.",
-      "at": "2026-05-06 19:53:11"
+      "note": "saved progress",
+      "at": "2026-05-06 20:18:12"
     }
   ],
-  "last_activity_source": "file:PROJECT_PHANTOM/agents/heartbeat_runner.py",
-  "last_activity_ts": "2026-05-06 19:49:03",
-  "next_heartbeat_at": "2026-05-06 19:52:03",
+  "last_activity_source": "ping",
+  "last_activity_ts": "2026-05-06 20:18:12",
+  "next_heartbeat_at": null,
   "completed": null,
-  "saved_at": "2026-05-06 19:53:11",
+  "saved_at": "2026-05-06 20:18:12",
   "anchor_a": {
-    "ref": "e817a0832a0a18ed999735de521920b3a31cc46e",
-    "timestamp": "2026-05-06 19:38:36"
+    "ref": "8bc5538cef4a730f8cea1ff32ba052ca52314fce",
+    "timestamp": "2026-05-06 20:18:12"
   },
   "anchor_b": {
-    "goal": "Make PHANTOM reliable, dynamic, and self-aligning \u2014 anchor-based navigation, enforced good practices, configurable per codebase, works unsupervised",
-    "done_criteria": [
-      "anchor show/check commands work and are tested",
-      "checkpoint command gates on ping freshness, drift, scope, coverage",
-      "tests pass: all existing + new anchor/checkpoint tests",
-      "CLAUDE.md documents new commands",
-      "ANTI_DRIFT.md updated with anchor/checkpoint patterns"
-    ],
-    "set_at": "2026-05-06 19:42:55"
+    "goal": "save test",
+    "done_criteria": [],
+    "set_at": "2026-05-06 20:18:12"
   }
 }
