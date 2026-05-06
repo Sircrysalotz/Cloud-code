@@ -1,4 +1,4 @@
-# PHANTOM v2 Improvement Plan
+# PHANTOM Improvement Plan
 
 **Rule: Every turn must improve MULTIPLE files. No vertical drilling.**
 
@@ -10,42 +10,32 @@
 |------|------------|--------------------|--------------|--------------------|-----|
 | 1 | ✅ Setup | ✅ Setup | ✅ Setup | ✅ Setup | ✅ PLAN.md |
 | 2 | ✅ lock+resumption+validation+elapsed+reset+rich-status+agent-IDs | ✅ configurable interval+SIGTERM+drift | ✅ preflight+crash recovery | ✅ PID file+mem+disk+git retry | — |
-| 3 | ✅ PLAN update | ✅ watchdog self-check | — | ✅ log rotation | ✅ test_v2.py (foundation) |
-| 4 | session summary on done | cooldown tuning | rounds=0 explicit | startup dedup verify | — |
-| 5 | — | — | — | — | test_v2.py (full suite) |
-| 6 | — | — | — | — | DIFF.md |
-| 7 | Promote v2 → agents/ | — | — | — | Update CLAUDE.md |
+| 3 | ✅ PLAN update | ✅ watchdog self-check | — | ✅ log rotation | ✅ test_phantom.py (foundation) |
+| 4 | ✅ session summary on done | ✅ cooldown tuning | ✅ rounds=0 explicit | — | — |
+| 5 | — | — | — | — | ✅ test_phantom.py (full suite) |
+| 6 | — | — | — | — | ✅ DIFF.md |
+| 7 | ✅ v2 merged → agents/ | — | — | — | ✅ CLAUDE.md updated |
 
 ---
 
-## Remaining Targets
+## Completed
 
-### phantom.py
-- [ ] Session summary printed on clean completion (turns_taken == turns_target)
+All original targets done. Current focus: horizontal improvement sessions
+that improve multiple files per turn and keep test_phantom.py passing.
 
-### heartbeat_runner.py
-- [x] Configurable CHECK_INTERVAL from state
-- [x] SIGTERM/SIGINT handler
-- [x] Drift reporting
-- [x] Per-poll verbose hold messages
-- [ ] Watchdog: detect if poll loop stalls (in progress Turn 3)
-- [ ] Cooldown tuning (currently rigid 1x threshold, consider 0.5x)
-
-### HEARTBEAT.md
-- [x] Pre-flight checks
-- [x] Crash recovery path
-- [ ] Explicit rounds=0 early exit message
-
-### container_logger.py
-- [x] PID file dedup
-- [x] Memory + disk vitals
-- [x] Git push retry (3 attempts with backoff)
-- [ ] Log rotation (cap at N lines)
-
-### New
-- [ ] test_v2.py — full integration test suite
-- [ ] DIFF.md — v1 vs v2 comparison
-- [ ] Promote v2 to agents/ (Turn 7)
+### Core (all complete)
+- [x] lock+resumption+validation+elapsed+reset+rich-status+agent-IDs (phantom.py)
+- [x] Configurable CHECK_INTERVAL from state (heartbeat_runner.py)
+- [x] SIGTERM/SIGINT handler (heartbeat_runner.py)
+- [x] Drift reporting (heartbeat_runner.py)
+- [x] Watchdog: detect if poll loop stalls (heartbeat_runner.py)
+- [x] Cooldown tuning (heartbeat_runner.py)
+- [x] Pre-flight checks + crash recovery path (HEARTBEAT.md)
+- [x] Explicit rounds=0 early exit (heartbeat_runner.py)
+- [x] Log rotation, cap at 500 lines (container_logger.py)
+- [x] test_phantom.py — 352-test integration suite
+- [x] DIFF.md — changelog v2.0 → v2.5
+- [x] v2/ collapsed — single canonical codebase in agents/ and tools/
 
 ---
 

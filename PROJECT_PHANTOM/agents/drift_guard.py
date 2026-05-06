@@ -45,6 +45,8 @@ from datetime import datetime
 
 STATE_FILE = os.environ.get("PHANTOM_STATE", "/tmp/phantom_session.json")
 TEMP_FILE  = STATE_FILE + ".tmp"
+LOCK_FILE  = STATE_FILE.replace(".json", ".lock")
+LOCK_TIMEOUT = 5
 
 STOP_WORDS = {
     "with", "that", "this", "from", "have", "will", "also", "into", "over",
@@ -68,10 +70,35 @@ def read_state() -> dict | None:
     return None
 
 
+def acquire_lock() -> bool:
+    deadline = time.time() + LOCK_TIMEOUT
+    while time.time() < deadline:
+        try:
+            fd = os.open(LOCK_FILE, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, str(os.getpid()).encode())
+            os.close(fd)
+            return True
+        except FileExistsError:
+            time.sleep(0.05)
+    return False
+
+
+def release_lock():
+    try:
+        os.unlink(LOCK_FILE)
+    except FileNotFoundError:
+        pass
+
+
 def atomic_write(state: dict):
-    with open(TEMP_FILE, "w") as f:
-        json.dump(state, f, indent=2)
-    os.rename(TEMP_FILE, STATE_FILE)
+    if not acquire_lock():
+        print("WARNING: Could not acquire lock — phantom.py may be writing. Proceeding anyway.")
+    try:
+        with open(TEMP_FILE, "w") as f:
+            json.dump(state, f, indent=2)
+        os.rename(TEMP_FILE, STATE_FILE)
+    finally:
+        release_lock()
 
 
 def clear_active_flag():
@@ -255,7 +282,7 @@ def evaluate_drift(
 ) -> tuple[bool, str, str]:
     """
     Returns (is_drift: bool, verdict: str, reason: str).
-    verdict: 'CLEAN' | 'SCOPE_CREEP' | 'VERTICAL' | 'TRENDING' | 'THRESHOLD'
+    verdict: 'CLEAN' | 'SCOPE_CREEP' | 'VERTICAL' | 'TRENDING'
     """
     if total < min_lines:
         return False, "CLEAN", f"only {total} lines changed (min {min_lines})"

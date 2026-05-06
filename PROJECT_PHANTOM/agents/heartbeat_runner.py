@@ -44,6 +44,8 @@ from datetime import datetime
 
 STATE_FILE = os.environ.get("PHANTOM_STATE", "/tmp/phantom_session.json")
 TEMP_FILE  = STATE_FILE + ".tmp"
+LOCK_FILE  = STATE_FILE.replace(".json", ".lock")
+LOCK_TIMEOUT = 5
 
 DEFAULT_TRACKED_EXTS = {'.py', '.md', '.json', '.sh', '.txt', '.yaml', '.yml',
                         '.toml', '.js', '.ts', '.go', '.rs', '.rb', '.java', '.c', '.cpp'}
@@ -52,10 +54,35 @@ SKIP_DIRS    = {'.git', '__pycache__', 'node_modules', '.venv', 'venv',
 DEFAULT_SCAN_DEPTH = 5
 
 
+def acquire_lock() -> bool:
+    deadline = time.time() + LOCK_TIMEOUT
+    while time.time() < deadline:
+        try:
+            fd = os.open(LOCK_FILE, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, str(os.getpid()).encode())
+            os.close(fd)
+            return True
+        except FileExistsError:
+            time.sleep(0.05)
+    return False
+
+
+def release_lock():
+    try:
+        os.unlink(LOCK_FILE)
+    except FileNotFoundError:
+        pass
+
+
 def atomic_write(state: dict):
-    with open(TEMP_FILE, "w") as f:
-        json.dump(state, f, indent=2)
-    os.rename(TEMP_FILE, STATE_FILE)
+    if not acquire_lock():
+        print("WARNING: Could not acquire lock — phantom.py may be writing. Proceeding anyway.")
+    try:
+        with open(TEMP_FILE, "w") as f:
+            json.dump(state, f, indent=2)
+        os.rename(TEMP_FILE, STATE_FILE)
+    finally:
+        release_lock()
 
 
 def read_state() -> dict | None:
@@ -153,7 +180,7 @@ def get_last_activity(state: dict,
         # Source 2: filesystem scan
         fs_mtime, fs_path = scan_workspace(workspace, tracked_exts, scan_depth)
         if fs_mtime > 0:
-            label = f"file:{fs_path}" if fs_path else "file:scan"
+            label = f"file:{fs_path}"
             candidates.append((fs_mtime, label))
 
         # Source 3: git index
@@ -212,7 +239,7 @@ def main():
     tracked_exts = set(raw_exts) if raw_exts else None  # None → use DEFAULT_TRACKED_EXTS
     scan_depth   = state.get("scan_depth", DEFAULT_SCAN_DEPTH)
 
-    print(f"Heartbeat v2 active")
+    print(f"Heartbeat v5 active")
     print(f"  Threshold: {idle_threshold}s | Cooldown: {cooldown_window:.0f}s ({cooldown_factor}x) | Poll: {check_interval}s | Rounds: {state.get('rounds_remaining')}")
     print(f"  Watchdog:  {watchdog_limit}s max per cycle | Min idle polls: {min_idle_polls}")
     if workspace:

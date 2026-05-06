@@ -22,7 +22,7 @@ Generated after 10-turn autonomous improvement session.
 | `reset` command | Not present | Clears state + lock + temp files |
 | `status` command | Raw JSON dump | Rich formatted status panel |
 | Rounds used tracking | None | `rounds_used` counter incremented on each fire |
-| Test coverage | 0 tests | 46 passing integration tests |
+| Test coverage | 0 tests | 352 passing integration tests |
 
 ---
 
@@ -69,7 +69,7 @@ Generated after 10-turn autonomous improvement session.
 
 | Addition | Description |
 |---|---|
-| `test_v2.py` | 51 integration tests covering all phantom.py commands and heartbeat_runner edge cases |
+| `test_phantom.py` | Integration test suite (352 tests) covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger |
 | `PLAN.md` | Horizontal improvement tracker — ensures all files improve together |
 | `DIFF.md` | This file — v1 vs v2 comparison |
 | `PHANTOM_STATE` env var | Enables test isolation without touching production state |
@@ -93,7 +93,7 @@ When tests ran `cleanup()`, they deleted the active heartbeat session state.
 The heartbeat runner reported `ERROR: State file lost mid-session.`
 
 **Fix:** `PHANTOM_STATE` env var lets tests use a separate path (`/tmp/phantom_TEST_session.json`).
-This separation is now enforced in `test_v2.py` via `TEST_ENV`.
+This separation is enforced in `test_phantom.py` via `TEST_ENV`.
 
 ---
 
@@ -102,7 +102,7 @@ This separation is now enforced in `test_v2.py` via `TEST_ENV`.
 v2 is a significant improvement across all dimensions:
 - More robust (locks, guards, retries, SIGTERM handlers)
 - More observable (rich status, drift reporting, per-poll logs, session summary)
-- More testable (env var isolation, 46 tests)
+- More testable (env var isolation, 352 tests)
 - More configurable (interval, cooldown_factor, CLI args on logger)
 - Catches more bugs (agent-done underflow, double-arm, crash recovery)
 

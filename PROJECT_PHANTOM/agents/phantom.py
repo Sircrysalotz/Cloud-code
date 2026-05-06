@@ -275,10 +275,13 @@ def auto_save(state: dict):
             subprocess.run(["git", "commit", "-m",
                             f"[phantom] auto-save turn {state.get('turns_taken')}\n\nhttps://claude.ai/code/session_01URz48AEdtJbKdvuHxoBEJ6"],
                            cwd=REPO_DIR, capture_output=True, timeout=30)
-            subprocess.run(["git", "push"], cwd=REPO_DIR, capture_output=True, timeout=30)
-            print(f"  [auto-saved to git]")
-        except Exception:
-            print(f"  [auto-save failed — state written locally]")
+            r = subprocess.run(["git", "push"], cwd=REPO_DIR, capture_output=True, timeout=30)
+            if r.returncode == 0:
+                print(f"  [auto-saved to git]")
+            else:
+                print(f"  [auto-save: local only — git push failed: {r.stderr.strip().decode(errors='replace') if r.stderr else 'unknown'}]")
+        except Exception as e:
+            print(f"  [auto-save failed — state written locally: {e}]")
 
 
 def cmd_ping(args):
@@ -716,9 +719,10 @@ def cmd_recover(args):
         state["heartbeat_active"] = False
         cleared.append("heartbeat_active → False")
     if state.get("agents_running", 0) != 0:
+        old_ids = state.get("active_agent_ids", [])
         state["agents_running"]   = 0
         state["active_agent_ids"] = []
-        cleared.append(f"agents_running → 0  (cleared {state.get('active_agent_ids', [])})")
+        cleared.append(f"agents_running → 0  (cleared {old_ids})")
     elif state.get("active_agent_ids"):
         state["active_agent_ids"] = []
         cleared.append("active_agent_ids → []")
@@ -787,7 +791,6 @@ def cmd_report(args):
     next_hb = state.get("next_heartbeat_at")
     if next_hb and state.get("heartbeat_active"):
         try:
-            from datetime import datetime
             eta_dt = datetime.strptime(next_hb, "%Y-%m-%d %H:%M:%S")
             secs = (eta_dt - datetime.now()).total_seconds()
             if secs > 0:
@@ -925,16 +928,19 @@ def cmd_drift_status(args):
 # --- Profile system ---
 
 PROFILE_KEYS = {
-    "turns":          (int,   10,  "Target number of turns"),
-    "rounds":         (int,   5,   "Heartbeat rounds available"),
-    "threshold":      (int,   180, "Idle threshold in seconds"),
-    "interval":       (int,   30,  "Heartbeat poll interval in seconds"),
-    "cooldown_factor":(float, 1.0, "Cooldown multiplier"),
-    "min_idle_polls": (int,   1,   "Consecutive idle polls before heartbeat fires"),
-    "scope_threshold":(float, 50.0,"Drift guard threshold % (last-resort gate)"),
-    "scope_files":    (list, [],   "Declared focus files for drift guard"),
-    "coverage_targets":(list, [],  "Files to track for coverage"),
-    "description":    (str,   "",  "Human-readable profile description"),
+    "turns":             (int,   10,  "Target number of turns"),
+    "rounds":            (int,   5,   "Heartbeat rounds available"),
+    "threshold":         (int,   180, "Idle threshold in seconds"),
+    "interval":          (int,   30,  "Heartbeat poll interval in seconds"),
+    "cooldown_factor":   (float, 1.0, "Cooldown multiplier"),
+    "min_idle_polls":    (int,   1,   "Consecutive idle polls before heartbeat fires"),
+    "scope_threshold":   (float, 50.0,"Drift guard threshold % (last-resort gate)"),
+    "scope_files":       (list,  [],  "Declared focus files for drift guard"),
+    "coverage_targets":  (list,  [],  "Files to track for coverage"),
+    "tracked_extensions":(list,  [],  "File extensions to watch for activity (empty = all defaults)"),
+    "scan_depth":        (int,   5,   "Max workspace scan depth"),
+    "auto_save_every":   (int,   5,   "Ping interval between git auto-saves"),
+    "description":       (str,   "",  "Human-readable profile description"),
 }
 
 
@@ -1125,14 +1131,19 @@ p.add_argument("config_cmd", choices=["list", "show", "create", "set", "delete"]
 p.add_argument("name",  nargs="?", default=None, help="Profile name")
 p.add_argument("key",   nargs="?", default=None, help="Key to set (for 'set' subcommand)")
 p.add_argument("value", nargs="?", default=None, help="Value (for 'set' subcommand)")
-p.add_argument("--description",    default=None, help="Profile description")
-p.add_argument("--turns",          type=int,   default=None)
-p.add_argument("--rounds",         type=int,   default=None)
-p.add_argument("--threshold",      type=int,   default=None)
-p.add_argument("--interval",       type=int,   default=None)
-p.add_argument("--cooldown-factor",type=float, default=None, dest="cooldown_factor")
-p.add_argument("--scope-threshold",type=float, default=None, dest="scope_threshold")
-p.add_argument("--coverage-targets",nargs="+", default=None, dest="coverage_targets")
+p.add_argument("--description",     default=None, help="Profile description")
+p.add_argument("--turns",           type=int,   default=None)
+p.add_argument("--rounds",          type=int,   default=None)
+p.add_argument("--threshold",       type=int,   default=None)
+p.add_argument("--interval",        type=int,   default=None)
+p.add_argument("--cooldown-factor", type=float, default=None, dest="cooldown_factor")
+p.add_argument("--min-idle-polls",  type=int,   default=None, dest="min_idle_polls")
+p.add_argument("--scope-threshold", type=float, default=None, dest="scope_threshold")
+p.add_argument("--scope-files",     nargs="+",  default=None, dest="scope_files")
+p.add_argument("--coverage-targets",nargs="+",  default=None, dest="coverage_targets")
+p.add_argument("--tracked-exts",    nargs="+",  default=None, dest="tracked_extensions")
+p.add_argument("--scan-depth",      type=int,   default=None, dest="scan_depth")
+p.add_argument("--auto-save-every", type=int,   default=None, dest="auto_save_every")
 p.add_argument("--force", action="store_true", help="Overwrite existing profile")
 
 p = sub.add_parser("ping", help="Signal active turn (run at start of every turn)")

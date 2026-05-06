@@ -85,7 +85,7 @@ Do NOT call it:
 | `--scope-threshold` only settable per-run in drift_guard | `--scope-threshold` on `start` — stored in state, read by drift_guard + check |
 | Profile list fields not loaded from profile | scope_files, coverage_targets, tracked_extensions, scan_depth all profile-resolved |
 | Status/complete/report hide coverage status | All three commands show coverage summary when coverage_targets or scope_files set |
-| Test count varies between runs | Fixed conditional check() blocks — always 346 tests |
+| Test count varies between runs | Fixed conditional check() blocks — always 352 tests |
 | `agent-start` for drift-guard blocked heartbeat forever | Protocol fix: drift-guard uses `drift-arm`/`drift-done` only — never `agent-start` |
 | `agent-start` for heartbeat also blocks heartbeat | Protocol fix: heartbeat uses `heartbeat-arm` only — never `agent-start` |
 
@@ -103,7 +103,7 @@ Do NOT call it:
 | `logs/last_session_state.json` | Git-persisted session state (survives restart) |
 | `tools/scope_guard.py` | Portable drift checker for any git repo |
 | `tools/coverage_tracker.py` | Target file coverage checker |
-| `test_phantom.py` | Full integration test suite (358 tests) |
+| `test_phantom.py` | Full integration test suite (352 tests) |
 | `DIFF.md` | Version changelog (v2.0 → v2.5) |
 | `PLAN.md` | Horizontal improvement tracker |
 | `ANTI_DRIFT.md` | Anti-drift observations from sessions |
@@ -125,17 +125,29 @@ Do NOT call it:
   "agents_running": 0,
   "active_agent_ids": [],
   "heartbeat_active": false,
+  "drift_guard_active": false,
+  "drift_warning": null,
+  "drift_warned_at": null,
   "last_heartbeat_fired": null,
   "last_activity_source": "ping",
   "last_activity_ts": "2026-05-05 20:00:00",
   "next_heartbeat_at": "2026-05-05 20:03:00",
   "heartbeat_fires": [],
+  "watchdog_events": [],
+  "ping_log": [],
   "progress_note": "",
   "started": "2026-05-05 20:00:00",
+  "completed": null,
+  "saved_at": null,
   "status": "active",
   "workspace_dir": "/path/to/cwd",
   "session_start_ref": "abc123...",
   "scope_files": [],
+  "coverage_targets": [],
+  "scope_threshold": 50.0,
+  "tracked_extensions": [],
+  "scan_depth": 5,
+  "auto_save_every": 5,
   "profile": null
 }
 ```
@@ -309,7 +321,8 @@ python3 PROJECT_PHANTOM/agents/phantom.py config delete myprofile
 ```
 
 Profile keys: `turns`, `rounds`, `threshold`, `interval`, `cooldown_factor`,
-`min_idle_polls`, `scope_threshold`, `scope_files`, `coverage_targets`, `description`
+`min_idle_polls`, `scope_threshold`, `scope_files`, `coverage_targets`,
+`tracked_extensions`, `scan_depth`, `auto_save_every`, `description`
 
 ---
 

@@ -26,7 +26,7 @@ You are the Phantom Heartbeat Agent. Your only job is to run the monitor and ret
 ### Startup banner
 The runner prints its configuration on startup:
 ```
-Heartbeat v2 active
+Heartbeat v5 active
   Threshold: 180s | Cooldown: 180s (1.0x) | Poll: 30s | Rounds: 12
   Watchdog:  90s max per cycle | Min idle polls: 1
   Workspace: /home/user/Cloud-code

@@ -147,7 +147,7 @@ def test_scope_guard():
     # --session with missing state falls back gracefully
     rc, out, err = run([SCOPE_GUARD, "--repo", repo, "--session",
                         "--state-file", "/tmp/nonexistent_scope_state.json"])
-    check("scope_guard --session missing state falls back (not crash)", rc != 2 or rc in (0, 1, 2))
+    check("scope_guard --session missing state falls back (not crash)", rc in (0, 1))
 
     # --session reads scope_threshold from state (overrides default 40%)
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as sf2:

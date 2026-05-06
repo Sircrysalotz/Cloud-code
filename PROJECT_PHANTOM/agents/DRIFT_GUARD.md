@@ -33,7 +33,7 @@ Optional flags:
 Four-gate evaluation order:
 1. **Declared scope** — if scope_files set and dominant file is in scope, CLEAN; if outside scope > 30%, SCOPE_CREEP
 2. **Task alignment** — if dominant file name matches task keywords, CLEAN
-3. **Hunk spread** — if hunk_count ≥ threshold AND spread ≥ 0.3, CLEAN (changes distributed across file)
+3. **Hunk spread** — if hunk_count ≥ hunk_count_min AND spread ≥ 0.3, CLEAN (changes distributed across file)
 4. **Trend detection** — if trending up AND consistently above threshold for N checks, TRENDING
 5. **Fallback** — raw percentage threshold → VERTICAL
 
@@ -107,8 +107,9 @@ python3 /home/user/Cloud-code/PROJECT_PHANTOM/agents/phantom.py drift-done
 After spreading changes:
 ```bash
 python3 PROJECT_PHANTOM/agents/phantom.py drift-arm
-python3 PROJECT_PHANTOM/agents/phantom.py agent-start --id "drift-guard"
-# Spawn: "Read DRIFT_GUARD.md and execute."
+# Spawn: "Read /home/user/Cloud-code/PROJECT_PHANTOM/agents/DRIFT_GUARD.md and execute."
+# use run_in_background: true
+# Do NOT call agent-start — drift-guard uses drift-arm/drift-done only.
 ```
 
 ## Crash recovery

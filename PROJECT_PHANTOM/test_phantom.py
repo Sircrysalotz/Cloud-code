@@ -45,7 +45,7 @@ def run(cmd: list, input_text=None, timeout=10) -> tuple[int, str, str]:
 
 
 def cleanup():
-    for f in [STATE, LOCK, PROFILES, "/tmp/phantom_session.json.tmp"]:
+    for f in [STATE, LOCK, PROFILES, STATE + ".tmp"]:
         try: os.unlink(f)
         except FileNotFoundError: pass
 
@@ -230,9 +230,12 @@ def test_phantom():
     check("restore --force succeeds", rc == 0)
 
     # PHANTOM_STATE isolation — confirm production state untouched
+    def _read(p):
+        with open(p) as f:
+            return f.read()
     check("test state isolated from /tmp/phantom_session.json",
           not os.path.exists("/tmp/phantom_session.json") or
-          open("/tmp/phantom_session.json").read() != open(STATE).read()
+          _read("/tmp/phantom_session.json") != _read(STATE)
           if os.path.exists(STATE) else True)
 
     # ── ping_log ──
@@ -639,14 +642,10 @@ def test_heartbeat_runner():
     check("heartbeat-arm exits 0", rc == 0)
     check("heartbeat-arm shows Est. fire or overdue", "Est. fire" in out or "overdue" in out or "fire" in out.lower())
 
-    # min_idle_polls in profile keys
-    run([PHANTOM, "config", "create", "testpoll",
-         "--turns", "5", "--min-idle-polls", "2"])  # note: config create won't have --min-idle-polls
-    # Verify via config set instead
-    run([PHANTOM, "config", "create", "testpoll2", "--turns", "5"])
-    run([PHANTOM, "config", "set", "testpoll2", "min_idle_polls", "2"])
-    rc, out, err = run([PHANTOM, "config", "show", "testpoll2"])
-    check("min_idle_polls settable in profile", "min_idle_polls" in out and "2" in out)
+    # min_idle_polls in profile keys (now supported via --min-idle-polls on config create)
+    run([PHANTOM, "config", "create", "testpoll", "--turns", "5", "--min-idle-polls", "2"])
+    rc, out, err = run([PHANTOM, "config", "show", "testpoll"])
+    check("min_idle_polls settable via config create", "min_idle_polls" in out and "2" in out)
 
     # heartbeat fire history written to state on fire
     import tempfile
@@ -728,7 +727,7 @@ def test_heartbeat_runner():
         mtime, path = hr.scan_workspace(tmpdir, {".rs"})
         check("scan_workspace with .rs only finds .rs file", path is not None and path.endswith(".rs"))
         mtime2, path2 = hr.scan_workspace(tmpdir, {".js"})
-        check("scan_workspace with .js finds nothing (no .js files)", path2 is None or path2 == "")
+        check("scan_workspace with .js finds nothing (no .js files)", path2 is None)
 
     cleanup()
 
