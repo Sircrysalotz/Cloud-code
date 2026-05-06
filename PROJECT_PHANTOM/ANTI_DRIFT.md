@@ -52,59 +52,84 @@ others were skipped.
 
 ---
 
-## Proposed Anti-Drift Agents
+## Anti-Drift Agents: Proposed → Built
 
-### Scope Guard
-Runs periodically (every N turns). Reads git diff stats and warns if any single
-file has received disproportionate changes. Forces horizontal spreading.
-
-```
-Input: git diff --stat HEAD~N HEAD
-Output: warn if any file > 40% of total changes
-```
-
-### Goal Alignment Checker
-At each heartbeat fire, re-reads the original task from state and compares it to
-`progress_note`. Flags if the work seems to have drifted from the stated goal.
+### ✅ Scope Guard — `tools/scope_guard.py`
+Built. Reads git diff stats, warns if any file exceeds a % threshold.
+Session-anchored via `--session` (uses `session_start_ref` from phantom state).
+Threshold configurable via `--scope-threshold` at `phantom.py start`.
 
 ```
-Input: state.task + state.progress_note
-Output: "Still aligned" or "DRIFT DETECTED: [note seems unrelated to task]"
+phantom.py scope --session          # session-only view
+phantom.py scope --threshold 30     # stricter threshold
 ```
 
-### Coverage Tracker
-Maintains a checklist of targets (from PLAN.md or a task spec). At each ping,
-checks which items are done vs not started. Reports coverage %, not just turns done.
+### ✅ Coverage Tracker — `tools/coverage_tracker.py` + `phantom.py check`
+Built in two forms:
+1. `tools/coverage_tracker.py` — standalone per-file coverage checker
+2. `phantom.py check` — unified scope + coverage in one command, session-anchored
+
+Targets stored in session state via `--coverage-targets` at start.
+`phantom.py status` and `phantom.py report` show live coverage count.
 
 ```
-Input: PLAN.md targets + list of files modified
-Output: "Coverage: 7/12 targets touched. Untouched: heartbeat_runner, container_logger"
+phantom.py check                    # scope + coverage vs session_start_ref
+phantom.py status                   # shows "Coverage: N/M (X%)" inline
 ```
 
-### Progress Note Auditor
-Checks if progress notes are substantive (list of specific changes) vs vague
-("working on stuff", "continued improvements"). Vague notes indicate drift.
+### ✅ Drift Guard — `agents/drift_guard.py`
+Built as background sub-agent (not periodic — runs for the whole session).
+Four-gate evaluation: scope match → task alignment → hunk spread → trend.
+Writes verdict + warning to session state. `phantom.py drift-done` to review.
 
-```
-Input: last 5 progress notes
-Output: score 0-10 for specificity. Warn if < 5.
-```
+### ⬜ Goal Alignment Checker — not built
+Would compare `state.task` to `progress_note` on each heartbeat fire.
+Current proxy: `phantom.py report` shows task + last 5 progress notes side by side.
+
+### ⬜ Progress Note Auditor — not built
+Would score note specificity. Currently enforced by protocol only:
+ping notes should list specific changes, not vague summaries.
 
 ---
 
-## What Would a Full Anti-Drift System Look Like?
+## Lessons from v2.6–v2.8 Sessions
+
+### 4. Coverage check silently broken by path prefix
+**What happened:** `phantom.py check` showed 0/N coverage for months because
+`git diff --name-only` (run from repo root) returns `PROJECT_PHANTOM/agents/phantom.py`
+but coverage_targets store `agents/phantom.py`. Direct comparison always failed.
+
+**Fix:** Added `_PROJECT_PREFIX = os.path.relpath(_PROJECT_DIR, REPO_DIR) + os.sep`
+and strip it from git diff output before matching. Now works portably on any repo.
+
+**Lesson:** Always verify tool output before trusting it. "0% coverage" is a red flag
+that should have been investigated sooner rather than accepted as accurate.
+
+### 5. Hardcoded strings silently survive portability passes
+**What happened:** `container_logger.py` had `git add "PROJECT_PHANTOM/logs/..."` hardcoded
+as a string literal — not a variable, so grep for `/home/user/` missed it.
+
+**Fix:** `_LOG_REL = os.path.relpath(LOG_FILE, REPO_DIR)` computed at module load.
+
+**Lesson:** Portability checks must grep for project folder name, not just absolute paths.
+
+---
+
+## What the Full System Looks Like Now
 
 ```
 Main Claude session
-├── Heartbeat agent     — idle detection, session keepalive
-├── Scope Guard agent   — file coverage enforcement
-├── Goal Checker agent  — task alignment verification
-└── Container Logger    — container vitals
+├── Heartbeat agent       — idle detection, session keepalive (heartbeat_runner.py)
+├── Drift Guard agent     — horizontal drift monitor (drift_guard.py)
+├── Container Logger      — vitals daemon (container_logger.py)
+├── tools/scope_guard.py  — portable git diff scope checker
+└── tools/coverage_tracker.py  — target file coverage checker
 
-All four run independently. All four report to main session.
-Main Claude reads their outputs and self-corrects.
+phantom.py check    — unified scope + coverage in one command
+phantom.py status   — live view: heartbeat ETA, coverage count, drift state
+phantom.py report   — full session overview with all of the above
 ```
 
-The heartbeat gives you continuity. The scope guard gives you horizontal discipline.
-The goal checker gives you direction. The container logger gives you visibility.
-Together they approximate having a human looking over your shoulder — but made of agents.
+The heartbeat gives continuity. The drift guard gives horizontal discipline.
+The coverage check gives target accountability. Together they approximate
+having a human looking over your shoulder — but made of agents.

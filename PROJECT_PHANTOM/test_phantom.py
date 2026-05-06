@@ -218,6 +218,15 @@ def test_phantom():
     check("history shows turns", "1/3" in out)
     check("history shows last note", "did some work" in out)
 
+    # history shows coverage summary when coverage_targets set
+    cleanup()
+    run([PHANTOM, "start", "history cov test", "--turns", "3",
+         "--coverage-targets", "agents/phantom.py", "agents/heartbeat_runner.py"])
+    rc, out, _ = run([PHANTOM, "history"])
+    check("history shows Coverage line when coverage_targets set", "Coverage:" in out)
+    cov_hist_line = out.split("Coverage:")[1].split("\n")[0] if "Coverage:" in out else ""
+    check("history Coverage line shows N/M count format", "/" in cov_hist_line and "%" in cov_hist_line)
+
     # save command (skip git push in tests — just check file written)
     cleanup()
     run([PHANTOM, "start", "save test", "--turns", "5"])
