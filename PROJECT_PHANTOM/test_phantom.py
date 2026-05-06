@@ -237,9 +237,23 @@ def test_phantom():
     rc, out, _ = run([PHANTOM, "restore"])
     check("restore exits 0 after save", rc == 0)
     state = read_state()
-    check("restore clears heartbeat_active", state.get("heartbeat_active") == False)
-    check("restore clears agents_running", state.get("agents_running") == 0)
-    check("restore preserves task", state.get("task") == "save test")
+    check("restore clears heartbeat_active",   state.get("heartbeat_active")   == False)
+    check("restore clears drift_guard_active", state.get("drift_guard_active") == False)
+    check("restore clears agents_running",     state.get("agents_running")     == 0)
+    check("restore preserves task",            state.get("task") == "save test")
+
+    # restore shows drift warning notice when pending
+    import json as _json
+    with open(SAVED) as f_:
+        saved_state = _json.load(f_)
+    saved_state["drift_warning"] = "SCOPE_CREEP: outside scope"
+    saved_state["drift_guard_active"] = True
+    with open(SAVED, "w") as f_:
+        _json.dump(saved_state, f_)
+    cleanup()
+    rc, out, _ = run([PHANTOM, "restore"])
+    check("restore exits 0 with drift warning in saved state", rc == 0)
+    check("restore shows drift warning notice", "drift warning" in out.lower())
 
     # restore --force over existing session
     run([PHANTOM, "start", "other task", "--force"])

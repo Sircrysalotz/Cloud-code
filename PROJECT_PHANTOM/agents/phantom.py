@@ -557,15 +557,18 @@ def cmd_restore(args):
         print(f"ERROR: Saved state file is corrupt.")
         sys.exit(1)
     saved_at = state.pop("saved_at", "unknown")
-    state["heartbeat_active"] = False  # always clear on restore
-    state["agents_running"]   = 0      # always clear on restore
-    state["active_agent_ids"] = []
+    state["heartbeat_active"]   = False  # always clear on restore — process is gone
+    state["drift_guard_active"] = False  # same — drift guard process is gone
+    state["agents_running"]     = 0
+    state["active_agent_ids"]   = []
     atomic_write(state)
     print(f"Session restored from git save ({saved_at}).")
     print(f"  Task:  {state.get('task', '?')}")
     print(f"  Turns: {state.get('turns_taken', 0)}/{state.get('turns_target', '?')}")
     print(f"  Rounds remaining: {state.get('rounds_remaining', 0)}")
-    print("NOTE: heartbeat_active and agents_running cleared. Re-arm before spawning.")
+    if state.get("drift_warning"):
+        print(f"  ⚠ Drift warning pending — run 'drift-done' to review")
+    print("NOTE: heartbeat_active, drift_guard_active, and agents_running cleared. Re-arm before spawning.")
 
 
 def cmd_scope(args):
