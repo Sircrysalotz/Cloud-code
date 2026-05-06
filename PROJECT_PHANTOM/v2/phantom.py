@@ -194,6 +194,29 @@ def cmd_start(args):
         print(f"  Coverage:  {' '.join(args.coverage_targets)}")
 
 
+def _quick_coverage(state: dict) -> str | None:
+    """Return one-line coverage summary string, or None if no targets declared."""
+    targets = state.get("coverage_targets") or state.get("scope_files") or []
+    if not targets:
+        return None
+    session_ref = state.get("session_start_ref")
+    diff_range = [session_ref, "HEAD"] if session_ref else ["HEAD~5", "HEAD"]
+    try:
+        r = subprocess.run(
+            ["git", "diff", "--name-only"] + diff_range,
+            cwd=REPO_DIR, capture_output=True, text=True, timeout=10
+        )
+        changed = set(r.stdout.strip().splitlines())
+        def _hit(t):
+            t = t.rstrip("/")
+            return t in changed or any(c.startswith(t + "/") for c in changed)
+        done = sum(1 for t in targets if _hit(t))
+        pct = int(100 * done / len(targets))
+        return f"{done}/{len(targets)} ({pct}%) — {'FULL COVERAGE' if done == len(targets) else 'incomplete'}"
+    except Exception:
+        return None
+
+
 def print_session_summary(state: dict):
     print()
     print("=" * 54)
@@ -206,6 +229,9 @@ def print_session_summary(state: dict):
     print(f"  Turns:     {state.get('turns_taken')}/{state.get('turns_target')}")
     print(f"  HB rounds used: {state.get('rounds_used', '?')}")
     print(f"  Last note: {state.get('progress_note', '—')}")
+    cov = _quick_coverage(state)
+    if cov:
+        print(f"  Coverage:  {cov}")
     print("=" * 54)
 
 
@@ -375,6 +401,12 @@ def cmd_status(args):
     if state.get("min_idle_polls", 1) > 1:
         print(f"  Min polls:  {state.get('min_idle_polls')} consecutive idle polls required")
     print(f"  Progress:   {state.get('progress_note', '—')}")
+    cov_targets = state.get("coverage_targets") or []
+    scope_files = state.get("scope_files") or []
+    if cov_targets:
+        print(f"  Coverage:  {' '.join(cov_targets)}")
+    if scope_files:
+        print(f"  Scope:     {' '.join(scope_files)}")
     fires = state.get("heartbeat_fires", [])
     if fires:
         print(f"  Fire log:   (last {len(fires)})")

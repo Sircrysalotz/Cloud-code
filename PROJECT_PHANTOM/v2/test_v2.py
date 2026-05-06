@@ -1206,6 +1206,22 @@ def test_check():
     rc, out, err = run([PHANTOM, "check", "--threshold", "100"])
     check("check --threshold 100 never shows DRIFT RISK", "DRIFT RISK" not in out)
 
+    # status shows coverage_targets and scope_files when set
+    run([PHANTOM, "reset"])
+    run([PHANTOM, "start", "status test", "--turns", "3",
+         "--coverage-targets", "agents/phantom.py",
+         "--scope", "agents/heartbeat_runner.py"])
+    rc, out, err = run([PHANTOM, "status"])
+    check("status shows Coverage: line when coverage_targets set", "Coverage:" in out)
+    check("status shows Scope: line when scope_files set", "Scope:" in out)
+
+    # complete shows coverage summary when coverage_targets set
+    run([PHANTOM, "reset"])
+    run([PHANTOM, "start", "complete test", "--turns", "3",
+         "--coverage-targets", "agents/phantom.py", "v2/phantom.py"])
+    rc, out, err = run([PHANTOM, "complete"])
+    check("complete shows Coverage line when targets set", "Coverage:" in out)
+
     # --coverage-targets stored in state at start
     run([PHANTOM, "reset"])
     rc, out, err = run([PHANTOM, "start", "coverage target test", "--turns", "3",
