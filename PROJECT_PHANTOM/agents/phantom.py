@@ -583,8 +583,83 @@ def cmd_check(args):
         print("No active session — cannot run session-anchored checks.")
         sys.exit(1)
 
-    sep = "=" * 56
     session_ref = state.get("session_start_ref")
+    threshold = getattr(args, "threshold", 50)
+    use_json = getattr(args, "json", False)
+    diff_range = [session_ref, "HEAD"] if session_ref else ["HEAD~5", "HEAD"]
+
+    # ── Scope analysis ──────────────────────────────────────────────────────
+    scope_result = {"files": {}, "max_pct": 0.0, "clean": True, "error": None}
+    try:
+        r = subprocess.run(["git", "diff", "--stat"] + diff_range,
+                           cwd=REPO_DIR, capture_output=True, text=True, timeout=15)
+        lines = [l for l in r.stdout.splitlines() if "|" in l]
+        if lines:
+            for line in lines:
+                parts = line.split("|")
+                fname = parts[0].strip()
+                try:
+                    scope_result["files"][fname] = int(parts[1].strip().split()[0])
+                except (IndexError, ValueError):
+                    pass
+            grand = sum(scope_result["files"].values()) or 1
+            scope_result["max_pct"] = max(scope_result["files"].values()) / grand * 100
+            scope_result["clean"] = scope_result["max_pct"] <= threshold
+    except Exception as e:
+        scope_result["error"] = str(e)
+
+    # ── Coverage analysis ────────────────────────────────────────────────────
+    coverage_targets = (
+        getattr(args, "targets", None)
+        or state.get("coverage_targets") or []
+        or state.get("scope_files") or []
+    )
+    cov_result = {"targets": coverage_targets, "touched": [], "untouched": [],
+                  "pct": 0.0, "full": False, "error": None}
+    if coverage_targets:
+        try:
+            r2 = subprocess.run(["git", "diff", "--name-only"] + diff_range,
+                                cwd=REPO_DIR, capture_output=True, text=True, timeout=15)
+            changed = set(r2.stdout.strip().splitlines())
+            def _hit(t):
+                t = t.rstrip("/")
+                return t in changed or any(c.startswith(t + "/") for c in changed)
+            cov_result["touched"]   = [t for t in coverage_targets if _hit(t)]
+            cov_result["untouched"] = [t for t in coverage_targets if t not in cov_result["touched"]]
+            n = len(coverage_targets)
+            cov_result["pct"]  = 100.0 * len(cov_result["touched"]) / n if n else 0.0
+            cov_result["full"] = len(cov_result["untouched"]) == 0
+        except Exception as e:
+            cov_result["error"] = str(e)
+
+    # ── Output ───────────────────────────────────────────────────────────────
+    if use_json:
+        grand = sum(scope_result["files"].values()) or 1
+        print(json.dumps({
+            "task":         state.get("task", "?"),
+            "turns":        state.get("turns_taken", 0),
+            "turns_target": state.get("turns_target", "?"),
+            "since":        session_ref or "HEAD~5",
+            "scope": {
+                "files": {f: round(c / grand * 100, 1)
+                          for f, c in scope_result["files"].items()},
+                "max_pct":   round(scope_result["max_pct"], 1),
+                "threshold": threshold,
+                "clean":     scope_result["clean"],
+                "error":     scope_result["error"],
+            },
+            "coverage": {
+                "targets":   coverage_targets,
+                "touched":   cov_result["touched"],
+                "untouched": cov_result["untouched"],
+                "pct":       round(cov_result["pct"], 1),
+                "full":      cov_result["full"],
+                "error":     cov_result["error"],
+            },
+        }, indent=2))
+        return
+
+    sep = "=" * 56
     print(sep)
     print("  SESSION CHECK")
     print(sep)
@@ -593,77 +668,40 @@ def cmd_check(args):
     print(f"  Since:  {session_ref or 'HEAD~5'} (session_start_ref)")
     print()
 
-    # Scope check
-    threshold = getattr(args, "threshold", 50)
-    try:
-        diff_range = [session_ref, "HEAD"] if session_ref else ["HEAD~5", "HEAD"]
-        result = subprocess.run(
-            ["git", "diff", "--stat"] + diff_range,
-            cwd=REPO_DIR, capture_output=True, text=True, timeout=15
-        )
-        lines = [l for l in result.stdout.splitlines() if "|" in l]
-        if lines:
-            totals = {}
-            for line in lines:
-                parts = line.split("|")
-                fname = parts[0].strip()
-                try:
-                    totals[fname] = int(parts[1].strip().split()[0])
-                except (IndexError, ValueError):
-                    pass
-            grand = sum(totals.values()) or 1
-            max_pct = max(totals.values()) / grand * 100 if totals else 0
-            print(f"  SCOPE ({len(totals)} files, {sum(totals.values())} lines):")
-            for fname, cnt in sorted(totals.items(), key=lambda x: -x[1])[:5]:
-                pct = cnt / grand * 100
-                bar = "█" * min(int(pct / 5), 20)
-                warn = " ⚠" if pct > threshold else ""
-                print(f"    {pct:4.0f}% {bar:<20} {cnt:4d}  {fname}{warn}")
-            if max_pct > threshold:
-                print(f"  ⚠ DRIFT RISK: one file has {max_pct:.0f}% of changes (threshold {threshold}%)")
-            else:
-                print(f"  ✓ SCOPE OK: max {max_pct:.0f}% (threshold {threshold}%)")
+    if scope_result["error"]:
+        print(f"  SCOPE: error — {scope_result['error']}")
+    elif scope_result["files"]:
+        grand = sum(scope_result["files"].values()) or 1
+        print(f"  SCOPE ({len(scope_result['files'])} files, {grand} lines):")
+        for fname, cnt in sorted(scope_result["files"].items(), key=lambda x: -x[1])[:5]:
+            pct = cnt / grand * 100
+            bar = "█" * min(int(pct / 5), 20)
+            warn = " ⚠" if pct > threshold else ""
+            print(f"    {pct:4.0f}% {bar:<20} {cnt:4d}  {fname}{warn}")
+        if not scope_result["clean"]:
+            print(f"  ⚠ DRIFT RISK: one file has {scope_result['max_pct']:.0f}% of changes "
+                  f"(threshold {threshold}%)")
         else:
-            print(f"  SCOPE: no changes since session start")
-    except Exception as e:
-        print(f"  SCOPE: error — {e}")
+            print(f"  ✓ SCOPE OK: max {scope_result['max_pct']:.0f}% (threshold {threshold}%)")
+    else:
+        print(f"  SCOPE: no changes since session start")
     print()
 
-    # Coverage check (only if coverage_targets declared)
-    coverage_targets = (
-        getattr(args, "targets", None)
-        or state.get("coverage_targets") or []
-        or state.get("scope_files") or []
-    )
-    if coverage_targets:
-        try:
-            diff_range = [session_ref, "HEAD"] if session_ref else ["HEAD~5", "HEAD"]
-            result = subprocess.run(
-                ["git", "diff", "--name-only"] + diff_range,
-                cwd=REPO_DIR, capture_output=True, text=True, timeout=15
-            )
-            changed = set(result.stdout.strip().splitlines())
-            def _target_touched(t):
-                t = t.rstrip("/")
-                if t in changed:
-                    return True
-                return any(c == t or c.startswith(t + "/") or c.endswith("/" + t) for c in changed)
-            touched = [t for t in coverage_targets if _target_touched(t)]
-            untouched = [t for t in coverage_targets if t not in touched]
-            pct = 100.0 * len(touched) / len(coverage_targets) if coverage_targets else 0
-            print(f"  COVERAGE ({len(touched)}/{len(coverage_targets)} targets, {pct:.0f}%):")
-            for t in touched:
-                print(f"    ✓  {t}")
-            for t in untouched:
-                print(f"    ✗  {t}  ← not yet modified")
-            if untouched:
-                print(f"  ⚠ INCOMPLETE: {len(untouched)} target(s) not yet touched")
-            else:
-                print(f"  ✓ FULL COVERAGE: all {len(coverage_targets)} targets touched")
-        except Exception as e:
-            print(f"  COVERAGE: error — {e}")
+    if not coverage_targets:
+        print(f"  COVERAGE: no targets declared (use --coverage-targets on start or --targets here)")
+    elif cov_result["error"]:
+        print(f"  COVERAGE: error — {cov_result['error']}")
     else:
-        print(f"  COVERAGE: no targets declared (use --scope on start or --targets here)")
+        print(f"  COVERAGE ({len(cov_result['touched'])}/{len(coverage_targets)} targets, "
+              f"{cov_result['pct']:.0f}%):")
+        for t in cov_result["touched"]:
+            print(f"    ✓  {t}")
+        for t in cov_result["untouched"]:
+            print(f"    ✗  {t}  ← not yet modified")
+        if cov_result["untouched"]:
+            print(f"  ⚠ INCOMPLETE: {len(cov_result['untouched'])} target(s) not yet touched")
+        else:
+            print(f"  ✓ FULL COVERAGE: all {len(coverage_targets)} targets touched")
     print(sep)
 
 
@@ -1129,6 +1167,8 @@ p.add_argument("--threshold", type=int, default=50,
                help="Warn when one file exceeds this %% of changes (default: 50)")
 p.add_argument("--targets", nargs="+", default=None,
                help="Coverage targets (files/dirs); defaults to scope_files in state")
+p.add_argument("--json", action="store_true",
+               help="Output results as JSON")
 sub.add_parser("drift-arm",     help="Arm the drift guard before spawning drift_guard.py")
 sub.add_parser("drift-done",    help="Read drift guard findings after sub-agent returns")
 sub.add_parser("drift-status",  help="Show drift guard state and last warning")

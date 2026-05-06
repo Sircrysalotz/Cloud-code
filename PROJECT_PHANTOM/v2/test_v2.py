@@ -1259,6 +1259,22 @@ def test_check():
     rc, out, err = run([PHANTOM, "check", "--threshold", "100"])
     check("check --threshold 100 never shows DRIFT RISK", "DRIFT RISK" not in out)
 
+    # --json produces valid JSON with required keys
+    rc, out, err = run([PHANTOM, "check", "--json"])
+    check("check --json exits 0", rc == 0)
+    try:
+        data = json.loads(out)
+        check("check --json is valid JSON", True)
+        check("check --json has 'task' key", "task" in data)
+        check("check --json has 'scope' key", "scope" in data)
+        check("check --json has 'coverage' key", "coverage" in data)
+        check("check --json scope has 'clean' key", "clean" in data.get("scope", {}))
+        check("check --json coverage has 'full' key", "full" in data.get("coverage", {}))
+    except json.JSONDecodeError:
+        check("check --json is valid JSON", False)
+        for k in ("task", "scope", "coverage", "scope.clean", "coverage.full"):
+            check(f"check --json has '{k}' key", False)
+
     # status shows coverage_targets and scope_files when set
     run([PHANTOM, "reset"])
     run([PHANTOM, "start", "status test", "--turns", "3",
