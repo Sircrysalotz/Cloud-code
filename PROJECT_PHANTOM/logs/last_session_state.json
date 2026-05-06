@@ -1,193 +1,54 @@
 {
-  "task": "Make PHANTOM fully portable \u2014 self-locating paths, no hardcodes, drop-in on any machine",
-  "last_active": "2026-05-06 18:33:17",
-  "turns_taken": 25,
-  "turns_target": 25,
-  "rounds_remaining": 2,
+  "task": "save test",
+  "last_active": "2026-05-06 19:43:55",
+  "turns_taken": 1,
+  "turns_target": 5,
+  "rounds_remaining": 5,
   "idle_threshold_seconds": 180,
   "check_interval_seconds": 30,
   "cooldown_factor": 1.0,
   "min_idle_polls": 1,
-  "rounds_used": 6,
+  "rounds_used": 0,
   "agents_running": 0,
   "active_agent_ids": [],
-  "heartbeat_active": true,
-  "last_heartbeat_fired": "2026-05-06 03:05:44",
-  "progress_note": "final turn: +3 tests for drift-arm scope context output; 393/393 passing",
-  "started": "2026-05-06 02:05:46",
+  "heartbeat_active": false,
+  "last_heartbeat_fired": null,
+  "progress_note": "saved progress",
+  "started": "2026-05-06 19:43:55",
   "status": "active",
   "workspace_dir": "/home/user/Cloud-code",
   "profile": null,
-  "scope_files": [
-    "agents/phantom.py",
-    "agents/heartbeat_runner.py",
-    "agents/drift_guard.py",
-    "agents/HEARTBEAT.md",
-    "agents/DRIFT_GUARD.md",
-    "test_phantom.py",
-    "CLAUDE.md"
-  ],
-  "coverage_targets": [
-    "agents/phantom.py",
-    "agents/heartbeat_runner.py",
-    "agents/drift_guard.py",
-    "test_phantom.py"
-  ],
-  "scope_threshold": 30.0,
-  "session_start_ref": "3eede189c805b4cb8a41ee1faadeb4af6d0ea591",
+  "scope_files": [],
+  "coverage_targets": [],
+  "scope_threshold": 50.0,
+  "session_start_ref": "e817a0832a0a18ed999735de521920b3a31cc46e",
   "tracked_extensions": [],
   "scan_depth": 5,
+  "auto_save_every": 5,
   "drift_guard_active": false,
   "drift_warning": null,
+  "drift_warned_at": null,
+  "heartbeat_fires": [],
+  "watchdog_events": [],
   "ping_log": [
     {
-      "turn": 6,
-      "note": "v2.6 complete \u2014 phantom.py env + 368 tests + DIFF/PLAN/CLAUDE.md updated and pushed",
-      "at": "2026-05-06 02:20:33"
-    },
-    {
-      "turn": 7,
-      "note": "heartbeat fired cleanly after turn 6 \u2014 resuming",
-      "at": "2026-05-06 02:24:12"
-    },
-    {
-      "turn": 8,
-      "note": "turn 7 done \u2014 status now shows Drift Guard state + warning; 372/372 tests; module docstring updated",
-      "at": "2026-05-06 02:27:12"
-    },
-    {
-      "turn": 9,
-      "note": "heartbeat fired \u2014 resuming turn 9",
-      "at": "2026-05-06 02:30:35"
-    },
-    {
-      "turn": 10,
-      "note": "turn 9 done \u2014 report now shows drift guard state/warning; 376/376 tests",
-      "at": "2026-05-06 02:32:20"
-    },
-    {
-      "turn": 11,
-      "note": "heartbeat fired \u2014 resuming turn 11",
-      "at": "2026-05-06 02:35:31"
-    },
-    {
-      "turn": 12,
-      "note": "turn 11 done \u2014 fixed auto_save_every bug (TypeError on ping), full state init at start; 377/377 tests",
-      "at": "2026-05-06 02:42:53"
-    },
-    {
-      "turn": 13,
-      "note": "turn 12 done \u2014 v2.7 docs + complete shows drift warning; 383/383 tests",
-      "at": "2026-05-06 02:48:29"
-    },
-    {
-      "turn": 14,
-      "note": "heartbeat fired cleanly \u2014 resuming turn 14",
-      "at": "2026-05-06 02:54:12"
-    },
-    {
-      "turn": 15,
-      "note": "turn 14 done \u2014 restore now clears drift_guard_active + warning notice; 386/386 tests",
-      "at": "2026-05-06 02:56:05"
-    },
-    {
-      "turn": 16,
-      "note": "heartbeat fired \u2014 resuming turn 16",
-      "at": "2026-05-06 02:59:33"
-    },
-    {
-      "turn": 17,
-      "note": "turn 16 done \u2014 drift_guard v3/heartbeat_runner v5 banners; fire output shows drift guard state; 386/386 tests",
-      "at": "2026-05-06 03:02:19"
-    },
-    {
-      "turn": 18,
-      "note": "heartbeat fired \u2014 resuming turn 18, 2 rounds left",
-      "at": "2026-05-06 03:05:54"
-    },
-    {
-      "turn": 19,
-      "note": "fixed coverage path-prefix bug (0%\u2192100%), updated test counts to 386 in PLAN/CLAUDE/DIFF, added v2.8 to DIFF.md",
-      "at": "2026-05-06 03:09:56"
-    },
-    {
-      "turn": 20,
-      "note": "status now shows 4/4 coverage; history shows coverage; container_logger git add portable; test counts corrected to 381",
-      "at": "2026-05-06 03:37:08"
-    },
-    {
-      "turn": 21,
-      "note": "continuing \u2014 looking for next improvements",
-      "at": "2026-05-06 18:23:58"
-    },
-    {
-      "turn": 22,
-      "note": "added history coverage test; updated ANTI_DRIFT.md \u2014 marks built agents, adds v2.6-v2.8 lessons",
-      "at": "2026-05-06 18:27:00"
-    },
-    {
-      "turn": 23,
-      "note": "heartbeat-arm ETA now shows activity source label + uses last_activity_ts; +1 test",
-      "at": "2026-05-06 18:29:25"
-    },
-    {
-      "turn": 24,
-      "note": "drift-arm shows scope context; DIFF.md v2.8 updated with all session improvements",
-      "at": "2026-05-06 18:30:57"
-    },
-    {
-      "turn": 25,
-      "note": "final turn: +3 tests for drift-arm scope context output; 393/393 passing",
-      "at": "2026-05-06 18:33:17"
+      "turn": 1,
+      "note": "saved progress",
+      "at": "2026-05-06 19:43:55"
     }
   ],
-  "last_activity_source": "git:index",
-  "last_activity_ts": "2026-05-06 03:16:11",
-  "next_heartbeat_at": "2026-05-06 03:19:11",
-  "drift_warned_at": "2026-05-06 02:14:13",
-  "heartbeat_fires": [
-    {
-      "fired_at": "2026-05-06 02:23:56",
-      "signal": "ping",
-      "gap_seconds": 203,
-      "idle_polls": 1,
-      "turns": 6
-    },
-    {
-      "fired_at": "2026-05-06 02:30:25",
-      "signal": "ping",
-      "gap_seconds": 194,
-      "idle_polls": 1,
-      "turns": 8
-    },
-    {
-      "fired_at": "2026-05-06 02:35:21",
-      "signal": "git:index",
-      "gap_seconds": 182,
-      "idle_polls": 1,
-      "turns": 10
-    },
-    {
-      "fired_at": "2026-05-06 02:53:54",
-      "signal": "git:index",
-      "gap_seconds": 184,
-      "idle_polls": 1,
-      "turns": 13
-    },
-    {
-      "fired_at": "2026-05-06 02:59:23",
-      "signal": "git:index",
-      "gap_seconds": 198,
-      "idle_polls": 1,
-      "turns": 15
-    },
-    {
-      "fired_at": "2026-05-06 03:05:44",
-      "signal": "ping",
-      "gap_seconds": 205,
-      "idle_polls": 1,
-      "turns": 17
-    }
-  ],
-  "saved_at": "2026-05-06 18:33:17"
+  "last_activity_source": "ping",
+  "last_activity_ts": "2026-05-06 19:43:55",
+  "next_heartbeat_at": null,
+  "completed": null,
+  "saved_at": "2026-05-06 19:43:55",
+  "anchor_a": {
+    "ref": "e817a0832a0a18ed999735de521920b3a31cc46e",
+    "timestamp": "2026-05-06 19:43:55"
+  },
+  "anchor_b": {
+    "goal": "save test",
+    "done_criteria": [],
+    "set_at": "2026-05-06 19:43:55"
+  }
 }
