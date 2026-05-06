@@ -1,6 +1,6 @@
 {
   "task": "save test",
-  "last_active": "2026-05-06 02:38:24",
+  "last_active": "2026-05-06 02:40:18",
   "turns_taken": 1,
   "turns_target": 5,
   "rounds_remaining": 5,
@@ -14,17 +14,17 @@
   "heartbeat_active": false,
   "last_heartbeat_fired": null,
   "progress_note": "saved progress",
-  "started": "2026-05-06 02:38:24",
+  "started": "2026-05-06 02:40:18",
   "status": "active",
   "workspace_dir": "/home/user/Cloud-code",
   "profile": null,
   "scope_files": [],
   "coverage_targets": [],
   "scope_threshold": 50.0,
-  "session_start_ref": "433806ddb94909ccd272dcfebbbda0d1f1d59b86",
+  "session_start_ref": "5d5c2ab3239bac15c87d1f9d5c7a4925368c5331",
   "tracked_extensions": [],
   "scan_depth": 5,
-  "auto_save_every": null,
+  "auto_save_every": 5,
   "drift_guard_active": false,
   "drift_warning": null,
   "drift_warned_at": null,
@@ -34,12 +34,12 @@
     {
       "turn": 1,
       "note": "saved progress",
-      "at": "2026-05-06 02:38:24"
+      "at": "2026-05-06 02:40:18"
     }
   ],
   "last_activity_source": "ping",
-  "last_activity_ts": "2026-05-06 02:38:24",
+  "last_activity_ts": "2026-05-06 02:40:18",
   "next_heartbeat_at": null,
   "completed": null,
-  "saved_at": "2026-05-06 02:38:24"
+  "saved_at": "2026-05-06 02:40:18"
 }
