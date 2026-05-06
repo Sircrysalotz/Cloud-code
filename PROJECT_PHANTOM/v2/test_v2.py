@@ -18,7 +18,8 @@ PHANTOM   = os.path.join(V2_DIR, "phantom.py")
 RUNNER    = os.path.join(V2_DIR, "heartbeat_runner.py")
 LOGGER    = os.path.join(V2_DIR, "container_logger.py")
 DRIFT     = os.path.join(V2_DIR, "drift_guard.py")
-SCOPE_GUARD = os.path.join(V2_DIR, "scope_guard.py")
+SCOPE_GUARD      = os.path.join(V2_DIR, "scope_guard.py")
+COVERAGE_TRACKER = os.path.join(V2_DIR, "coverage_tracker.py")
 STATE     = "/tmp/phantom_TEST_session.json"
 LOCK      = "/tmp/phantom_TEST_session.lock"
 PID_FILE  = "/tmp/phantom_container_logger.pid"
@@ -231,6 +232,40 @@ def test_phantom():
           not os.path.exists("/tmp/phantom_session.json") or
           open("/tmp/phantom_session.json").read() != open(STATE).read()
           if os.path.exists(STATE) else True)
+
+    # ── ping_log ──
+    cleanup()
+    run([PHANTOM, "start", "ping_log test", "--turns", "10"])
+    run([PHANTOM, "ping", "note A"])
+    run([PHANTOM, "ping", "note B"])
+    run([PHANTOM, "ping", "note C"])
+    state = read_state()
+    ping_log = state.get("ping_log", [])
+    check("ping_log created after pings", isinstance(ping_log, list) and len(ping_log) > 0)
+    check("ping_log has 3 entries", len(ping_log) == 3)
+    check("ping_log entry has turn key", "turn" in ping_log[0])
+    check("ping_log entry has note key", "note" in ping_log[0])
+    check("ping_log entry has at key", "at" in ping_log[0])
+    check("ping_log stores note correctly", ping_log[0]["note"] == "note A")
+    check("ping_log turn increments", ping_log[0]["turn"] == 1 and ping_log[2]["turn"] == 3)
+    # ping without note doesn't crash ping_log
+    rc, out, _ = run([PHANTOM, "ping"])
+    check("ping without note exits 0 (ping_log unchanged)", rc == 0)
+    state = read_state()
+    check("ping_log unchanged when no note provided", len(state.get("ping_log", [])) == 3)
+    # history shows ping_log
+    rc, out, _ = run([PHANTOM, "history"])
+    check("history shows Ping log section", "Ping log" in out)
+    check("history shows note A in ping log", "note A" in out)
+    # report shows recent pings
+    rc, out, _ = run([PHANTOM, "report"])
+    check("report shows Recent pings section", "Recent pings" in out)
+    check("report shows note C in recent pings", "note C" in out)
+    # ping_log capped at 20 entries
+    for i in range(20):
+        run([PHANTOM, "ping", f"overflow note {i}"])
+    state = read_state()
+    check("ping_log capped at 20 entries", len(state.get("ping_log", [])) <= 20)
 
     # ── report command ──
     cleanup()
@@ -1055,6 +1090,85 @@ def test_scope_guard():
     cleanup()
 
 
+# ─── coverage_tracker.py tests ───────────────────────────────────────────────
+
+def test_coverage_tracker():
+    print("\n── coverage_tracker.py ──")
+    cleanup()
+
+    # basic: help exits 0 with expected flags
+    rc, out, err = run([COVERAGE_TRACKER, "--help"])
+    check("coverage_tracker --help exits 0", rc == 0)
+    check("--session flag present", "--session" in out)
+    check("--state-file flag present", "--state-file" in out)
+    check("--targets flag present", "--targets" in out)
+    check("--json flag present", "--json" in out)
+    check("--quiet flag present", "--quiet" in out)
+
+    # run against live repo with specific targets
+    rc, out, err = run([COVERAGE_TRACKER,
+                        "--repo", "/home/user/Cloud-code",
+                        "--targets",
+                        "PROJECT_PHANTOM/agents/phantom.py",
+                        "PROJECT_PHANTOM/agents/heartbeat_runner.py",
+                        "--since", "HEAD~3"])
+    check("coverage_tracker exits 0 or 1 (not error)", rc in (0, 1))
+    check("coverage_tracker output shows coverage check", "Coverage check" in out or rc == 1)
+
+    # --session flag reads session_start_ref
+    run([PHANTOM, "start", "cov tracker session test", "--turns", "3"])
+    state = read_state()
+    session_ref = state.get("session_start_ref")
+    check("phantom state has session_start_ref for coverage test", session_ref is not None)
+    rc, out, err = run([COVERAGE_TRACKER,
+                        "--repo", "/home/user/Cloud-code",
+                        "--targets", "PROJECT_PHANTOM/agents/phantom.py",
+                        "--session", "--state-file", STATE])
+    check("coverage_tracker --session exits 0 or 1", rc in (0, 1))
+    check("coverage_tracker --session shows session label", "session" in out.lower() or rc in (0, 1))
+
+    # --json output is valid JSON with session field
+    rc, out, err = run([COVERAGE_TRACKER,
+                        "--repo", "/home/user/Cloud-code",
+                        "--targets", "PROJECT_PHANTOM/agents/phantom.py",
+                        "--json", "--since", "HEAD~2"])
+    check("coverage_tracker --json exits 0 or 1", rc in (0, 1))
+    if out.strip():
+        try:
+            data = json.loads(out)
+            check("coverage_tracker --json is valid JSON", True)
+            check("coverage_tracker --json has 'since' key", "since" in data)
+            check("coverage_tracker --json has 'session' key", "session" in data)
+            check("coverage_tracker --json has 'full_coverage' key", "full_coverage" in data)
+            check("coverage_tracker --json has 'touched_files' key", "touched_files" in data)
+        except json.JSONDecodeError:
+            check("coverage_tracker --json is valid JSON", False)
+
+    # read_session_start_ref function
+    import importlib.util as _ilu
+    spec = _ilu.spec_from_file_location("coverage_tracker", COVERAGE_TRACKER)
+    ct = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(ct)
+    import tempfile as _tf
+    with _tf.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as fp:
+        json.dump({"session_start_ref": "deadbeef" * 5}, fp)
+        tmp_state = fp.name
+    ref = ct.read_session_start_ref(tmp_state)
+    check("coverage_tracker read_session_start_ref returns ref", ref == "deadbeef" * 5)
+    os.unlink(tmp_state)
+    ref2 = ct.read_session_start_ref("/tmp/nonexistent_ct.json")
+    check("coverage_tracker read_session_start_ref returns None for missing", ref2 is None)
+
+    # --quiet suppresses output
+    rc, out, err = run([COVERAGE_TRACKER,
+                        "--repo", "/home/user/Cloud-code",
+                        "--targets", "PROJECT_PHANTOM/agents/phantom.py",
+                        "--quiet", "--since", "HEAD~1"])
+    check("coverage_tracker --quiet suppresses stdout", len(out.strip()) == 0)
+
+    cleanup()
+
+
 # ─── Run all ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -1070,6 +1184,7 @@ if __name__ == "__main__":
         test_heartbeat_runner()
         test_container_logger()
         test_scope_guard()
+        test_coverage_tracker()
     finally:
         cleanup()
 

@@ -249,6 +249,11 @@ def cmd_ping(args):
     state["turns_taken"]  = state.get("turns_taken", 0) + 1
     if args.note:
         state["progress_note"] = args.note
+        # Append to ping_log (last 20 entries)
+        log_entry = {"turn": state["turns_taken"], "note": args.note, "at": state["last_active"]}
+        ping_log = state.get("ping_log", [])
+        ping_log.append(log_entry)
+        state["ping_log"] = ping_log[-20:]
     atomic_write(state)
     agents      = state.get("agents_running", 0)
     rounds      = state.get("rounds_remaining", 0)
@@ -504,6 +509,12 @@ def cmd_history(args):
     print(f"  Turns:   {state.get('turns_taken', 0)}/{state.get('turns_target', '?')}")
     print(f"  HB rounds used: {state.get('rounds_used', 0)}")
     print(f"  Last note: {state.get('progress_note', '—')}")
+    # Ping log
+    ping_log = state.get("ping_log", [])
+    if ping_log:
+        print(f"\n  Ping log ({len(ping_log)} entries):")
+        for entry in ping_log:
+            print(f"    Turn {entry['turn']:3d}  {entry['at']}  {entry['note'][:60]}")
     fires = state.get("heartbeat_fires", [])
     if fires:
         print(f"\n  Heartbeat fires ({len(fires)} total):")
@@ -577,6 +588,13 @@ def cmd_report(args):
     print(f"  Turns:  {turns_taken}/{turns_target}  (budget floor — session stays active past target)")
     print(f"  Rounds: {rounds_used} used, {rounds_rem} remaining")
     print(f"  Last note: {state.get('progress_note', '—')}")
+
+    # Ping log — last 5 entries in report
+    ping_log = state.get("ping_log", [])
+    if ping_log:
+        print(f"\n  Recent pings (last {min(len(ping_log), 5)}):")
+        for entry in ping_log[-5:]:
+            print(f"    T{entry['turn']:3d}  {entry['at'][11:16]}  {entry['note'][:55]}")
     print()
 
     # Agent / heartbeat state
