@@ -418,17 +418,30 @@ def cmd_heartbeat_arm(args):
     rounds = state["rounds_remaining"]
     threshold = state.get("idle_threshold_seconds", 180)
     print(f"Heartbeat armed. Rounds remaining: {rounds}")
-    # Show estimated fire time based on last activity
-    last_active = state.get("last_active", "")
-    if last_active:
+    # Show estimated fire time — use last_activity_ts (runner-observed) if available and more recent
+    from datetime import timedelta
+    last_active_str    = state.get("last_active", "")
+    last_activity_str  = state.get("last_activity_ts", "")
+    activity_source    = state.get("last_activity_source", "ping")
+    # Pick whichever timestamp is more recent
+    best_str = last_active_str
+    if last_activity_str:
         try:
-            from datetime import timedelta
-            fire_dt = datetime.strptime(last_active, "%Y-%m-%d %H:%M:%S") + timedelta(seconds=threshold)
+            la_ts = datetime.strptime(last_active_str, "%Y-%m-%d %H:%M:%S").timestamp() if last_active_str else 0
+            act_ts = datetime.strptime(last_activity_str, "%Y-%m-%d %H:%M:%S").timestamp()
+            if act_ts > la_ts:
+                best_str = last_activity_str
+        except Exception:
+            pass
+    if best_str:
+        try:
+            fire_dt = datetime.strptime(best_str, "%Y-%m-%d %H:%M:%S") + timedelta(seconds=threshold)
             remaining = (fire_dt - datetime.now()).total_seconds()
+            src_tag = f"  [{activity_source}]" if activity_source else ""
             if remaining > 0:
-                print(f"  Est. fire:  ~{remaining:.0f}s from now ({fire_dt.strftime('%H:%M:%S')})")
+                print(f"  Est. fire:  ~{remaining:.0f}s from now ({fire_dt.strftime('%H:%M:%S')}){src_tag}")
             else:
-                print(f"  Est. fire:  overdue by {-remaining:.0f}s (ping was {-remaining + threshold:.0f}s ago)")
+                print(f"  Est. fire:  overdue by {-remaining:.0f}s{src_tag}")
         except Exception:
             pass
 

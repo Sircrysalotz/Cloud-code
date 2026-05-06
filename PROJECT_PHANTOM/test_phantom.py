@@ -693,11 +693,13 @@ def test_heartbeat_runner():
     rc, out, err = run([RUNNER])
     check("runner banner shows min_idle_polls", "Min idle polls: 3" in out)
 
-    # heartbeat-arm shows ETA estimate
+    # heartbeat-arm shows ETA estimate with activity source label
     run([PHANTOM, "start", "arm eta test", "--threshold", "180", "--force"])
+    run([PHANTOM, "ping", "arm test ping"])
     rc, out, err = run([PHANTOM, "heartbeat-arm"])
     check("heartbeat-arm exits 0", rc == 0)
     check("heartbeat-arm shows Est. fire or overdue", "Est. fire" in out or "overdue" in out or "fire" in out.lower())
+    check("heartbeat-arm shows activity source label", "[" in out and "]" in out)
 
     # min_idle_polls in profile keys (now supported via --min-idle-polls on config create)
     run([PHANTOM, "config", "create", "testpoll", "--turns", "5", "--min-idle-polls", "2"])
