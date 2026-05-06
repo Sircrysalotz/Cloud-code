@@ -1,135 +1,188 @@
 {
-  "task": "ping_log test",
-  "last_active": "2026-05-06 03:35:09",
+  "task": "Make PHANTOM fully portable \u2014 self-locating paths, no hardcodes, drop-in on any machine",
+  "last_active": "2026-05-06 03:37:08",
   "turns_taken": 20,
-  "turns_target": 10,
-  "rounds_remaining": 5,
+  "turns_target": 25,
+  "rounds_remaining": 2,
   "idle_threshold_seconds": 180,
   "check_interval_seconds": 30,
   "cooldown_factor": 1.0,
   "min_idle_polls": 1,
-  "rounds_used": 0,
+  "rounds_used": 6,
   "agents_running": 0,
   "active_agent_ids": [],
-  "heartbeat_active": false,
-  "last_heartbeat_fired": null,
-  "progress_note": "overflow note 15",
-  "started": "2026-05-06 03:35:02",
+  "heartbeat_active": true,
+  "last_heartbeat_fired": "2026-05-06 03:05:44",
+  "progress_note": "status now shows 4/4 coverage; history shows coverage; container_logger git add portable; test counts corrected to 381",
+  "started": "2026-05-06 02:05:46",
   "status": "active",
   "workspace_dir": "/home/user/Cloud-code",
   "profile": null,
-  "scope_files": [],
-  "coverage_targets": [],
-  "scope_threshold": 50.0,
-  "session_start_ref": "0b4295cacc3000019bef62bf01f5efe735e6bb1f",
+  "scope_files": [
+    "agents/phantom.py",
+    "agents/heartbeat_runner.py",
+    "agents/drift_guard.py",
+    "agents/HEARTBEAT.md",
+    "agents/DRIFT_GUARD.md",
+    "test_phantom.py",
+    "CLAUDE.md"
+  ],
+  "coverage_targets": [
+    "agents/phantom.py",
+    "agents/heartbeat_runner.py",
+    "agents/drift_guard.py",
+    "test_phantom.py"
+  ],
+  "scope_threshold": 30.0,
+  "session_start_ref": "3eede189c805b4cb8a41ee1faadeb4af6d0ea591",
   "tracked_extensions": [],
   "scan_depth": 5,
-  "auto_save_every": 5,
   "drift_guard_active": false,
   "drift_warning": null,
-  "drift_warned_at": null,
-  "heartbeat_fires": [],
-  "watchdog_events": [],
   "ping_log": [
     {
       "turn": 1,
-      "note": "note A",
-      "at": "2026-05-06 03:35:03"
+      "note": "turn 1 \u2014 auditing all hardcoded paths before writing any fixes",
+      "at": "2026-05-06 02:06:07"
     },
     {
       "turn": 2,
-      "note": "note B",
-      "at": "2026-05-06 03:35:03"
+      "note": "turn 2 \u2014 phantom.py + container_logger paths fixed; working on .md files now",
+      "at": "2026-05-06 02:08:24"
     },
     {
-      "turn": 3,
-      "note": "note C",
-      "at": "2026-05-06 03:35:03"
+      "turn": 4,
+      "note": "portability big run complete \u2014 all hardcoded paths removed, 352/352 tests passing, committed and pushed",
+      "at": "2026-05-06 02:15:34"
     },
     {
       "turn": 5,
-      "note": "overflow note 0",
-      "at": "2026-05-06 03:35:03"
+      "note": "heartbeat recovered and re-armed; looking for next improvement target",
+      "at": "2026-05-06 02:16:51"
     },
     {
       "turn": 6,
-      "note": "overflow note 1",
-      "at": "2026-05-06 03:35:04"
+      "note": "v2.6 complete \u2014 phantom.py env + 368 tests + DIFF/PLAN/CLAUDE.md updated and pushed",
+      "at": "2026-05-06 02:20:33"
     },
     {
       "turn": 7,
-      "note": "overflow note 2",
-      "at": "2026-05-06 03:35:04"
+      "note": "heartbeat fired cleanly after turn 6 \u2014 resuming",
+      "at": "2026-05-06 02:24:12"
     },
     {
       "turn": 8,
-      "note": "overflow note 3",
-      "at": "2026-05-06 03:35:04"
+      "note": "turn 7 done \u2014 status now shows Drift Guard state + warning; 372/372 tests; module docstring updated",
+      "at": "2026-05-06 02:27:12"
     },
     {
       "turn": 9,
-      "note": "overflow note 4",
-      "at": "2026-05-06 03:35:04"
+      "note": "heartbeat fired \u2014 resuming turn 9",
+      "at": "2026-05-06 02:30:35"
     },
     {
       "turn": 10,
-      "note": "overflow note 5",
-      "at": "2026-05-06 03:35:04"
+      "note": "turn 9 done \u2014 report now shows drift guard state/warning; 376/376 tests",
+      "at": "2026-05-06 02:32:20"
     },
     {
       "turn": 11,
-      "note": "overflow note 6",
-      "at": "2026-05-06 03:35:07"
+      "note": "heartbeat fired \u2014 resuming turn 11",
+      "at": "2026-05-06 02:35:31"
     },
     {
       "turn": 12,
-      "note": "overflow note 7",
-      "at": "2026-05-06 03:35:07"
+      "note": "turn 11 done \u2014 fixed auto_save_every bug (TypeError on ping), full state init at start; 377/377 tests",
+      "at": "2026-05-06 02:42:53"
     },
     {
       "turn": 13,
-      "note": "overflow note 8",
-      "at": "2026-05-06 03:35:07"
+      "note": "turn 12 done \u2014 v2.7 docs + complete shows drift warning; 383/383 tests",
+      "at": "2026-05-06 02:48:29"
     },
     {
       "turn": 14,
-      "note": "overflow note 9",
-      "at": "2026-05-06 03:35:07"
+      "note": "heartbeat fired cleanly \u2014 resuming turn 14",
+      "at": "2026-05-06 02:54:12"
     },
     {
       "turn": 15,
-      "note": "overflow note 10",
-      "at": "2026-05-06 03:35:07"
+      "note": "turn 14 done \u2014 restore now clears drift_guard_active + warning notice; 386/386 tests",
+      "at": "2026-05-06 02:56:05"
     },
     {
       "turn": 16,
-      "note": "overflow note 11",
-      "at": "2026-05-06 03:35:08"
+      "note": "heartbeat fired \u2014 resuming turn 16",
+      "at": "2026-05-06 02:59:33"
     },
     {
       "turn": 17,
-      "note": "overflow note 12",
-      "at": "2026-05-06 03:35:08"
+      "note": "turn 16 done \u2014 drift_guard v3/heartbeat_runner v5 banners; fire output shows drift guard state; 386/386 tests",
+      "at": "2026-05-06 03:02:19"
     },
     {
       "turn": 18,
-      "note": "overflow note 13",
-      "at": "2026-05-06 03:35:08"
+      "note": "heartbeat fired \u2014 resuming turn 18, 2 rounds left",
+      "at": "2026-05-06 03:05:54"
     },
     {
       "turn": 19,
-      "note": "overflow note 14",
-      "at": "2026-05-06 03:35:08"
+      "note": "fixed coverage path-prefix bug (0%\u2192100%), updated test counts to 386 in PLAN/CLAUDE/DIFF, added v2.8 to DIFF.md",
+      "at": "2026-05-06 03:09:56"
     },
     {
       "turn": 20,
-      "note": "overflow note 15",
-      "at": "2026-05-06 03:35:09"
+      "note": "status now shows 4/4 coverage; history shows coverage; container_logger git add portable; test counts corrected to 381",
+      "at": "2026-05-06 03:37:08"
     }
   ],
-  "last_activity_source": "ping",
-  "last_activity_ts": "2026-05-06 03:35:02",
-  "next_heartbeat_at": null,
-  "completed": null,
-  "saved_at": "2026-05-06 03:35:09"
+  "last_activity_source": "git:index",
+  "last_activity_ts": "2026-05-06 03:16:11",
+  "next_heartbeat_at": "2026-05-06 03:19:11",
+  "drift_warned_at": "2026-05-06 02:14:13",
+  "heartbeat_fires": [
+    {
+      "fired_at": "2026-05-06 02:23:56",
+      "signal": "ping",
+      "gap_seconds": 203,
+      "idle_polls": 1,
+      "turns": 6
+    },
+    {
+      "fired_at": "2026-05-06 02:30:25",
+      "signal": "ping",
+      "gap_seconds": 194,
+      "idle_polls": 1,
+      "turns": 8
+    },
+    {
+      "fired_at": "2026-05-06 02:35:21",
+      "signal": "git:index",
+      "gap_seconds": 182,
+      "idle_polls": 1,
+      "turns": 10
+    },
+    {
+      "fired_at": "2026-05-06 02:53:54",
+      "signal": "git:index",
+      "gap_seconds": 184,
+      "idle_polls": 1,
+      "turns": 13
+    },
+    {
+      "fired_at": "2026-05-06 02:59:23",
+      "signal": "git:index",
+      "gap_seconds": 198,
+      "idle_polls": 1,
+      "turns": 15
+    },
+    {
+      "fired_at": "2026-05-06 03:05:44",
+      "signal": "ping",
+      "gap_seconds": 205,
+      "idle_polls": 1,
+      "turns": 17
+    }
+  ],
+  "saved_at": "2026-05-06 03:37:08"
 }
