@@ -100,6 +100,8 @@ Do NOT call it:
 | HB ETA ignores `min_idle_polls` extra delay | ETA = threshold + (min_idle_polls-1) × interval — accurately reflects actual fire time |
 | Heartbeat agent uses `run_in_background: true` → runner dies on agent return | `HEARTBEAT.md` v4: CRITICAL note — blocking Bash with `timeout=600000`, never `run_in_background` |
 | `scope`, `check`, `checkpoint` show `last_session_state.json` inflating % | All three now filter the auto-save file via `_SAVED_REL` constant, same as `drift_guard` |
+| Fire banner shows `[ ]` for all criteria even when met | `eval_criteria_quick()` in runner evaluates state counters — shows `[x]` for met criteria |
+| `DRIFT_GUARD.md` agent uses `run_in_background: true` → process dies on return | `DRIFT_GUARD.md` v4: CRITICAL note — blocking Bash with `timeout=600000`, never `run_in_background` |
 
 ### Files
 
