@@ -244,3 +244,103 @@ Now shows fire event history with timestamp, signal, gap, idle_polls, and turn n
 Also shows declared scope files if set.
 
 Test coverage: 152 → 168 tests (168/168 passing)
+
+---
+
+## v2.3 Additions (massive horizontal improvement session — 8+ hours)
+
+### phantom.py: report command
+
+New `phantom.py report` command — full session overview on demand:
+- Task, status, started, elapsed, profile
+- Turns taken/target with "budget floor" reminder
+- Rounds used/remaining
+- Heartbeat state (armed/idle, ETA, held-by signal)
+- Fire history (all events)
+- Scope snapshot (this session's git diff, percentage per file)
+- Watchdog stall history
+- Scan config (tracked extensions, scan depth)
+
+### phantom.py: recover command
+
+New `phantom.py recover` command — soft reset that clears stuck flags without losing session data:
+- Clears `heartbeat_active` → False
+- Clears `agents_running` → 0 and empties `active_agent_ids`
+- Clears `drift_guard_active` → False
+- Preserves task, turns, rounds, history, and all other session data
+- No-op when no flags are stuck (reports clean state)
+- Use before `reset` when session data should be kept
+
+### heartbeat_runner.py v5: configurable scan settings + watchdog state
+
+New state fields `tracked_extensions` and `scan_depth` (set via `phantom.py start`):
+- `--tracked-exts .py .ts` — only track these file extensions for activity signals
+- `--scan-depth 3` — limit os.walk depth (default 5) for large repos
+
+Watchdog events now written to state (`watchdog_events[]`, last 10):
+- Includes `at`, `cycle_secs`, `limit_secs`, `turns` per event
+- Visible in `phantom.py status` (last event) and `phantom.py report` (full list)
+
+`scan_workspace()` and `get_last_activity()` accept `tracked_exts` and `scan_depth` params.
+`DEFAULT_TRACKED_EXTS` replaces the hardcoded `TRACKED_EXTS` set.
+
+### drift_guard.py v3: richer output + verdict-specific ACTION messages
+
+Per-check line format improved:
+```
+[HH:MM:SS] Check #N | <total>L | top: file.py (<pct>%) hunks=<N> [scope <in>/<total>L] | CLEAN: reason
+```
+
+Verdict-specific ACTION messages replace generic "spread changes and re-arm":
+| Verdict | ACTION guidance |
+|---|---|
+| `SCOPE_CREEP` | Option A: move edits to scope files. Option B: update `--scope` |
+| `VERTICAL` | One file dominates — spread changes across more files |
+| `TRENDING` | Proactive: distribute future changes, then re-arm |
+
+Warning top-file list shows `[in-scope]` markers for declared scope files.
+DRIFT_GUARD.md v3: documents new output format, verdict table, recover command for crashes.
+
+### container_logger.py v3: memory and disk threshold alerts
+
+New CLI flags `--mem-alert N` (default 80%) and `--disk-alert N` (default 90%):
+- Logs `ALERT` prefix instead of `ALIVE` when any threshold exceeded
+- Prints `⚠ ALERT:` line to stdout with metric details
+- Alert deduplication with hysteresis: resets at 90% of threshold
+- `read_mem()` and `read_disk()` now return `(str, float)` tuples for programmatic use
+
+### tools/scope_guard.py: --session flag
+
+New `--session` flag reads `session_start_ref` from phantom session state:
+- `python3 scope_guard.py --session` — uses current session's start as diff base
+- `--state-file PATH` — override PHANTOM_STATE for custom state file path
+- Falls back to auto-detect if state missing or ref not found
+- `--json` output includes `"session": bool` field
+- New `read_session_start_ref()` function for programmatic access
+
+### Built-in profile presets
+
+4 presets always available, no setup required:
+| Profile | turns | threshold | Description |
+|---|---|---|---|
+| `sprint` | 10 | 120s | Fast iteration — quick heartbeat cycles |
+| `marathon` | 30 | 180s | Long autonomous run — many rounds |
+| `debug` | 5 | 60s | Short cycles for testing |
+| `focus` | 20 | 240s | Deep single-task, strict drift guard |
+
+User-created profiles override built-ins by name.
+`config list` shows built-in and user sections separately, with "(overridden by user)" note.
+`config show <name>` shows `[built-in]` label for presets.
+
+### Test coverage
+
+| Version | Tests |
+|---|---|
+| v2.0 | 46 |
+| v2.1 | 152 |
+| v2.2 | 168 |
+| v2.3 | 284 |
+
+New tests added: report command (7), recover command (11), tracked_extensions/scan_depth (7),
+watchdog events (3), scope_match/verdict triggers (7), SCOPE_CREEP/VERTICAL/TRENDING (3),
+container_logger v3 (10), scope_guard --session (14), built-in profiles (29).

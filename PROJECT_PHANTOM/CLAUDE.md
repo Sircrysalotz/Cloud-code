@@ -63,7 +63,7 @@ Do NOT call it:
 | File-% drift fires on legitimate single-file tasks | Four-gate eval: declared scope → task alignment → hunk depth → trend |
 | No watchdog | Detects poll cycles taking >3x interval |
 | **Turn target stops work early** | **`turns_target` is a budget floor — session stays active past target** |
-| No test coverage | 180 integration tests in `v2/test_v2.py` |
+| No test coverage | 284 integration tests in `v2/test_v2.py` |
 | False fire during active coding (no ping) | Filesystem + git index activity signals in heartbeat_runner |
 | All config flags must be typed each session | Profile system — named configs in `~/.phantom_profiles.json` |
 | No horizontal enforcement during sessions | `drift_guard.py` background agent — four-gate evaluation |
@@ -72,6 +72,14 @@ Do NOT call it:
 | Drift guard bleeds into previous sessions | `session_start_ref` stored on start — drift guard only checks current session |
 | No fire timing retrospective | `heartbeat_fires` list in state (last 10 events, shown in `history`) |
 | Heartbeat keeps running after `complete` | Runner checks `status == "complete"` and exits cleanly |
+| No way to see full session state at a glance | `phantom.py report` — overview, fires, scope snapshot, watchdog events |
+| `heartbeat_active` stuck after crash or context loss | `phantom.py recover` — clears stuck flags without wiping session data |
+| Heartbeat fires on all file types indiscriminately | `tracked_extensions` + `scan_depth` in state, configurable via `--tracked-exts` |
+| Watchdog stalls invisible after runner exits | `watchdog_events[]` written to state — visible in `report` and `status` |
+| Drift verdicts give generic "spread changes" advice | Verdict-specific ACTION text: SCOPE_CREEP/VERTICAL/TRENDING each have tailored guidance |
+| No resource alerts in container logger | `container_logger v3` — mem/disk threshold alerts with deduplication |
+| `scope_guard.py` ignores session boundaries | `--session` flag reads `session_start_ref` from phantom state |
+| Common profiles must be recreated each project | Built-in presets: `sprint`, `marathon`, `debug`, `focus` — always available |
 
 ### Files
 
@@ -206,11 +214,17 @@ python3 PROJECT_PHANTOM/agents/phantom.py complete
 ## Useful Commands
 
 ```bash
-# Check status (shows heartbeat ETA, activity source, fire log)
+# Check status (shows heartbeat ETA, activity source, fire log, watchdog)
 python3 PROJECT_PHANTOM/agents/phantom.py status
+
+# Full session report (overview, fire history, scope snapshot, watchdog events)
+python3 PROJECT_PHANTOM/agents/phantom.py report
 
 # Full session history (turns, fires, scope)
 python3 PROJECT_PHANTOM/agents/phantom.py history
+
+# Soft reset: clear stuck flags (heartbeat_active, agents_running) without losing session
+python3 PROJECT_PHANTOM/agents/phantom.py recover
 
 # Horizontal scope check (last 5 commits)
 python3 PROJECT_PHANTOM/agents/phantom.py scope
@@ -237,26 +251,32 @@ python3 PROJECT_PHANTOM/agents/phantom.py reset
 
 Named configurations stored in `~/.phantom_profiles.json` (or `PHANTOM_PROFILES` env var).
 
+### Built-in presets (always available — no setup required)
+
+| Name | turns | threshold | Description |
+|---|---|---|---|
+| `sprint` | 10 | 120s | Fast iteration — quick heartbeat cycles |
+| `marathon` | 30 | 180s | Long autonomous run — many rounds |
+| `debug` | 5 | 60s | Short cycles for testing |
+| `focus` | 20 | 240s | Deep single-task, strict drift guard |
+
+User-created profiles with the same name override built-ins.
+
 ```bash
-# List all profiles
+# List all profiles (shows built-ins + user profiles)
 python3 PROJECT_PHANTOM/agents/phantom.py config list
 
-# Create a profile
-python3 PROJECT_PHANTOM/agents/phantom.py config create sprint \
-  --description "Fast iteration" --turns 10 --rounds 5 --threshold 120
+# Use a built-in preset
+python3 PROJECT_PHANTOM/agents/phantom.py start "task" --profile marathon
 
-python3 PROJECT_PHANTOM/agents/phantom.py config create marathon \
-  --description "Long autonomous run" --turns 30 --rounds 12 --threshold 180 \
-  --cooldown-factor 1.0 --min-idle-polls 2
-
-python3 PROJECT_PHANTOM/agents/phantom.py config create debug \
-  --description "Short cycles for testing" --turns 5 --rounds 3 --threshold 60 \
-  --interval 10
+# Create a custom profile (user profiles override built-ins)
+python3 PROJECT_PHANTOM/agents/phantom.py config create myprofile \
+  --description "Custom setup" --turns 15 --rounds 6 --threshold 150
 
 # Show / update / delete
 python3 PROJECT_PHANTOM/agents/phantom.py config show sprint
-python3 PROJECT_PHANTOM/agents/phantom.py config set sprint turns 15
-python3 PROJECT_PHANTOM/agents/phantom.py config delete sprint
+python3 PROJECT_PHANTOM/agents/phantom.py config set myprofile turns 15
+python3 PROJECT_PHANTOM/agents/phantom.py config delete myprofile
 ```
 
 Profile keys: `turns`, `rounds`, `threshold`, `interval`, `cooldown_factor`,
@@ -317,6 +337,10 @@ python3 PROJECT_PHANTOM/v2/test_v2.py
 
 ### `heartbeat_active` stuck as True, no process running
 ```bash
+# Soft reset — clears stuck flags, preserves session data
+python3 PROJECT_PHANTOM/agents/phantom.py recover
+
+# Hard reset — only if recover isn't enough
 python3 PROJECT_PHANTOM/agents/phantom.py reset
 # Then re-start or re-arm as needed
 ```
