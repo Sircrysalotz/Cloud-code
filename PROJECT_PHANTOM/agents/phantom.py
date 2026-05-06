@@ -174,12 +174,13 @@ def cmd_start(args):
             return profile_defaults[profile_key]
         return cli_val if cli_val != cli_default else fallback
 
-    turns          = resolve(args.turns,          10,  "turns",          10)
-    rounds         = resolve(args.rounds,          5,   "rounds",         5)
-    threshold      = resolve(args.threshold,       180, "threshold",      180)
-    interval       = resolve(args.interval,        30,  "interval",       30)
-    cf             = resolve(args.cooldown_factor, 1.0, "cooldown_factor",1.0)
-    min_idle_polls = resolve(getattr(args, "min_idle_polls", 1), 1, "min_idle_polls", 1)
+    turns           = resolve(args.turns,          10,  "turns",           10)
+    rounds          = resolve(args.rounds,          5,   "rounds",          5)
+    threshold       = resolve(args.threshold,       180, "threshold",       180)
+    interval        = resolve(args.interval,        30,  "interval",        30)
+    cf              = resolve(args.cooldown_factor, 1.0, "cooldown_factor", 1.0)
+    min_idle_polls  = resolve(getattr(args, "min_idle_polls",  1), 1, "min_idle_polls",  1)
+    auto_save_every = resolve(getattr(args, "auto_save_every", None), None, "auto_save_every", 5)
 
     # Capture current HEAD so drift guard only checks this session's changes
     session_start_ref = None
@@ -221,6 +222,19 @@ def cmd_start(args):
                               or profile_defaults.get("tracked_extensions") or []),
         "scan_depth":         (getattr(args, "scan_depth", None)
                               or profile_defaults.get("scan_depth") or 5),
+        "auto_save_every":    auto_save_every,
+        # runtime fields — initialized here so state is fully self-describing on start
+        "drift_guard_active": False,
+        "drift_warning":      None,
+        "drift_warned_at":    None,
+        "heartbeat_fires":    [],
+        "watchdog_events":    [],
+        "ping_log":           [],
+        "last_activity_source": "ping",
+        "last_activity_ts":   now_str(),
+        "next_heartbeat_at":  None,
+        "completed":          None,
+        "saved_at":           None,
     }
     atomic_write(state)
     print(f"Session started.")
@@ -1248,8 +1262,10 @@ p.add_argument("--scope-threshold", type=float, default=None, dest="scope_thresh
                help="Drift guard scope threshold %% (default 50)")
 p.add_argument("--tracked-exts", nargs="+", default=None, dest="tracked_exts",
                help="File extensions to watch for activity signals (e.g. --tracked-exts .py .ts)")
-p.add_argument("--scan-depth",  type=int, default=None, dest="scan_depth",
+p.add_argument("--scan-depth",      type=int, default=None, dest="scan_depth",
                help="Max directory depth for workspace file scan (default 5)")
+p.add_argument("--auto-save-every", type=int, default=None, dest="auto_save_every",
+               help="Ping interval between git auto-saves (default 5)")
 p.add_argument("--force",            action="store_true",     help="Overwrite existing session")
 
 p = sub.add_parser("config", help="Manage session profiles")

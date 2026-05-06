@@ -1397,6 +1397,26 @@ def test_check():
 
     cleanup()
 
+    # -- auto_save_every stored at start --
+    run([PHANTOM, "start", "auto-save test", "--turns", "3", "--auto-save-every", "3"])
+    state = read_state()
+    check("--auto-save-every stored in state", state.get("auto_save_every") == 3)
+
+    # default auto_save_every is 5
+    run([PHANTOM, "reset"])
+    run([PHANTOM, "start", "default auto-save", "--turns", "3"])
+    state = read_state()
+    check("auto_save_every defaults to 5", state.get("auto_save_every") == 5)
+
+    # runtime fields initialized at start
+    check("drift_guard_active initialized False", state.get("drift_guard_active") == False)
+    check("drift_warning initialized None",       state.get("drift_warning")      is None)
+    check("heartbeat_fires initialized []",       state.get("heartbeat_fires")    == [])
+    check("watchdog_events initialized []",       state.get("watchdog_events")    == [])
+    check("ping_log initialized []",              state.get("ping_log")           == [])
+
+    cleanup()
+
 
 def test_env():
     print("\n── phantom.py env ──")
