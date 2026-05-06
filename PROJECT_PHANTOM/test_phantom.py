@@ -304,6 +304,21 @@ def test_phantom():
     check("report shows last note", "first turn note" in out)
     check("report shows Rounds section", "Rounds:" in out)
     check("report shows Heartbeat status", "Heartbeat:" in out)
+    check("report shows Drift Guard idle line", "Drift Guard: idle" in out)
+    # drift-arm shows ARMED in report
+    run([PHANTOM, "drift-arm"])
+    rc, out, _ = run([PHANTOM, "report"])
+    check("report shows Drift Guard ARMED when armed", "Drift Guard: ARMED" in out)
+    run([PHANTOM, "drift-done"])
+    # inject a drift warning — report should show WARNING PENDING and text
+    state = read_state()
+    state["drift_warning"] = "VERTICAL: one file dominates"
+    state["drift_guard_active"] = False
+    with open(STATE, "w") as fh:
+        import json as _json; _json.dump(state, fh)
+    rc, out, _ = run([PHANTOM, "report"])
+    check("report shows WARNING PENDING when drift_warning set", "WARNING PENDING" in out)
+    check("report shows drift warning text inline", "VERTICAL" in out)
     # report on completed session
     run([PHANTOM, "complete"])
     rc, out, _ = run([PHANTOM, "report"])

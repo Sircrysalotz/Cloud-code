@@ -836,7 +836,7 @@ def cmd_report(args):
             print(f"    T{entry['turn']:3d}  {entry['at'][11:16]}  {entry['note'][:55]}")
     print()
 
-    # Agent / heartbeat state
+    # Agent / heartbeat / drift guard state
     hb = "ARMED" if state.get("heartbeat_active") else "idle"
     ag = state.get("agents_running", 0)
     ag_ids = state.get("active_agent_ids", [])
@@ -845,6 +845,15 @@ def cmd_report(args):
         print(f"  Agents running: {ag}  ({', '.join(ag_ids) if ag_ids else 'unnamed'})")
     else:
         print(f"  Agents running: 0")
+    # Drift guard
+    if state.get("drift_guard_active"):
+        print(f"  Drift Guard: ARMED")
+    else:
+        dw = state.get("drift_warning")
+        if dw:
+            print(f"  Drift Guard: idle  ⚠ WARNING PENDING")
+        else:
+            print(f"  Drift Guard: idle")
 
     # ETA
     next_hb = state.get("next_heartbeat_at")
@@ -913,6 +922,13 @@ def cmd_report(args):
         print(f"\n  Coverage ({source}): {cov_line or '?'}")
         for t in cov_display:
             print(f"    {t}")
+
+    # Pending drift warning (full text)
+    dw = state.get("drift_warning")
+    if dw:
+        print(f"\n  ⚠ DRIFT WARNING (run 'drift-done' to review):")
+        for line in dw.strip().splitlines():
+            print(f"    {line}")
 
     # Watchdog events
     wdevents = state.get("watchdog_events", [])
