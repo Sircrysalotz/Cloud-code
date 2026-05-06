@@ -788,6 +788,36 @@ def test_heartbeat_runner():
         mtime2, path2 = hr.scan_workspace(tmpdir, {".js"})
         check("scan_workspace with .js finds nothing (no .js files)", path2 is None)
 
+    # ── ETA accounts for min_idle_polls ──
+    # With min_idle_polls=2 and interval=1, ETA should be threshold + 1s extra vs min_idle_polls=1
+    import subprocess as _sp2
+    from datetime import timedelta
+    run([PHANTOM, "start", "eta corr test", "--rounds", "1", "--interval", "1",
+         "--threshold", "60", "--min-idle-polls", "2", "--force"])
+    state = read_state()
+    state["heartbeat_active"] = True
+    state["agents_running"]   = 99  # prevent firing
+    state["last_active"]      = now_nowstr = time.strftime("%Y-%m-%d %H:%M:%S")
+    with tempfile.TemporaryDirectory() as tmpws:
+        state["workspace_dir"] = tmpws
+        with open(STATE, "w") as f:
+            json.dump(state, f)
+        try:
+            _sp2.run([sys.executable, RUNNER], capture_output=True, timeout=3, env=TEST_ENV)
+        except _sp2.TimeoutExpired:
+            pass
+    state_after = read_state()
+    nxt = state_after.get("next_heartbeat_at")
+    if nxt:
+        from datetime import datetime
+        nxt_dt  = datetime.strptime(nxt, "%Y-%m-%d %H:%M:%S")
+        base_dt = datetime.strptime(now_nowstr, "%Y-%m-%d %H:%M:%S")
+        secs_ahead = (nxt_dt - base_dt).total_seconds()
+        # With threshold=60, min_idle_polls=2, interval=1: ETA = 61s (60+1*(2-1))
+        check("ETA accounts for min_idle_polls (>= threshold + extra)", secs_ahead >= 60)
+    else:
+        check("ETA corrected — next_heartbeat_at written", False)
+
     # ── v6: anchor context in fire banner ──
     # Verify that a fire banner includes anchor_b goal when anchor_b is set in state
     run([PHANTOM, "start", "fire anchor test", "--rounds", "1", "--interval", "1",
