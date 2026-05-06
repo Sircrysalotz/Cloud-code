@@ -85,7 +85,7 @@ Do NOT call it:
 | `--scope-threshold` only settable per-run in drift_guard | `--scope-threshold` on `start` — stored in state, read by drift_guard + check |
 | Profile list fields not loaded from profile | scope_files, coverage_targets, tracked_extensions, scan_depth all profile-resolved |
 | Status/complete/report hide coverage status | All three commands show coverage summary when coverage_targets or scope_files set |
-| Test count varies between runs | Fixed conditional check() blocks — stable count (381 as of v2.8) |
+| Test count varies between runs | Accepted: count is git-state-dependent (~479 as of v3.1) |
 | `agent-start` for drift-guard blocked heartbeat forever | Protocol fix: drift-guard uses `drift-arm`/`drift-done` only — never `agent-start` |
 | `agent-start` for heartbeat also blocks heartbeat | Protocol fix: heartbeat uses `heartbeat-arm` only — never `agent-start` |
 | No navigation aids after resume — Claude loses bearing | `phantom.py anchor show/check` — immovable Point A (origin) and Point B (goal) always visible |
@@ -95,10 +95,10 @@ Do NOT call it:
 | Heartbeat fire doesn't say which round it is | Fire banner: "HEARTBEAT FIRED (round N/total)" |
 | auto-save `last_session_state.json` fires SCOPE_CREEP on every commit | `drift_guard` v4 auto-detects and ignores that path by default |
 | Full status is 20+ lines — too much for quick sanity check | `status --brief` — one-line compact summary: turns, HB ETA, coverage, drift, note |
-| Anchor check/checkpoint usage not tracked — criteria stay `[ ]` forever | `anchor check` increments `anchor_checks_count`; `checkpoint` increments `checkpoint_calls_count` — both auto-mark criteria |
-| No way to record test pass count for criteria eval | `ping --tests N` stores `tests_last_count` — "N+ tests passing" criterion auto-[x] when count ≥ N |
-| Heartbeat fire count not tracked for criteria eval | `_eval_criteria` reads `heartbeat_fires[]` length — "N heartbeat fire(s)" criterion auto-[x] |
-| Test count varies between runs | ~472 tests (varies slightly with git-state branches) |
+| Anchor/checkpoint/HB-fire/test criteria unverifiable at runtime | `anchor_checks_count`, `checkpoint_calls_count`, `tests_last_count`, `heartbeat_fires[]` — all 4 tracked and auto-eval |
+| `ping --tests N` confirmation not shown | Prints "Tests recorded: N" so recording is auditable |
+| HB ETA ignores `min_idle_polls` extra delay | ETA = threshold + (min_idle_polls-1) × interval — accurately reflects actual fire time |
+| Heartbeat agent uses `run_in_background: true` → runner dies on agent return | `HEARTBEAT.md` v4: CRITICAL note — blocking Bash with `timeout=600000`, never `run_in_background` |
 
 ### Files
 
