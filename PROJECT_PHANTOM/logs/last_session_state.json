@@ -1,7 +1,7 @@
 {
   "task": "Dogfood PHANTOM v2.9 \u2014 run the full system live, observe friction, fix what breaks or annoys, improve horizontal spread across all 5 core files",
-  "last_active": "2026-05-06 20:55:22",
-  "turns_taken": 20,
+  "last_active": "2026-05-06 20:56:19",
+  "turns_taken": 21,
   "turns_target": 30,
   "rounds_remaining": 9,
   "idle_threshold_seconds": 180,
@@ -11,9 +11,9 @@
   "rounds_used": 1,
   "agents_running": 0,
   "active_agent_ids": [],
-  "heartbeat_active": false,
+  "heartbeat_active": true,
   "last_heartbeat_fired": "2026-05-06 20:52:39",
-  "progress_note": "fire banner [x] criteria; DRIFT_GUARD.md blocking fix; 481/481",
+  "progress_note": "CLAUDE.md: fire banner eval_criteria_quick + DRIFT_GUARD blocking entries",
   "started": "2026-05-06 20:15:07",
   "status": "active",
   "workspace_dir": "/home/user/Cloud-code",
@@ -50,11 +50,6 @@
   ],
   "watchdog_events": [],
   "ping_log": [
-    {
-      "turn": 1,
-      "note": "Session started. Dogfood run begins \u2014 observing friction as I use anchor, checkpoint, drift-arm, heartbeat-arm live. First: arm the guards.",
-      "at": "2026-05-06 20:15:10"
-    },
     {
       "turn": 2,
       "note": "448/448 tests pass \u2014 all 4 friction fixes done. Handling drift false-positive then committing.",
@@ -149,13 +144,18 @@
       "turn": 20,
       "note": "fire banner [x] criteria; DRIFT_GUARD.md blocking fix; 481/481",
       "at": "2026-05-06 20:55:22"
+    },
+    {
+      "turn": 21,
+      "note": "CLAUDE.md: fire banner eval_criteria_quick + DRIFT_GUARD blocking entries",
+      "at": "2026-05-06 20:56:19"
     }
   ],
   "last_activity_source": "git:index",
-  "last_activity_ts": "2026-05-06 20:48:43",
-  "next_heartbeat_at": "2026-05-06 20:52:13",
+  "last_activity_ts": "2026-05-06 20:56:24",
+  "next_heartbeat_at": "2026-05-06 20:59:54",
   "completed": null,
-  "saved_at": "2026-05-06 20:55:22",
+  "saved_at": "2026-05-06 20:57:12",
   "anchor_a": {
     "ref": "8bc5538cef4a730f8cea1ff32ba052ca52314fce",
     "timestamp": "2026-05-06 20:15:07"
@@ -171,7 +171,7 @@
     ],
     "set_at": "2026-05-06 20:15:07"
   },
-  "anchor_checks_count": 6,
-  "checkpoint_calls_count": 2,
+  "anchor_checks_count": 7,
+  "checkpoint_calls_count": 3,
   "tests_last_count": 481
 }
