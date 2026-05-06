@@ -850,6 +850,39 @@ def test_heartbeat_runner():
     # rounds_used=1 on entry, fire increments it to 2; rounds_total = used(1) + remaining(3) = 4
     check("fire banner shows round N/total format", "/" in out and "round" in out.lower())
 
+    # ── eval_criteria_quick: fire banner uses [x]/[ ] from state counters ──
+    run([PHANTOM, "start", "criteria quick test", "--rounds", "1", "--interval", "1",
+         "--done-criteria", "anchor check used", "checkpoint used before completion",
+         "observed at least 1 heartbeat fire", "--force"])
+    state = read_state()
+    state["heartbeat_active"] = True
+    state["last_active"] = "2020-01-01 00:00:00"
+    # All criteria unmet initially
+    with tempfile.TemporaryDirectory() as tmpws:
+        state["workspace_dir"] = tmpws
+        with open(STATE, "w") as f:
+            json.dump(state, f)
+        rc, out, err = run([RUNNER], timeout=10)
+    check("fire banner shows [ ] for unmet criteria", "[ ]" in out)
+
+    # Now fire with counters set — criteria should show [x]
+    run([PHANTOM, "start", "criteria quick met test", "--rounds", "1", "--interval", "1",
+         "--done-criteria", "anchor check used", "checkpoint used before completion",
+         "observed at least 1 heartbeat fire", "--force"])
+    state = read_state()
+    state["heartbeat_active"] = True
+    state["last_active"] = "2020-01-01 00:00:00"
+    state["anchor_checks_count"] = 2
+    state["checkpoint_calls_count"] = 1
+    state["heartbeat_fires"] = [{"fired_at": "2026-01-01 00:00:00", "signal": "ping",
+                                  "gap_seconds": 200, "idle_polls": 1, "turns": 1}]
+    with tempfile.TemporaryDirectory() as tmpws:
+        state["workspace_dir"] = tmpws
+        with open(STATE, "w") as f:
+            json.dump(state, f)
+        rc, out, err = run([RUNNER], timeout=10)
+    check("fire banner shows [x] for met criteria (anchor check)", "[x]" in out)
+
     cleanup()
 
 
