@@ -63,9 +63,15 @@ def _find_repo_dir() -> str:
 REPO_DIR         = _find_repo_dir()
 SAVED_STATE_FILE = os.path.join(_PROJECT_DIR, "logs", "last_session_state.json")
 _SAVED_REL       = os.path.relpath(SAVED_STATE_FILE, REPO_DIR)
+# All auto-generated files live under logs/ — filter the whole dir from scope analysis.
+_LOGS_DIR_REL    = os.path.relpath(os.path.join(_PROJECT_DIR, "logs"), REPO_DIR) + os.sep
 # Prefix used to normalize git diff paths (repo-relative) to project-relative.
 # e.g. "PROJECT_PHANTOM/" — stripped so coverage targets match without full prefix.
 _PROJECT_PREFIX  = os.path.relpath(_PROJECT_DIR, REPO_DIR) + os.sep
+
+def _is_auto_generated(fname: str) -> bool:
+    """True if fname is an auto-generated file that should be excluded from scope analysis."""
+    return fname == _SAVED_REL or fname.startswith(_LOGS_DIR_REL)
 
 STATE_FILE = os.environ.get("PHANTOM_STATE", "/tmp/phantom_session.json")
 TEMP_FILE  = STATE_FILE + ".tmp"
@@ -708,7 +714,7 @@ def cmd_scope(args):
         for line in lines:
             parts = line.split("|")
             fname = parts[0].strip()
-            if _SAVED_REL and fname == _SAVED_REL:
+            if _is_auto_generated(fname):
                 continue
             try:
                 changes = int(parts[1].strip().split()[0])
@@ -800,7 +806,7 @@ def cmd_check(args):
             for line in lines:
                 parts = line.split("|")
                 fname = parts[0].strip()
-                if fname == _SAVED_REL:
+                if _is_auto_generated(fname):
                     continue  # filter auto-save file same as drift_guard/scope
                 try:
                     scope_result["files"][fname] = int(parts[1].strip().split()[0])
@@ -1044,7 +1050,7 @@ def cmd_report(args):
                 for line in lines:
                     parts = line.split("|")
                     fname = parts[0].strip()
-                    if fname == _SAVED_REL:
+                    if _is_auto_generated(fname):
                         continue  # filter auto-save file (same as scope/check/checkpoint)
                     try:
                         totals[fname] = int(parts[1].strip().split()[0])
@@ -1065,15 +1071,29 @@ def cmd_report(args):
     if declared:
         print(f"\n  Declared scope: {', '.join(declared)}")
 
-    # Coverage summary
+    # Coverage summary with ✓/✗ per target
     cov_targets = state.get("coverage_targets") or []
     cov_display = cov_targets or declared
     if cov_display:
         source = "coverage_targets" if cov_targets else "scope_files"
         cov_line = _quick_coverage(state)
         print(f"\n  Coverage ({source}): {cov_line or '?'}")
-        for t in cov_display:
-            print(f"    {t}")
+        session_ref = state.get("session_start_ref")
+        diff_range = [session_ref, "HEAD"] if session_ref else ["HEAD~5", "HEAD"]
+        try:
+            r2 = subprocess.run(["git", "diff", "--name-only"] + diff_range,
+                                cwd=REPO_DIR, capture_output=True, text=True, timeout=10)
+            raw2 = set(r2.stdout.strip().splitlines())
+            changed = {(c[len(_PROJECT_PREFIX):] if c.startswith(_PROJECT_PREFIX) else c) for c in raw2}
+            def _hit(t):
+                t = t.rstrip("/")
+                return t in changed or any(c.startswith(t + "/") for c in changed)
+            for t in cov_display:
+                mark = "✓" if _hit(t) else "✗"
+                print(f"    {mark}  {t}")
+        except Exception:
+            for t in cov_display:
+                print(f"    {t}")
 
     # Pending drift warning (full text)
     dw = state.get("drift_warning")
@@ -1404,7 +1424,7 @@ def cmd_checkpoint(args):
                 for line in lines:
                     parts = line.split("|")
                     fname = parts[0].strip()
-                    if _SAVED_REL and fname == _SAVED_REL:
+                    if _is_auto_generated(fname):
                         continue
                     try:
                         totals[fname] = int(parts[1].strip().split()[0])

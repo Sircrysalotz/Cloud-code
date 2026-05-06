@@ -85,7 +85,7 @@ Do NOT call it:
 | `--scope-threshold` only settable per-run in drift_guard | `--scope-threshold` on `start` — stored in state, read by drift_guard + check |
 | Profile list fields not loaded from profile | scope_files, coverage_targets, tracked_extensions, scan_depth all profile-resolved |
 | Status/complete/report hide coverage status | All three commands show coverage summary when coverage_targets or scope_files set |
-| Test count varies between runs | Accepted: count is git-state-dependent (~498 as of v3.2) |
+| Test count varies between runs | Accepted: count is git-state-dependent (~500 as of v3.2) |
 | `agent-start` for drift-guard blocked heartbeat forever | Protocol fix: drift-guard uses `drift-arm`/`drift-done` only — never `agent-start` |
 | `agent-start` for heartbeat also blocks heartbeat | Protocol fix: heartbeat uses `heartbeat-arm` only — never `agent-start` |
 | No navigation aids after resume — Claude loses bearing | `phantom.py anchor show/check` — immovable Point A (origin) and Point B (goal) always visible |
@@ -111,6 +111,8 @@ Do NOT call it:
 | `status --brief` note hard-truncated mid-word | Truncates at 37 chars with `...` — clean word-boundary cut |
 | `report` scope section shows `last_session_state.json` at 100% (not filtered) | `report` now filters `_SAVED_REL` same as `scope`/`check`/`checkpoint` |
 | `report` ping log note hard-truncated mid-word | Truncates at 52 chars with `...` — consistent with brief mode |
+| `container_vitals.log` in scope analysis (10% inflation) — only `last_session_state.json` was filtered | `_is_auto_generated()` helper filters entire `logs/` dir from all scope paths (phantom.py + drift_guard.py) |
+| `report` coverage section lists targets without ✓/✗ — `check` shows them, `report` doesn't | `report` now runs git diff and shows ✓/✗ per target, consistent with `check` |
 
 ### Files
 

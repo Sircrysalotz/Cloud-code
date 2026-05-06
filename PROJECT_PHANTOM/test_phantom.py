@@ -2007,6 +2007,21 @@ def test_status_brief():
     pings_section = out.split("Recent pings")[1].split("\n\n")[0] if "Recent pings" in out else ""
     check("report ping log does not show all 60 chars in pings section", ("B" * 56) not in pings_section)
 
+    # report coverage section shows ✓/✗ per target
+    cleanup()
+    run([PHANTOM, "start", "report cov markers test", "--turns", "5",
+         "--coverage-targets", "agents/phantom.py", "agents/drift_guard.py"])
+    rc, out, err = run([PHANTOM, "report"])
+    check("report coverage shows ✗ for untouched target", "✗" in out)
+
+    # report coverage shows ✓ for touched target (phantom.py is changed this session)
+    # Use scope_files fallback when no coverage_targets — also shows ✓/✗
+    run([PHANTOM, "reset"])
+    run([PHANTOM, "start", "report cov scope test", "--turns", "5",
+         "--scope", "agents/phantom.py"])
+    rc, out, err = run([PHANTOM, "report"])
+    check("report coverage section present for scope_files", "Coverage" in out)
+
     cleanup()
 
 
