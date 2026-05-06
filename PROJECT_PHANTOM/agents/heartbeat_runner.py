@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Phantom Heartbeat Runner v5.
+Phantom Heartbeat Runner v6.
 
 Fires ONLY when ALL of these are true:
   1. gap since last activity >= idle_threshold
@@ -33,6 +33,11 @@ v5 additions:
   - scan_depth read from state — limits os.walk depth (default 5)
   - Watchdog events written to state (watchdog_events list, last 10)
     so stuck-cycle stalls are visible in report/status even after runner exits
+
+v6 additions:
+  - Anchor context in fire banner: shows anchor_b goal + done criteria
+    so re-orientation is automatic on every heartbeat fire
+  - RESUME line updated to include anchor check step
 """
 
 import json
@@ -239,7 +244,7 @@ def main():
     tracked_exts = set(raw_exts) if raw_exts else None  # None → use DEFAULT_TRACKED_EXTS
     scan_depth   = state.get("scan_depth", DEFAULT_SCAN_DEPTH)
 
-    print(f"Heartbeat v5 active")
+    print(f"Heartbeat v6 active")
     print(f"  Threshold: {idle_threshold}s | Cooldown: {cooldown_window:.0f}s ({cooldown_factor}x) | Poll: {check_interval}s | Rounds: {state.get('rounds_remaining')}")
     print(f"  Watchdog:  {watchdog_limit}s max per cycle | Min idle polls: {min_idle_polls}")
     if workspace:
@@ -381,12 +386,20 @@ def main():
         print(f"  Progress:  {state.get('progress_note', 'none')}")
         print(f"  Turns:     {state.get('turns_taken')}/{state.get('turns_target')}")
         print(f"  Rounds left: {state['rounds_remaining']}")
+        # Anchor re-orientation: show Point B goal + criteria on every fire
+        anchor_b = state.get("anchor_b") or {}
+        if anchor_b:
+            goal = anchor_b.get("goal", "")
+            if goal:
+                print(f"  ── Anchor B: {goal[:70]}{'...' if len(goal) > 70 else ''}")
+            for criterion in (anchor_b.get("done_criteria") or [])[:3]:
+                print(f"    [ ] {criterion}")
         if dg_active:
             print(f"  Drift Guard: ARMED (still running)")
         elif dw:
             print(f"  Drift Guard: idle  ⚠ WARNING PENDING — run drift-done")
         print("=" * 54)
-        print("RESUME: phantom.py ping [note] → phantom.py heartbeat-arm → spawn next round.")
+        print("RESUME: phantom.py ping [note] → phantom.py anchor check → phantom.py heartbeat-arm")
         return
 
 

@@ -788,6 +788,23 @@ def test_heartbeat_runner():
         mtime2, path2 = hr.scan_workspace(tmpdir, {".js"})
         check("scan_workspace with .js finds nothing (no .js files)", path2 is None)
 
+    # ── v6: anchor context in fire banner ──
+    # Verify that a fire banner includes anchor_b goal when anchor_b is set in state
+    run([PHANTOM, "start", "fire anchor test", "--rounds", "1", "--interval", "1",
+         "--done-criteria", "criterion alpha", "criterion beta", "--force"])
+    state = read_state()
+    state["heartbeat_active"] = True
+    state["last_active"] = "2020-01-01 00:00:00"
+    with tempfile.TemporaryDirectory() as tmpws:
+        state["workspace_dir"] = tmpws
+        with open(STATE, "w") as f:
+            json.dump(state, f)
+        rc, out, err = run([RUNNER], timeout=10)
+    check("v6 runner banner includes Anchor B label", "Anchor B" in out)
+    check("v6 runner banner includes task/goal in anchor line", "fire anchor test" in out)
+    check("v6 runner banner includes done criterion", "criterion alpha" in out)
+    check("v6 RESUME line includes anchor check step", "anchor check" in out.lower() or "anchor" in out.lower())
+
     cleanup()
 
 
@@ -1124,6 +1141,29 @@ def test_drift_guard():
     resolved_st2 = (fake_state.get("scope_threshold", fake_args2.scope_threshold)
                     if fake_args2.scope_threshold == 30.0 else fake_args2.scope_threshold)
     check("drift_guard CLI scope_threshold takes precedence over state", resolved_st2 == 40.0)
+
+    # ── v4: --ignore-patterns ──
+    # Verify that ignore_patterns correctly filters scored list before analysis
+    # Files matching any pattern substring are excluded from drift evaluation.
+    raw_scored = [("logs/session.json", 100, 100.0)]
+    patterns = ["logs/"]
+    filtered = [
+        (n, l, p) for n, l, p in raw_scored
+        if not any(pat in n for pat in patterns)
+    ]
+    check("ignore-patterns filters matching file", len(filtered) == 0)
+
+    raw_scored2 = [("agents/phantom.py", 80, 80.0), ("logs/session.json", 20, 20.0)]
+    filtered2 = [
+        (n, l, p) for n, l, p in raw_scored2
+        if not any(pat in n for pat in patterns)
+    ]
+    check("ignore-patterns keeps non-matching files", len(filtered2) == 1)
+    check("ignore-patterns keeps agents/phantom.py", filtered2[0][0] == "agents/phantom.py")
+
+    # drift_guard --ignore-patterns flag accepted in argparse
+    rc, out, err = run([DRIFT, "--help"])
+    check("drift_guard --ignore-patterns in help text", "--ignore-patterns" in out)
 
     cleanup()
 

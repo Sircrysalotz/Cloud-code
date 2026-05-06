@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Phantom Drift Guard v3 — smarter horizontal drift detection.
+Phantom Drift Guard v4 — smarter horizontal drift detection.
 
 Four-gate evaluation replaces the naive file-percentage threshold:
 
@@ -30,6 +30,13 @@ Options:
   --min-lines N       Min changed lines before checking (default: 20)
   --trend-checks N    Checks needed to detect a trend (default: 3)
   --hunk-spread N     Hunk spread ratio below which file is "vertical" (default: 0.3)
+  --ignore-patterns P1 P2 ...
+                      Glob-style substrings to exclude from analysis (e.g. logs/ .json)
+                      Useful for suppressing known false positives like auto-save files.
+
+v4 additions:
+  - --ignore-patterns: filter files matching any pattern substring before analysis
+    (solves auto-save last_session_state.json false-positive SCOPE_CREEP)
 """
 
 import argparse
@@ -393,6 +400,8 @@ def parse_args():
                    help="%% of changes outside declared scope that triggers SCOPE_CREEP (default 30)")
     p.add_argument("--hunk-count-min",  type=int,   default=4,
                    help="Min hunks required before spread analysis exempts a file (default 4)")
+    p.add_argument("--ignore-patterns", nargs="+", default=None,
+                   help="Substring patterns to exclude from drift analysis (e.g. logs/ .json)")
     return p.parse_args()
 
 
@@ -418,8 +427,9 @@ def main():
         clear_active_flag()
         sys.exit(1)
 
-    task         = state.get("task", "")
-    scope_files  = args.scope or state.get("scope_files") or []
+    task           = state.get("task", "")
+    scope_files    = args.scope or state.get("scope_files") or []
+    ignore_patterns = args.ignore_patterns or []
     # Prefer session_start_ref (stored at session start) — only checks this session's changes
     since        = args.since or state.get("session_start_ref") or find_since(workspace)
     # Use session state scope_threshold when CLI scope-threshold is at default
@@ -429,7 +439,7 @@ def main():
     tracker      = TrendTracker(window=args.trend_checks)
     checks       = 0
 
-    print("Drift Guard v3 active")
+    print("Drift Guard v4 active")
     print(f"  Workspace:  {workspace}")
     since_src = "cli" if args.since else ("session_start_ref" if state.get("session_start_ref") else "auto")
     print(f"  Threshold:  {args.threshold:.0f}% | Poll: {args.interval}s | Since: {since} ({since_src})")
@@ -439,6 +449,8 @@ def main():
         print(f"  Scope:      {', '.join(scope_files)}")
     else:
         print(f"  Scope:      auto (task alignment + hunk analysis)")
+    if ignore_patterns:
+        print(f"  Ignore:     {', '.join(ignore_patterns)}")
     print(f"  Task:       {task[:70]}{'...' if len(task) > 70 else ''}")
 
     while True:
@@ -462,6 +474,18 @@ def main():
 
         # Gather data
         _files, scored = get_file_scores(workspace, since)
+        # Apply ignore patterns — filter out known false-positive paths
+        if ignore_patterns:
+            scored = [
+                (n, l, p) for n, l, p in scored
+                if not any(pat in n for pat in ignore_patterns)
+            ]
+            # Recalculate percentages after filtering
+            new_total = sum(l for _, l, _ in scored)
+            if new_total > 0:
+                scored = [(n, l, 100.0 * l / new_total) for n, l, _ in scored]
+                scored.sort(key=lambda x: -x[2])
+
         total = sum(l for _, l, _ in scored)
 
         if not scored or total < args.min_lines:
