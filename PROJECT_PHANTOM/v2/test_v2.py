@@ -677,6 +677,12 @@ def test_heartbeat_runner():
     rc, out, err = run([PHANTOM, "scope", "--threshold", "99"])
     check("scope --threshold accepted", rc == 0)
 
+    # scope reads scope_threshold from state when CLI at default
+    run([PHANTOM, "start", "scope_thresh test", "--scope-threshold", "1", "--force"])
+    rc, out, err = run([PHANTOM, "scope"])
+    check("scope uses scope_threshold from state (should show CONCENTRATED at 1%)",
+          "CONCENTRATED" in out or "WARNING" in out or "No file changes" in out)
+
     # ── v5: tracked_extensions stored on start ──
     run([PHANTOM, "start", "ext test", "--tracked-exts", ".py", ".ts", "--force"])
     state = read_state()
@@ -858,8 +864,8 @@ def test_drift_guard():
     raw, scored = dg.get_file_scores(git_workspace, since)
     check("get_file_scores returns scored list", isinstance(scored, list))
     check("scored list has tuples of 3", all(len(x) == 3 for x in scored[:3]))
-    if scored:
-        check("scored pct sums to ~100", abs(sum(p for _, _, p in scored) - 100.0) < 1.0)
+    check("scored pct sums to ~100",
+          bool(scored) and abs(sum(p for _, _, p in scored) - 100.0) < 1.0)
 
     # count_hunks returns per-file hunk analysis
     hunks = dg.count_hunks(git_workspace, since)

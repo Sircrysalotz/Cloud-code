@@ -198,6 +198,9 @@ def cmd_start(args):
         print(f"  ScanDepth: {args.scan_depth}")
     if getattr(args, "coverage_targets", None):
         print(f"  Coverage:  {' '.join(args.coverage_targets)}")
+    st = state.get("scope_threshold", 50.0)
+    if st != 50.0:
+        print(f"  ScopeThreshold: {st:.0f}%")
 
 
 def _quick_coverage(state: dict) -> str | None:
@@ -517,7 +520,10 @@ def cmd_scope(args):
             except (IndexError, ValueError):
                 pass
         grand_total = sum(totals.values()) or 1
-        threshold = getattr(args, "threshold", 50)
+        # Use session scope_threshold when CLI threshold is at default and session active
+        cli_threshold = getattr(args, "threshold", 50.0)
+        threshold = (state.get("scope_threshold", cli_threshold)
+                     if state and cli_threshold == 50.0 else cli_threshold)
         print("=" * 50)
         print(f"  SCOPE CHECK ({label})")
         print("=" * 50)
