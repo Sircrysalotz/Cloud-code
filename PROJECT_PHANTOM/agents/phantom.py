@@ -238,6 +238,16 @@ def cmd_start(args):
         "next_heartbeat_at":  None,
         "completed":          None,
         "saved_at":           None,
+        # Anchor-based navigation — Point A (origin) and Point B (destination)
+        "anchor_a": {
+            "ref":       session_start_ref,
+            "timestamp": now_str(),
+        },
+        "anchor_b": {
+            "goal":          args.task,
+            "done_criteria": getattr(args, "done_criteria", None) or [],
+            "set_at":        now_str(),
+        },
     }
     atomic_write(state)
     print(f"Session started.")
@@ -1102,6 +1112,190 @@ def cmd_drift_status(args):
         print("No drift warnings.")
 
 
+# --- Anchor system ---
+
+def cmd_anchor(args):
+    """Anchor-based navigation: Point A (origin) never changes, Point B (goal) is the target."""
+    sub   = args.anchor_cmd
+    state = require_state()
+    sep   = "=" * 56
+
+    if sub == "show":
+        a = state.get("anchor_a", {})
+        b = state.get("anchor_b", {})
+        print(sep)
+        print("  ANCHORS")
+        print(sep)
+        print(f"  Point A (origin):")
+        ref = a.get("ref", "")
+        print(f"    Ref:       {ref[:16] if ref else '?'}")
+        print(f"    Timestamp: {a.get('timestamp', '?')}")
+        print(f"  Point B (destination):")
+        print(f"    Goal:      {b.get('goal', '?')}")
+        criteria = b.get("done_criteria") or []
+        if criteria:
+            print(f"    Done when:")
+            for c in criteria:
+                print(f"      [ ] {c}")
+        else:
+            print(f"    Done when: (not set — use 'anchor set-goal --criteria ...' to define)")
+        print(f"    Set at:    {b.get('set_at', '?')}")
+        print(f"  Current position:")
+        print(f"    Turns:    {state.get('turns_taken', 0)}/{state.get('turns_target', '?')}")
+        cov = _quick_coverage(state)
+        print(f"    Coverage: {cov or '(none)'}")
+        print(f"    Note:     {state.get('progress_note', '—')}")
+        print(sep)
+
+    elif sub == "check":
+        a = state.get("anchor_a", {})
+        b = state.get("anchor_b", {})
+        print(sep)
+        print("  ANCHOR REORIENTATION CHECK")
+        print(sep)
+        ref = a.get("ref", "")
+        print(f"  ORIGIN  (A): {a.get('timestamp', '?')}")
+        print(f"               ref {ref[:16] if ref else '?'}")
+        print()
+        print(f"  GOAL    (B): {b.get('goal', '?')}")
+        criteria = b.get("done_criteria") or []
+        if criteria:
+            print(f"  Done criteria:")
+            for c in criteria:
+                print(f"    [ ] {c}")
+        print()
+        print(f"  CURRENT:")
+        print(f"    Turn:     {state.get('turns_taken', 0)}/{state.get('turns_target', '?')}")
+        print(f"    Elapsed:  {elapsed(state.get('started', now_str()))}")
+        cov = _quick_coverage(state)
+        if cov:
+            print(f"    Coverage: {cov}")
+        dw = state.get("drift_warning")
+        print(f"    Drift:    {'⚠ WARNING PENDING' if dw else 'clean'}")
+        print(f"    Note:     {state.get('progress_note', '—')}")
+        print()
+        print(f"  Verify: does current note/coverage still point toward Point B?")
+        print(sep)
+
+    elif sub == "set-goal":
+        b = state.get("anchor_b", {})
+        new_goal     = getattr(args, "goal", None)
+        new_criteria = getattr(args, "criteria", None) or []
+        if new_goal:
+            b["goal"] = new_goal
+        if new_criteria:
+            b["done_criteria"] = new_criteria
+        b["set_at"] = now_str()
+        state["anchor_b"] = b
+        atomic_write(state)
+        print(f"Anchor B updated.")
+        print(f"  Goal:     {b.get('goal', '?')}")
+        if b.get("done_criteria"):
+            print(f"  Criteria: {'; '.join(b['done_criteria'])}")
+
+
+# --- Checkpoint system ---
+
+def cmd_checkpoint(args):
+    """Run non-negotiable gate checks. Exits 1 if any gate fails."""
+    state         = require_state()
+    gate_mode     = getattr(args, "gate", False)
+    require_full  = getattr(args, "require_full_coverage", False)
+    failures: list[str] = []
+    warnings: list[str] = []
+
+    # Gate 1 — ping freshness (last ping within 75% of idle threshold)
+    last_active = state.get("last_active", "")
+    threshold   = state.get("idle_threshold_seconds", 180)
+    if last_active:
+        try:
+            age = (datetime.now() - datetime.strptime(last_active, "%Y-%m-%d %H:%M:%S")).total_seconds()
+            limit = threshold * 0.75
+            if age > limit:
+                failures.append(
+                    f"Stale ping: {age:.0f}s since last ping (limit {limit:.0f}s) — ping before proceeding"
+                )
+        except Exception:
+            pass
+
+    # Gate 2 — no unresolved drift warning
+    dw = state.get("drift_warning")
+    if dw:
+        failures.append("Unresolved drift warning — run 'drift-done', spread changes, then re-arm")
+
+    # Gate 3 — scope concentration (hard failure in --gate mode, warning otherwise)
+    scope_threshold = state.get("scope_threshold", 50.0)
+    session_ref     = state.get("session_start_ref")
+    if session_ref:
+        try:
+            r = subprocess.run(
+                ["git", "diff", "--stat", session_ref, "HEAD"],
+                cwd=REPO_DIR, capture_output=True, text=True, timeout=10
+            )
+            lines = [l for l in r.stdout.splitlines() if "|" in l]
+            if lines:
+                totals: dict[str, int] = {}
+                for line in lines:
+                    parts = line.split("|")
+                    fname = parts[0].strip()
+                    try:
+                        totals[fname] = int(parts[1].strip().split()[0])
+                    except (IndexError, ValueError):
+                        pass
+                grand   = sum(totals.values()) or 1
+                max_pct = max(totals.values()) / grand * 100
+                top_f   = max(totals, key=totals.get)
+                if max_pct > scope_threshold:
+                    msg = (f"Scope drift: '{top_f}' has {max_pct:.0f}% of changes "
+                           f"(threshold {scope_threshold:.0f}%)")
+                    (failures if gate_mode else warnings).append(msg)
+        except Exception as exc:
+            warnings.append(f"Scope check error: {exc}")
+
+    # Gate 4 — coverage (blocks only when --require-full-coverage or zero coverage with targets)
+    targets = state.get("coverage_targets") or []
+    if targets:
+        cov = _quick_coverage(state)
+        if cov:
+            done_count = int(cov.split("/")[0])
+            if done_count == 0:
+                failures.append(f"Coverage zero: none of {len(targets)} target(s) touched yet")
+            elif require_full and done_count < len(targets):
+                failures.append(
+                    f"Coverage incomplete: {cov} — touch all targets before completing"
+                )
+
+    # Print results
+    sep = "=" * 54
+    print(sep)
+    print("  CHECKPOINT")
+    print(sep)
+    print(f"  Task:  {state.get('task', '?')[:60]}")
+    print(f"  Turns: {state.get('turns_taken', 0)}/{state.get('turns_target', '?')}")
+    print()
+
+    all_ok = not failures
+    if failures:
+        print(f"  BLOCKED ({len(failures)} gate(s) failed):")
+        for f in failures:
+            print(f"    ✗ {f}")
+    if warnings:
+        print(f"  Warnings ({len(warnings)}):")
+        for w in warnings:
+            print(f"    ⚠ {w}")
+    if all_ok and not warnings:
+        print(f"  ✓ All gates passed — good to continue.")
+    elif all_ok:
+        print(f"  ✓ Gates passed (warnings noted above).")
+    else:
+        print()
+        print(f"  Fix the failures above before proceeding.")
+    print(sep)
+
+    if not all_ok:
+        sys.exit(1)
+
+
 # --- Profile system ---
 
 PROFILE_KEYS = {
@@ -1303,6 +1497,8 @@ p.add_argument("--scan-depth",      type=int, default=None, dest="scan_depth",
                help="Max directory depth for workspace file scan (default 5)")
 p.add_argument("--auto-save-every", type=int, default=None, dest="auto_save_every",
                help="Ping interval between git auto-saves (default 5)")
+p.add_argument("--done-criteria", nargs="+", default=None, dest="done_criteria",
+               help="Completion criteria for anchor Point B (e.g. 'all tests pass' 'coverage 4/4')")
 p.add_argument("--force",            action="store_true",     help="Overwrite existing session")
 
 p = sub.add_parser("config", help="Manage session profiles")
@@ -1364,6 +1560,17 @@ sub.add_parser("drift-done",    help="Read drift guard findings after sub-agent 
 sub.add_parser("drift-status",  help="Show drift guard state and last warning")
 sub.add_parser("env",           help="Show resolved paths and environment check")
 
+p = sub.add_parser("anchor", help="Anchor-based navigation: show origin/goal, re-orient, set criteria")
+p.add_argument("anchor_cmd", choices=["show", "check", "set-goal"])
+p.add_argument("goal", nargs="?", default=None, help="New goal text (for set-goal)")
+p.add_argument("--criteria", nargs="+", default=None, help="Done criteria list (for set-goal)")
+
+p = sub.add_parser("checkpoint", help="Run non-negotiable gate checks before continuing")
+p.add_argument("--gate", action="store_true",
+               help="Make scope drift a hard failure (not just a warning)")
+p.add_argument("--require-full-coverage", action="store_true", dest="require_full_coverage",
+               help="Require 100%% coverage to pass")
+
 args = parser.parse_args()
 {
     "start":         cmd_start,
@@ -1386,4 +1593,6 @@ args = parser.parse_args()
     "drift-done":    cmd_drift_done,
     "drift-status":  cmd_drift_status,
     "env":           cmd_env,
+    "anchor":        cmd_anchor,
+    "checkpoint":    cmd_checkpoint,
 }[args.cmd](args)

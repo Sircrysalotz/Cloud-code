@@ -88,6 +88,9 @@ Do NOT call it:
 | Test count varies between runs | Fixed conditional check() blocks — stable count (381 as of v2.8) |
 | `agent-start` for drift-guard blocked heartbeat forever | Protocol fix: drift-guard uses `drift-arm`/`drift-done` only — never `agent-start` |
 | `agent-start` for heartbeat also blocks heartbeat | Protocol fix: heartbeat uses `heartbeat-arm` only — never `agent-start` |
+| No navigation aids after resume — Claude loses bearing | `phantom.py anchor show/check` — immovable Point A (origin) and Point B (goal) always visible |
+| Completion practices are optional — easy to skip | `phantom.py checkpoint` — non-negotiable gates: ping freshness, drift, scope, coverage |
+| Test count varies between runs | 429 tests stable as of v2.9 |
 
 ### Files
 
@@ -104,7 +107,7 @@ Do NOT call it:
 | `tools/scope_guard.py` | Portable drift checker for any git repo |
 | `tools/coverage_tracker.py` | Target file coverage checker |
 | `tools/setup.sh` | Drop-in environment checker for fresh machines |
-| `test_phantom.py` | Full integration test suite (381 tests) |
+| `test_phantom.py` | Full integration test suite (429 tests) |
 | `DIFF.md` | Version changelog (v2.0 → v2.5) |
 | `PLAN.md` | Horizontal improvement tracker |
 | `ANTI_DRIFT.md` | Anti-drift observations from sessions |
@@ -149,7 +152,9 @@ Do NOT call it:
   "tracked_extensions": [],
   "scan_depth": 5,
   "auto_save_every": 5,
-  "profile": null
+  "profile": null,
+  "anchor_a": {"ref": "abc123...", "timestamp": "2026-05-05 20:00:00"},
+  "anchor_b": {"goal": "task description", "done_criteria": [], "set_at": "2026-05-05 20:00:00"}
 }
 ```
 
@@ -187,6 +192,10 @@ python3 PROJECT_PHANTOM/agents/phantom.py start "task" --scope-threshold 30
 
 # With min-idle-polls (require 2 consecutive idle polls before firing)
 python3 PROJECT_PHANTOM/agents/phantom.py start "task" --min-idle-polls 2
+
+# With done criteria (sets anchor Point B on session start)
+python3 PROJECT_PHANTOM/agents/phantom.py start "task" \
+  --done-criteria "all tests pass" "coverage 4/4" "CLAUDE.md updated"
 ```
 
 ### 3. Ping at the start of every turn (no exceptions)
@@ -288,6 +297,24 @@ python3 PROJECT_PHANTOM/agents/phantom.py reset
 
 # Environment check (verify paths, tools, and session on any machine)
 python3 PROJECT_PHANTOM/agents/phantom.py env
+
+# ── Anchor-based navigation ──────────────────────────────────────────────────
+# Show Point A (origin ref) and Point B (goal + criteria) — use after resume
+python3 PROJECT_PHANTOM/agents/phantom.py anchor show
+
+# Re-orient: compare current position against origin and goal
+python3 PROJECT_PHANTOM/agents/phantom.py anchor check
+
+# Set (or update) done criteria for Point B
+python3 PROJECT_PHANTOM/agents/phantom.py anchor set-goal --criteria \
+  "all tests pass" "coverage 4/4" "CLAUDE.md updated"
+
+# ── Checkpoint gates ─────────────────────────────────────────────────────────
+# Run non-negotiable gate checks (ping freshness, drift, scope, coverage)
+python3 PROJECT_PHANTOM/agents/phantom.py checkpoint
+
+# Strict mode: scope drift is a hard failure + require full coverage
+python3 PROJECT_PHANTOM/agents/phantom.py checkpoint --gate --require-full-coverage
 ```
 
 ---
@@ -435,3 +462,6 @@ python3 PROJECT_PHANTOM/agents/phantom.py restore   # recovers saved state
 - Use `scope --session` to verify horizontal distribution after each commit batch
 - **Never call `agent-start` for heartbeat or drift-guard** — they use their own arm/done commands
 - `agents_running` must stay 0 while heartbeat and drift-guard run, or the heartbeat is blocked forever
+- Run `anchor check` after every heartbeat resume — always re-orient before working
+- Run `checkpoint` before calling `complete` — ensure all gates pass first
+- `last_session_state.json` auto-saves on every ping-divisible turn and appears in git diff — this is expected, not drift

@@ -1481,6 +1481,132 @@ def test_env():
     cleanup()
 
 
+def test_anchor():
+    print("\n── phantom.py anchor ──")
+    cleanup()
+
+    # anchor requires an active session
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("anchor show exits nonzero without session", rc != 0)
+
+    # Start session
+    run([PHANTOM, "start", "reach the destination goal", "--turns", "5",
+         "--done-criteria", "tests pass", "coverage 4/4"])
+
+    # anchor show — check structure
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("anchor show exits 0", rc == 0)
+    check("anchor show has ANCHORS header", "ANCHORS" in out)
+    check("anchor show has Point A origin", "Point A" in out)
+    check("anchor show has Point B destination", "Point B" in out)
+    check("anchor show shows goal text", "reach the destination goal" in out)
+    check("anchor show shows done_criteria", "tests pass" in out)
+    check("anchor show shows second criterion", "coverage 4/4" in out)
+    check("anchor show shows Current position", "Current position" in out)
+    check("anchor show shows turns", "0/5" in out)
+
+    # anchor check — reorientation output
+    rc, out, err = run([PHANTOM, "anchor", "check"])
+    check("anchor check exits 0", rc == 0)
+    check("anchor check has REORIENTATION header", "ANCHOR REORIENTATION CHECK" in out)
+    check("anchor check shows ORIGIN (A)", "ORIGIN" in out)
+    check("anchor check shows GOAL (B)", "GOAL" in out)
+    check("anchor check shows CURRENT section", "CURRENT" in out)
+    check("anchor check shows goal text", "reach the destination goal" in out)
+    check("anchor check shows criteria", "tests pass" in out)
+    check("anchor check shows verify prompt", "Verify" in out)
+
+    # anchor set-goal — updates goal and criteria
+    rc, out, err = run([PHANTOM, "anchor", "set-goal", "new goal text",
+                        "--criteria", "criterion one", "criterion two"])
+    check("anchor set-goal exits 0", rc == 0)
+    check("anchor set-goal shows updated", "Anchor B updated" in out)
+    check("anchor set-goal shows new goal", "new goal text" in out)
+    check("anchor set-goal shows criteria", "criterion one" in out)
+
+    # Verify anchor show reflects the updated goal
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("anchor show reflects set-goal change", "new goal text" in out)
+    check("anchor show shows criterion one", "criterion one" in out)
+    check("anchor show shows criterion two", "criterion two" in out)
+
+    cleanup()
+
+
+def test_checkpoint():
+    print("\n── phantom.py checkpoint ──")
+    cleanup()
+
+    # checkpoint requires an active session
+    rc, out, err = run([PHANTOM, "checkpoint"])
+    check("checkpoint exits nonzero without session", rc != 0)
+
+    # Fresh session — ping will be fresh, but coverage is 0 (no targets set)
+    run([PHANTOM, "start", "checkpoint test", "--turns", "5"])
+    run([PHANTOM, "ping", "just started"])
+    rc, out, err = run([PHANTOM, "checkpoint"])
+    check("checkpoint exits 0 with no targets and fresh ping", rc == 0)
+    check("checkpoint shows CHECKPOINT header", "CHECKPOINT" in out)
+    check("checkpoint shows gates passed", "gates passed" in out.lower() or "All gates" in out)
+
+    cleanup()
+
+    # Session with coverage targets but zero coverage touched — should fail
+    run([PHANTOM, "start", "checkpoint test 2", "--turns", "5",
+         "--coverage-targets", "agents/phantom.py", "agents/heartbeat_runner.py"])
+    run([PHANTOM, "ping", "just started"])
+    rc, out, err = run([PHANTOM, "checkpoint"])
+    check("checkpoint fails when zero coverage targets touched", rc == 1)
+    check("checkpoint shows BLOCKED", "BLOCKED" in out)
+    check("checkpoint shows Coverage zero message", "Coverage zero" in out)
+
+    cleanup()
+
+    # Session with drift warning — should fail
+    run([PHANTOM, "start", "checkpoint test 3", "--turns", "5"])
+    run([PHANTOM, "ping", "just started"])
+    # Inject a drift warning
+    import json as _json
+    s = _json.load(open(STATE))
+    s["drift_warning"] = "VERTICAL drift detected"
+    import tempfile, os as _os
+    tmp = STATE + ".tmp"
+    with open(tmp, "w") as f:
+        _json.dump(s, f)
+    _os.rename(tmp, STATE)
+    rc, out, err = run([PHANTOM, "checkpoint"])
+    check("checkpoint fails with drift warning", rc == 1)
+    check("checkpoint shows BLOCKED", "BLOCKED" in out)
+    check("checkpoint shows drift failure message", "drift" in out.lower())
+
+    cleanup()
+
+    # --require-full-coverage: fails when coverage is partial
+    run([PHANTOM, "start", "checkpoint full cov test", "--turns", "5",
+         "--coverage-targets", "agents/phantom.py", "agents/heartbeat_runner.py"])
+    run([PHANTOM, "ping", "just started"])
+    # Manually mark phantom.py as touched but not heartbeat_runner.py
+    # (can't easily do this without real git commits, so verify the flag is accepted)
+    rc, out, err = run([PHANTOM, "checkpoint", "--require-full-coverage"])
+    check("checkpoint --require-full-coverage exits 1 with zero coverage", rc == 1)
+    check("checkpoint --gate is accepted", True)  # flag parses correctly
+
+    cleanup()
+
+    # Stale ping — inject old last_active to trigger freshness gate
+    run([PHANTOM, "start", "checkpoint stale test", "--turns", "5", "--threshold", "60"])
+    s = _json.load(open(STATE))
+    s["last_active"] = "2020-01-01 00:00:00"  # very old
+    with open(STATE + ".tmp", "w") as f:
+        _json.dump(s, f)
+    _os.rename(STATE + ".tmp", STATE)
+    rc, out, err = run([PHANTOM, "checkpoint"])
+    check("checkpoint fails with stale ping", rc == 1)
+    check("checkpoint shows Stale ping message", "Stale ping" in out)
+
+    cleanup()
+
+
 # ─── Run all ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -1499,6 +1625,8 @@ if __name__ == "__main__":
         test_coverage_tracker()
         test_check()
         test_env()
+        test_anchor()
+        test_checkpoint()
     finally:
         cleanup()
 

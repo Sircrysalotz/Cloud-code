@@ -115,6 +115,88 @@ as a string literal — not a variable, so grep for `/home/user/` missed it.
 
 ---
 
+### 6. Auto-save creates false-positive SCOPE_CREEP
+**What happened:** `last_session_state.json` is committed to git on every auto-save
+(every 5 pings by default). The drift guard sees it appearing in `git diff --stat`
+since `session_start_ref`, and if no code files have been committed yet, it dominates
+at 100% — triggering SCOPE_CREEP on the first fire.
+
+**Fix:** Understood as expected behavior. The drift guard is correct — the file is
+outside the declared scope. Re-arm after acknowledging. Rule added to `CLAUDE.md`:
+"last_session_state.json auto-saves on every ping-divisible turn and appears in git
+diff — this is expected, not drift."
+
+**Possible future fix:** Drift guard could have a configurable `--ignore-patterns` list
+to exclude known false-positive paths like `*/logs/*.json`.
+
+**Lesson:** State machinery files (logs, saves) that get committed create structural
+false positives for scope checking. Document them or filter them.
+
+---
+
+## Anti-Drift Agents: Proposed → Built
+
+### ✅ Scope Guard — `tools/scope_guard.py`
+Built. Reads git diff stats, warns if any file exceeds a % threshold.
+Session-anchored via `--session` (uses `session_start_ref` from phantom state).
+Threshold configurable via `--scope-threshold` at `phantom.py start`.
+
+```
+phantom.py scope --session          # session-only view
+phantom.py scope --threshold 30     # stricter threshold
+```
+
+### ✅ Coverage Tracker — `tools/coverage_tracker.py` + `phantom.py check`
+Built in two forms:
+1. `tools/coverage_tracker.py` — standalone per-file coverage checker
+2. `phantom.py check` — unified scope + coverage in one command, session-anchored
+
+Targets stored in session state via `--coverage-targets` at start.
+`phantom.py status` and `phantom.py report` show live coverage count.
+
+```
+phantom.py check                    # scope + coverage vs session_start_ref
+phantom.py status                   # shows "Coverage: N/M (X%)" inline
+```
+
+### ✅ Drift Guard — `agents/drift_guard.py`
+Built as background sub-agent (not periodic — runs for the whole session).
+Four-gate evaluation: scope match → task alignment → hunk spread → trend.
+Writes verdict + warning to session state. `phantom.py drift-done` to review.
+
+### ✅ Anchor System — `phantom.py anchor`
+Built. Immovable Point A (session origin ref + timestamp) and Point B (goal + done criteria).
+Run `anchor check` after every resume to re-orient before working.
+
+```
+phantom.py anchor show              # display both anchors + current position
+phantom.py anchor check             # reorientation panel: origin → goal → current
+phantom.py anchor set-goal --criteria "criterion 1" "criterion 2"
+```
+
+### ✅ Checkpoint System — `phantom.py checkpoint`
+Built. Non-negotiable gates run before moving on or completing.
+Gates: ping freshness, unresolved drift, scope concentration, coverage zero.
+
+```
+phantom.py checkpoint               # soft mode: scope drift is a warning
+phantom.py checkpoint --gate        # strict mode: scope drift is a hard failure
+phantom.py checkpoint --require-full-coverage
+```
+
+### ⬜ Goal Alignment Checker — not built
+Would compare `state.task` to `progress_note` on each heartbeat fire.
+Current proxy: `phantom.py report` shows task + last 5 progress notes side by side.
+
+### ⬜ Progress Note Auditor — not built
+Would score note specificity. Currently enforced by protocol only:
+ping notes should list specific changes, not vague summaries.
+
+### ⬜ Drift Guard `--ignore-patterns` — not built
+Would suppress false positives from known-committing files (auto-save log, etc.)
+
+---
+
 ## What the Full System Looks Like Now
 
 ```
@@ -125,11 +207,16 @@ Main Claude session
 ├── tools/scope_guard.py  — portable git diff scope checker
 └── tools/coverage_tracker.py  — target file coverage checker
 
-phantom.py check    — unified scope + coverage in one command
-phantom.py status   — live view: heartbeat ETA, coverage count, drift state
-phantom.py report   — full session overview with all of the above
+phantom.py check      — unified scope + coverage in one command
+phantom.py status     — live view: heartbeat ETA, coverage count, drift state
+phantom.py report     — full session overview with all of the above
+phantom.py anchor     — immovable origin + goal navigation anchors
+phantom.py checkpoint — non-negotiable gate checks before proceeding
 ```
 
 The heartbeat gives continuity. The drift guard gives horizontal discipline.
-The coverage check gives target accountability. Together they approximate
-having a human looking over your shoulder — but made of agents.
+The coverage check gives target accountability. The anchor system gives
+re-orientation after every context break. The checkpoint system enforces
+that known-good practices are always followed — not optional.
+
+Together they approximate having a human looking over your shoulder — but made of agents.
