@@ -1,9 +1,9 @@
 {
-  "task": "Make PHANTOM fully portable \u2014 self-locating paths, no hardcodes, drop-in on any machine",
-  "last_active": "2026-05-06 02:16:51",
-  "turns_taken": 5,
-  "turns_target": 25,
-  "rounds_remaining": 8,
+  "task": "save test",
+  "last_active": "2026-05-06 02:18:56",
+  "turns_taken": 1,
+  "turns_target": 5,
+  "rounds_remaining": 5,
   "idle_threshold_seconds": 180,
   "check_interval_seconds": 30,
   "cooldown_factor": 1.0,
@@ -11,59 +11,25 @@
   "rounds_used": 0,
   "agents_running": 0,
   "active_agent_ids": [],
-  "heartbeat_active": true,
+  "heartbeat_active": false,
   "last_heartbeat_fired": null,
-  "progress_note": "heartbeat recovered and re-armed; looking for next improvement target",
-  "started": "2026-05-06 02:05:46",
+  "progress_note": "saved progress",
+  "started": "2026-05-06 02:18:56",
   "status": "active",
   "workspace_dir": "/home/user/Cloud-code",
   "profile": null,
-  "scope_files": [
-    "agents/phantom.py",
-    "agents/heartbeat_runner.py",
-    "agents/drift_guard.py",
-    "agents/HEARTBEAT.md",
-    "agents/DRIFT_GUARD.md",
-    "test_phantom.py",
-    "CLAUDE.md"
-  ],
-  "coverage_targets": [
-    "agents/phantom.py",
-    "agents/heartbeat_runner.py",
-    "agents/drift_guard.py",
-    "test_phantom.py"
-  ],
-  "scope_threshold": 30.0,
-  "session_start_ref": "3eede189c805b4cb8a41ee1faadeb4af6d0ea591",
+  "scope_files": [],
+  "coverage_targets": [],
+  "scope_threshold": 50.0,
+  "session_start_ref": "65c41df70ab851a5f5c6000796ebcf03ac63f331",
   "tracked_extensions": [],
   "scan_depth": 5,
-  "drift_guard_active": false,
-  "drift_warning": null,
   "ping_log": [
     {
       "turn": 1,
-      "note": "turn 1 \u2014 auditing all hardcoded paths before writing any fixes",
-      "at": "2026-05-06 02:06:07"
-    },
-    {
-      "turn": 2,
-      "note": "turn 2 \u2014 phantom.py + container_logger paths fixed; working on .md files now",
-      "at": "2026-05-06 02:08:24"
-    },
-    {
-      "turn": 4,
-      "note": "portability big run complete \u2014 all hardcoded paths removed, 352/352 tests passing, committed and pushed",
-      "at": "2026-05-06 02:15:34"
-    },
-    {
-      "turn": 5,
-      "note": "heartbeat recovered and re-armed; looking for next improvement target",
-      "at": "2026-05-06 02:16:51"
+      "note": "saved progress",
+      "at": "2026-05-06 02:18:56"
     }
   ],
-  "last_activity_source": "git:index",
-  "last_activity_ts": "2026-05-06 02:15:40",
-  "next_heartbeat_at": "2026-05-06 02:18:40",
-  "drift_warned_at": "2026-05-06 02:14:13",
-  "saved_at": "2026-05-06 02:16:51"
+  "saved_at": "2026-05-06 02:18:56"
 }
