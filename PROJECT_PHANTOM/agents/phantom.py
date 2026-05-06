@@ -369,6 +369,9 @@ def cmd_ping(args):
         ping_log = state.get("ping_log", [])
         ping_log.append(log_entry)
         state["ping_log"] = ping_log[-20:]
+    tests_passed = getattr(args, "tests", None)
+    if tests_passed is not None:
+        state["tests_last_count"] = tests_passed
     atomic_write(state)
     agents      = state.get("agents_running", 0)
     rounds      = state.get("rounds_remaining", 0)
@@ -1207,6 +1210,12 @@ def _eval_criteria(state: dict) -> list[tuple[str, bool]]:
             m = _re.search(r'(\d+)', c)
             needed = int(m.group(1)) if m else 1
             done = hb_fires >= needed
+        # Tests passing: "N+ tests passing", "N tests pass"
+        elif "test" in c_lower and ("pass" in c_lower or "passing" in c_lower):
+            last_count = state.get("tests_last_count", 0)
+            m = _re.search(r'(\d+)', c)
+            if m and last_count > 0:
+                done = last_count >= int(m.group(1))
         results.append((c, done))
     return results
 
@@ -1634,6 +1643,8 @@ p.add_argument("--force", action="store_true", help="Overwrite existing profile"
 
 p = sub.add_parser("ping", help="Signal active turn (run at start of every turn)")
 p.add_argument("note", nargs="?", default="", help="Optional progress note")
+p.add_argument("--tests", type=int, default=None, metavar="N",
+               help="Record test pass count (used by criteria eval)")
 
 p = sub.add_parser("agent-start", help="Register a spawned sub-agent")
 p.add_argument("--id", default="", help="Optional agent identifier")

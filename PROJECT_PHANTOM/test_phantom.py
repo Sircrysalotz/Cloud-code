@@ -1640,6 +1640,27 @@ def test_anchor():
 
     cleanup()
 
+    # _eval_criteria: tests passing count — criterion auto-marks [x] when tests_last_count >= N
+    run([PHANTOM, "start", "tests passing criteria test", "--turns", "5",
+         "--done-criteria", "434+ tests passing on all changes"])
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("tests criterion: [ ] before recording count", "[ ]" in out)
+    # Record test count via ping --tests
+    run([PHANTOM, "ping", "ran tests", "--tests", "475"])
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("tests criterion: [x] when count >= threshold", "[x]" in out)
+
+    cleanup()
+
+    # ping --tests stores tests_last_count in state
+    run([PHANTOM, "start", "ping tests flag test", "--turns", "5"])
+    run([PHANTOM, "ping", "test note", "--tests", "100"])
+    import json as _json_t, os as _os_t
+    st = _json_t.load(open(STATE))
+    check("ping --tests stores tests_last_count in state", st.get("tests_last_count") == 100)
+
+    cleanup()
+
 
 def test_checkpoint():
     print("\n── phantom.py checkpoint ──")
