@@ -1,9 +1,9 @@
 {
-  "task": "ping_log test",
-  "last_active": "2026-05-06 02:14:30",
-  "turns_taken": 20,
-  "turns_target": 10,
-  "rounds_remaining": 5,
+  "task": "Make PHANTOM fully portable \u2014 self-locating paths, no hardcodes, drop-in on any machine",
+  "last_active": "2026-05-06 02:16:51",
+  "turns_taken": 5,
+  "turns_target": 25,
+  "rounds_remaining": 8,
   "idle_threshold_seconds": 180,
   "check_interval_seconds": 30,
   "cooldown_factor": 1.0,
@@ -11,115 +11,59 @@
   "rounds_used": 0,
   "agents_running": 0,
   "active_agent_ids": [],
-  "heartbeat_active": false,
+  "heartbeat_active": true,
   "last_heartbeat_fired": null,
-  "progress_note": "overflow note 15",
-  "started": "2026-05-06 02:14:25",
+  "progress_note": "heartbeat recovered and re-armed; looking for next improvement target",
+  "started": "2026-05-06 02:05:46",
   "status": "active",
   "workspace_dir": "/home/user/Cloud-code",
   "profile": null,
-  "scope_files": [],
-  "coverage_targets": [],
-  "scope_threshold": 50.0,
-  "session_start_ref": "c27d937a3e2b281e7c6e4803d4071e6c82fdab24",
+  "scope_files": [
+    "agents/phantom.py",
+    "agents/heartbeat_runner.py",
+    "agents/drift_guard.py",
+    "agents/HEARTBEAT.md",
+    "agents/DRIFT_GUARD.md",
+    "test_phantom.py",
+    "CLAUDE.md"
+  ],
+  "coverage_targets": [
+    "agents/phantom.py",
+    "agents/heartbeat_runner.py",
+    "agents/drift_guard.py",
+    "test_phantom.py"
+  ],
+  "scope_threshold": 30.0,
+  "session_start_ref": "3eede189c805b4cb8a41ee1faadeb4af6d0ea591",
   "tracked_extensions": [],
   "scan_depth": 5,
+  "drift_guard_active": false,
+  "drift_warning": null,
   "ping_log": [
     {
       "turn": 1,
-      "note": "note A",
-      "at": "2026-05-06 02:14:25"
+      "note": "turn 1 \u2014 auditing all hardcoded paths before writing any fixes",
+      "at": "2026-05-06 02:06:07"
     },
     {
       "turn": 2,
-      "note": "note B",
-      "at": "2026-05-06 02:14:26"
+      "note": "turn 2 \u2014 phantom.py + container_logger paths fixed; working on .md files now",
+      "at": "2026-05-06 02:08:24"
     },
     {
-      "turn": 3,
-      "note": "note C",
-      "at": "2026-05-06 02:14:26"
+      "turn": 4,
+      "note": "portability big run complete \u2014 all hardcoded paths removed, 352/352 tests passing, committed and pushed",
+      "at": "2026-05-06 02:15:34"
     },
     {
       "turn": 5,
-      "note": "overflow note 0",
-      "at": "2026-05-06 02:14:26"
-    },
-    {
-      "turn": 6,
-      "note": "overflow note 1",
-      "at": "2026-05-06 02:14:27"
-    },
-    {
-      "turn": 7,
-      "note": "overflow note 2",
-      "at": "2026-05-06 02:14:27"
-    },
-    {
-      "turn": 8,
-      "note": "overflow note 3",
-      "at": "2026-05-06 02:14:27"
-    },
-    {
-      "turn": 9,
-      "note": "overflow note 4",
-      "at": "2026-05-06 02:14:27"
-    },
-    {
-      "turn": 10,
-      "note": "overflow note 5",
-      "at": "2026-05-06 02:14:27"
-    },
-    {
-      "turn": 11,
-      "note": "overflow note 6",
-      "at": "2026-05-06 02:14:29"
-    },
-    {
-      "turn": 12,
-      "note": "overflow note 7",
-      "at": "2026-05-06 02:14:29"
-    },
-    {
-      "turn": 13,
-      "note": "overflow note 8",
-      "at": "2026-05-06 02:14:29"
-    },
-    {
-      "turn": 14,
-      "note": "overflow note 9",
-      "at": "2026-05-06 02:14:29"
-    },
-    {
-      "turn": 15,
-      "note": "overflow note 10",
-      "at": "2026-05-06 02:14:29"
-    },
-    {
-      "turn": 16,
-      "note": "overflow note 11",
-      "at": "2026-05-06 02:14:30"
-    },
-    {
-      "turn": 17,
-      "note": "overflow note 12",
-      "at": "2026-05-06 02:14:30"
-    },
-    {
-      "turn": 18,
-      "note": "overflow note 13",
-      "at": "2026-05-06 02:14:30"
-    },
-    {
-      "turn": 19,
-      "note": "overflow note 14",
-      "at": "2026-05-06 02:14:30"
-    },
-    {
-      "turn": 20,
-      "note": "overflow note 15",
-      "at": "2026-05-06 02:14:30"
+      "note": "heartbeat recovered and re-armed; looking for next improvement target",
+      "at": "2026-05-06 02:16:51"
     }
   ],
-  "saved_at": "2026-05-06 02:14:30"
+  "last_activity_source": "git:index",
+  "last_activity_ts": "2026-05-06 02:15:40",
+  "next_heartbeat_at": "2026-05-06 02:18:40",
+  "drift_warned_at": "2026-05-06 02:14:13",
+  "saved_at": "2026-05-06 02:16:51"
 }
