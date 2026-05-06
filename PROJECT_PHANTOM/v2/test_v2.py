@@ -352,10 +352,14 @@ def test_config():
     print("\n── phantom.py config ──")
     cleanup()
 
-    # config list — empty
+    # config list — always shows built-in profiles
     rc, out, _ = run([PHANTOM, "config", "list"])
-    check("config list exits 0 when empty", rc == 0)
-    check("config list shows no profiles message", "No profiles" in out)
+    check("config list exits 0", rc == 0)
+    check("config list shows built-in profiles header", "Built-in" in out)
+    check("config list shows sprint built-in", "sprint" in out)
+    check("config list shows marathon built-in", "marathon" in out)
+    check("config list shows debug built-in", "debug" in out)
+    check("config list shows no user profiles message when empty", "No user profiles" in out)
 
     # config create
     rc, out, _ = run([PHANTOM, "config", "create", "myprofile",
@@ -433,6 +437,64 @@ def test_config():
     # config delete nonexistent exits 1
     rc, out, _ = run([PHANTOM, "config", "delete", "nonexistent_profile"])
     check("config delete nonexistent exits 1", rc == 1)
+
+    # ── built-in profile tests ──
+    # config list shows built-ins even with no user profiles
+    cleanup()
+    rc, out, _ = run([PHANTOM, "config", "list"])
+    check("config list shows built-ins without user profiles", "Built-in" in out)
+    check("config list shows sprint without user file", "sprint" in out)
+    check("config list shows marathon without user file", "marathon" in out)
+    check("config list shows focus built-in", "focus" in out)
+
+    # config show works on built-in profiles
+    rc, out, _ = run([PHANTOM, "config", "show", "sprint"])
+    check("config show sprint exits 0", rc == 0)
+    check("config show sprint shows built-in label", "built-in" in out)
+    check("config show sprint has threshold", "threshold" in out)
+
+    rc, out, _ = run([PHANTOM, "config", "show", "marathon"])
+    check("config show marathon exits 0", rc == 0)
+    check("config show marathon shows built-in label", "built-in" in out)
+
+    # start with built-in profile loads values
+    rc, out, _ = run([PHANTOM, "start", "sprint test", "--profile", "sprint"])
+    check("start --profile sprint (built-in) exits 0", rc == 0)
+    state = read_state()
+    check("start --profile sprint sets turns=10", state.get("turns_target") == 10)
+    check("start --profile sprint sets threshold=120", state.get("idle_threshold_seconds") == 120)
+    check("start --profile sprint sets profile name in state", state.get("profile") == "sprint")
+
+    rc, out, _ = run([PHANTOM, "start", "marathon test", "--profile", "marathon", "--force"])
+    check("start --profile marathon (built-in) exits 0", rc == 0)
+    state = read_state()
+    check("start --profile marathon sets turns=30", state.get("turns_target") == 30)
+    check("start --profile marathon sets min_idle_polls=2", state.get("min_idle_polls") == 2)
+
+    rc, out, _ = run([PHANTOM, "start", "debug test", "--profile", "debug", "--force"])
+    check("start --profile debug (built-in) exits 0", rc == 0)
+    state = read_state()
+    check("start --profile debug sets turns=5", state.get("turns_target") == 5)
+    check("start --profile debug sets threshold=60", state.get("idle_threshold_seconds") == 60)
+
+    # built-in profile can be overridden by --flags
+    rc, out, _ = run([PHANTOM, "start", "sprint override", "--profile", "sprint",
+                      "--turns", "99", "--force"])
+    check("start --profile sprint --turns 99 overrides built-in turns", rc == 0)
+    state = read_state()
+    check("turns overridden to 99 vs built-in 10", state.get("turns_target") == 99)
+    check("threshold still from sprint (120)", state.get("idle_threshold_seconds") == 120)
+
+    # user profile with same name takes precedence over built-in
+    run([PHANTOM, "config", "create", "sprint",
+         "--turns", "77", "--threshold", "999"])
+    rc, out, _ = run([PHANTOM, "start", "user sprint", "--profile", "sprint", "--force"])
+    state = read_state()
+    check("user profile 'sprint' overrides built-in", state.get("turns_target") == 77)
+    check("user sprint threshold=999 (not built-in 120)", state.get("idle_threshold_seconds") == 999)
+    # list shows (overridden by user) for sprint
+    rc, out, _ = run([PHANTOM, "config", "list"])
+    check("config list shows sprint as overridden by user", "overridden by user" in out)
 
     cleanup()
 

@@ -734,6 +734,49 @@ PROFILE_KEYS = {
 }
 
 
+# Built-in profile presets — available without creating a profiles file.
+# User-created profiles with the same name take precedence.
+BUILTIN_PROFILES = {
+    "sprint": {
+        "description": "Fast iteration — short sessions with quick heartbeat cycles",
+        "turns": 10,
+        "rounds": 5,
+        "threshold": 120,
+        "interval": 20,
+        "cooldown_factor": 0.5,
+        "min_idle_polls": 1,
+    },
+    "marathon": {
+        "description": "Long autonomous run — conservative heartbeat, many rounds",
+        "turns": 30,
+        "rounds": 12,
+        "threshold": 180,
+        "interval": 30,
+        "cooldown_factor": 1.0,
+        "min_idle_polls": 2,
+    },
+    "debug": {
+        "description": "Short cycles for testing and debugging the phantom system",
+        "turns": 5,
+        "rounds": 3,
+        "threshold": 60,
+        "interval": 10,
+        "cooldown_factor": 0.5,
+        "min_idle_polls": 1,
+    },
+    "focus": {
+        "description": "Deep single-task focus — strict drift guard, long threshold",
+        "turns": 20,
+        "rounds": 8,
+        "threshold": 240,
+        "interval": 30,
+        "cooldown_factor": 1.5,
+        "min_idle_polls": 2,
+        "scope_threshold": 30.0,
+    },
+}
+
+
 def read_profiles() -> dict:
     try:
         with open(PROFILES_FILE) as f:
@@ -750,8 +793,11 @@ def write_profiles(profiles: dict):
 
 
 def load_profile(name: str) -> dict | None:
+    """User profile takes precedence over built-in; returns None if not found anywhere."""
     profiles = read_profiles()
-    return profiles.get(name)
+    if name in profiles:
+        return profiles[name]
+    return BUILTIN_PROFILES.get(name)
 
 
 def cmd_config(args):
@@ -759,26 +805,32 @@ def cmd_config(args):
 
     if sub == "list":
         profiles = read_profiles()
-        if not profiles:
-            print(f"No profiles found. ({PROFILES_FILE})")
-            print("Create one: phantom.py config create <name>")
-            return
-        print(f"Profiles ({PROFILES_FILE}):")
-        for name, p in profiles.items():
+        print(f"Built-in profiles (always available):")
+        for name, p in BUILTIN_PROFILES.items():
+            marker = " (overridden by user)" if name in profiles else ""
             desc = p.get("description", "")
             turns = p.get("turns", "—")
             threshold = p.get("threshold", "—")
-            print(f"  {name:<20} turns={turns} threshold={threshold}s  {desc}")
+            print(f"  {name:<20} turns={turns} threshold={threshold}s  {desc}{marker}")
+        if profiles:
+            print(f"\nUser profiles ({PROFILES_FILE}):")
+            for name, p in profiles.items():
+                desc = p.get("description", "")
+                turns = p.get("turns", "—")
+                threshold = p.get("threshold", "—")
+                print(f"  {name:<20} turns={turns} threshold={threshold}s  {desc}")
+        else:
+            print(f"\nNo user profiles. Create one: phantom.py config create <name>")
 
     elif sub == "show":
         profiles = read_profiles()
         name = args.name
-        if name not in profiles:
+        p = profiles.get(name) or BUILTIN_PROFILES.get(name)
+        if p is None:
             print(f"Profile '{name}' not found.")
             sys.exit(1)
-        p = profiles[name]
-        print(f"Profile: {name}")
-        print(f"  File: {PROFILES_FILE}")
+        is_builtin = name not in profiles
+        print(f"Profile: {name}{'  [built-in]' if is_builtin else f'  [{PROFILES_FILE}]'}")
         for key, (typ, default, desc) in PROFILE_KEYS.items():
             val = p.get(key, default)
             print(f"  {key:<20} = {val!r:<20}  # {desc}")
