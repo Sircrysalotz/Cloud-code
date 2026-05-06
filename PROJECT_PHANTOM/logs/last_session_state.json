@@ -1,144 +1,92 @@
 {
-  "task": "ping_log test",
-  "last_active": "2026-05-06 20:28:41",
-  "turns_taken": 20,
-  "turns_target": 10,
-  "rounds_remaining": 5,
+  "task": "Dogfood PHANTOM v2.9 \u2014 run the full system live, observe friction, fix what breaks or annoys, improve horizontal spread across all 5 core files",
+  "last_active": "2026-05-06 20:29:29",
+  "turns_taken": 5,
+  "turns_target": 30,
+  "rounds_remaining": 10,
   "idle_threshold_seconds": 180,
   "check_interval_seconds": 30,
   "cooldown_factor": 1.0,
-  "min_idle_polls": 1,
+  "min_idle_polls": 2,
   "rounds_used": 0,
   "agents_running": 0,
   "active_agent_ids": [],
-  "heartbeat_active": false,
+  "heartbeat_active": true,
   "last_heartbeat_fired": null,
-  "progress_note": "overflow note 15",
-  "started": "2026-05-06 20:28:35",
+  "progress_note": "anchor criteria tracking: check/HB-fire auto-mark; 466/466 tests pass",
+  "started": "2026-05-06 20:15:07",
   "status": "active",
   "workspace_dir": "/home/user/Cloud-code",
   "profile": null,
-  "scope_files": [],
-  "coverage_targets": [],
-  "scope_threshold": 50.0,
-  "session_start_ref": "dfd59e79524c128163901466b5605b048babf7f2",
+  "scope_files": [
+    "agents/phantom.py",
+    "agents/heartbeat_runner.py",
+    "agents/drift_guard.py",
+    "test_phantom.py",
+    "CLAUDE.md"
+  ],
+  "coverage_targets": [
+    "agents/phantom.py",
+    "agents/heartbeat_runner.py",
+    "agents/drift_guard.py",
+    "test_phantom.py"
+  ],
+  "scope_threshold": 35.0,
+  "session_start_ref": "8bc5538cef4a730f8cea1ff32ba052ca52314fce",
   "tracked_extensions": [],
   "scan_depth": 5,
   "auto_save_every": 5,
-  "drift_guard_active": false,
+  "drift_guard_active": true,
   "drift_warning": null,
-  "drift_warned_at": null,
+  "drift_warned_at": "2026-05-06 20:18:25",
   "heartbeat_fires": [],
   "watchdog_events": [],
   "ping_log": [
     {
       "turn": 1,
-      "note": "note A",
-      "at": "2026-05-06 20:28:35"
+      "note": "Session started. Dogfood run begins \u2014 observing friction as I use anchor, checkpoint, drift-arm, heartbeat-arm live. First: arm the guards.",
+      "at": "2026-05-06 20:15:10"
     },
     {
       "turn": 2,
-      "note": "note B",
-      "at": "2026-05-06 20:28:35"
+      "note": "448/448 tests pass \u2014 all 4 friction fixes done. Handling drift false-positive then committing.",
+      "at": "2026-05-06 20:19:59"
     },
     {
       "turn": 3,
-      "note": "note C",
-      "at": "2026-05-06 20:28:35"
+      "note": "Committed and pushed v3.0. Drift guard re-armed with new ignore-patterns code. Running anchor check.",
+      "at": "2026-05-06 20:20:36"
+    },
+    {
+      "turn": 4,
+      "note": "Tests pass 468/468 \u2014 status --brief tested; committing final v3.0 changes",
+      "at": "2026-05-06 20:24:52"
     },
     {
       "turn": 5,
-      "note": "overflow note 0",
-      "at": "2026-05-06 20:28:35"
-    },
-    {
-      "turn": 6,
-      "note": "overflow note 1",
-      "at": "2026-05-06 20:28:37"
-    },
-    {
-      "turn": 7,
-      "note": "overflow note 2",
-      "at": "2026-05-06 20:28:37"
-    },
-    {
-      "turn": 8,
-      "note": "overflow note 3",
-      "at": "2026-05-06 20:28:37"
-    },
-    {
-      "turn": 9,
-      "note": "overflow note 4",
-      "at": "2026-05-06 20:28:37"
-    },
-    {
-      "turn": 10,
-      "note": "overflow note 5",
-      "at": "2026-05-06 20:28:37"
-    },
-    {
-      "turn": 11,
-      "note": "overflow note 6",
-      "at": "2026-05-06 20:28:39"
-    },
-    {
-      "turn": 12,
-      "note": "overflow note 7",
-      "at": "2026-05-06 20:28:39"
-    },
-    {
-      "turn": 13,
-      "note": "overflow note 8",
-      "at": "2026-05-06 20:28:39"
-    },
-    {
-      "turn": 14,
-      "note": "overflow note 9",
-      "at": "2026-05-06 20:28:39"
-    },
-    {
-      "turn": 15,
-      "note": "overflow note 10",
-      "at": "2026-05-06 20:28:39"
-    },
-    {
-      "turn": 16,
-      "note": "overflow note 11",
-      "at": "2026-05-06 20:28:41"
-    },
-    {
-      "turn": 17,
-      "note": "overflow note 12",
-      "at": "2026-05-06 20:28:41"
-    },
-    {
-      "turn": 18,
-      "note": "overflow note 13",
-      "at": "2026-05-06 20:28:41"
-    },
-    {
-      "turn": 19,
-      "note": "overflow note 14",
-      "at": "2026-05-06 20:28:41"
-    },
-    {
-      "turn": 20,
-      "note": "overflow note 15",
-      "at": "2026-05-06 20:28:41"
+      "note": "anchor criteria tracking: check/HB-fire auto-mark; 466/466 tests pass",
+      "at": "2026-05-06 20:29:29"
     }
   ],
-  "last_activity_source": "ping",
-  "last_activity_ts": "2026-05-06 20:28:35",
-  "next_heartbeat_at": null,
+  "last_activity_source": "git:index",
+  "last_activity_ts": "2026-05-06 20:25:00",
+  "next_heartbeat_at": "2026-05-06 20:28:00",
   "completed": null,
-  "saved_at": "2026-05-06 20:28:41",
+  "saved_at": "2026-05-06 20:29:29",
   "anchor_a": {
-    "ref": "dfd59e79524c128163901466b5605b048babf7f2",
-    "timestamp": "2026-05-06 20:28:35"
+    "ref": "8bc5538cef4a730f8cea1ff32ba052ca52314fce",
+    "timestamp": "2026-05-06 20:15:07"
   },
   "anchor_b": {
-    "goal": "ping_log test",
-    "done_criteria": [],
-    "set_at": "2026-05-06 20:28:35"
-  }
+    "goal": "Dogfood PHANTOM v2.9 \u2014 run the full system live, observe friction, fix what breaks or annoys, improve horizontal spread across all 5 core files",
+    "done_criteria": [
+      "observed at least 1 real heartbeat fire and resumed correctly",
+      "anchor check used at least once mid-session",
+      "checkpoint used before completion",
+      "at least 2 real improvements made per covered file",
+      "434+ tests passing on all changes"
+    ],
+    "set_at": "2026-05-06 20:15:07"
+  },
+  "anchor_checks_count": 1
 }
