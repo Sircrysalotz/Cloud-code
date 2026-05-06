@@ -1,8 +1,8 @@
 {
-  "task": "save test",
-  "last_active": "2026-05-06 00:20:54",
-  "turns_taken": 1,
-  "turns_target": 5,
+  "task": "ping_log test",
+  "last_active": "2026-05-06 00:20:56",
+  "turns_taken": 5,
+  "turns_target": 10,
   "rounds_remaining": 5,
   "idle_threshold_seconds": 180,
   "check_interval_seconds": 30,
@@ -13,22 +13,37 @@
   "active_agent_ids": [],
   "heartbeat_active": false,
   "last_heartbeat_fired": null,
-  "progress_note": "saved progress",
-  "started": "2026-05-06 00:20:54",
+  "progress_note": "overflow note 0",
+  "started": "2026-05-06 00:20:56",
   "status": "active",
   "workspace_dir": "/home/user/Cloud-code",
   "profile": null,
   "scope_files": [],
   "coverage_targets": [],
-  "session_start_ref": "995bf058869d3664c3af06e86f8a553b34a6b309",
+  "session_start_ref": "94571832ab8f28bc42958ed2a413377bb9b89e02",
   "tracked_extensions": [],
   "scan_depth": 5,
   "ping_log": [
     {
       "turn": 1,
-      "note": "saved progress",
-      "at": "2026-05-06 00:20:54"
+      "note": "note A",
+      "at": "2026-05-06 00:20:56"
+    },
+    {
+      "turn": 2,
+      "note": "note B",
+      "at": "2026-05-06 00:20:56"
+    },
+    {
+      "turn": 3,
+      "note": "note C",
+      "at": "2026-05-06 00:20:56"
+    },
+    {
+      "turn": 5,
+      "note": "overflow note 0",
+      "at": "2026-05-06 00:20:56"
     }
   ],
-  "saved_at": "2026-05-06 00:20:54"
+  "saved_at": "2026-05-06 00:20:56"
 }
