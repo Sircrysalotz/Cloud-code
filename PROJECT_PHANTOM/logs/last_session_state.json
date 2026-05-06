@@ -1,125 +1,84 @@
 {
-  "task": "ping_log test",
-  "last_active": "2026-05-06 00:34:25",
-  "turns_taken": 20,
-  "turns_target": 10,
-  "rounds_remaining": 5,
+  "task": "Full PROJECT_PHANTOM horizontal improvement: CLAUDE.md rewrite, phantom.py report/recover, heartbeat configurable tracked exts + watchdog state, drift_guard better output, container_logger memory alerts, tools session_start_ref, profile presets, edge case tests, DIFF.md v2.3",
+  "last_active": "2026-05-06 00:34:56",
+  "turns_taken": 10,
+  "turns_target": 30,
+  "rounds_remaining": 12,
   "idle_threshold_seconds": 180,
   "check_interval_seconds": 30,
   "cooldown_factor": 1.0,
   "min_idle_polls": 1,
   "rounds_used": 0,
-  "agents_running": 0,
-  "active_agent_ids": [],
-  "heartbeat_active": false,
+  "agents_running": 2,
+  "active_agent_ids": [
+    "heartbeat-3",
+    "drift-guard-5"
+  ],
+  "heartbeat_active": true,
   "last_heartbeat_fired": null,
-  "progress_note": "overflow note 15",
-  "started": "2026-05-06 00:34:20",
+  "progress_note": "drift_guard reads scope_threshold from state; 338/338 tests green",
+  "started": "2026-05-06 00:01:10",
   "status": "active",
   "workspace_dir": "/home/user/Cloud-code",
   "profile": null,
-  "scope_files": [],
-  "coverage_targets": [],
-  "scope_threshold": 50.0,
-  "session_start_ref": "f1123d496b1b254faf05f0cb5fd0c2554b6a669a",
+  "scope_files": [
+    "agents/phantom.py",
+    "agents/heartbeat_runner.py",
+    "agents/drift_guard.py",
+    "agents/HEARTBEAT.md",
+    "agents/DRIFT_GUARD.md",
+    "agents/container_logger.py",
+    "PROJECT_PHANTOM/CLAUDE.md",
+    "v2/test_v2.py",
+    "v2/DIFF.md",
+    "tools/scope_guard.py",
+    "tools/coverage_tracker.py",
+    "tools/test_tools.py"
+  ],
+  "session_start_ref": "f56de18f66c87246226acd51449b359538458017",
   "tracked_extensions": [],
   "scan_depth": 5,
+  "last_activity_source": "file:PROJECT_PHANTOM/agents/phantom.py",
+  "last_activity_ts": "2026-05-06 00:12:33",
+  "next_heartbeat_at": "2026-05-06 00:15:33",
+  "drift_guard_active": true,
+  "drift_warning": null,
   "ping_log": [
     {
-      "turn": 1,
-      "note": "note A",
-      "at": "2026-05-06 00:34:20"
-    },
-    {
-      "turn": 2,
-      "note": "note B",
-      "at": "2026-05-06 00:34:20"
-    },
-    {
-      "turn": 3,
-      "note": "note C",
-      "at": "2026-05-06 00:34:20"
+      "turn": 4,
+      "note": "Turn 10: coverage_tracker --session, ping_log (history/report), HEARTBEAT.md v3; 318 tests",
+      "at": "2026-05-06 00:07:54"
     },
     {
       "turn": 5,
-      "note": "overflow note 0",
-      "at": "2026-05-06 00:34:20"
+      "note": "Phase \u221e complete: cmd_check registered + 329/329 tests green \u2014 committing now",
+      "at": "2026-05-06 00:15:02"
     },
     {
       "turn": 6,
-      "note": "overflow note 1",
-      "at": "2026-05-06 00:34:22"
+      "note": "coverage_targets wired through start\u2192state\u2192check; 326/326 tests green \u2014 committing",
+      "at": "2026-05-06 00:23:45"
     },
     {
       "turn": 7,
-      "note": "overflow note 2",
-      "at": "2026-05-06 00:34:22"
+      "note": "status + complete show coverage; _quick_coverage helper; 335/335 tests",
+      "at": "2026-05-06 00:25:50"
     },
     {
       "turn": 8,
-      "note": "overflow note 3",
-      "at": "2026-05-06 00:34:22"
+      "note": "profile list fields (scope_files, coverage_targets, tracked_exts, scan_depth) now resolve from profile defaults; 338/338",
+      "at": "2026-05-06 00:27:58"
     },
     {
       "turn": 9,
-      "note": "overflow note 4",
-      "at": "2026-05-06 00:34:22"
+      "note": "report shows coverage; --scope-threshold added to start; scope_threshold in state; 342/342",
+      "at": "2026-05-06 00:30:13"
     },
     {
       "turn": 10,
-      "note": "overflow note 5",
-      "at": "2026-05-06 00:34:22"
-    },
-    {
-      "turn": 11,
-      "note": "overflow note 6",
-      "at": "2026-05-06 00:34:23"
-    },
-    {
-      "turn": 12,
-      "note": "overflow note 7",
-      "at": "2026-05-06 00:34:23"
-    },
-    {
-      "turn": 13,
-      "note": "overflow note 8",
-      "at": "2026-05-06 00:34:23"
-    },
-    {
-      "turn": 14,
-      "note": "overflow note 9",
-      "at": "2026-05-06 00:34:23"
-    },
-    {
-      "turn": 15,
-      "note": "overflow note 10",
-      "at": "2026-05-06 00:34:23"
-    },
-    {
-      "turn": 16,
-      "note": "overflow note 11",
-      "at": "2026-05-06 00:34:25"
-    },
-    {
-      "turn": 17,
-      "note": "overflow note 12",
-      "at": "2026-05-06 00:34:25"
-    },
-    {
-      "turn": 18,
-      "note": "overflow note 13",
-      "at": "2026-05-06 00:34:25"
-    },
-    {
-      "turn": 19,
-      "note": "overflow note 14",
-      "at": "2026-05-06 00:34:25"
-    },
-    {
-      "turn": 20,
-      "note": "overflow note 15",
-      "at": "2026-05-06 00:34:25"
+      "note": "drift_guard reads scope_threshold from state; 338/338 tests green",
+      "at": "2026-05-06 00:34:56"
     }
   ],
-  "saved_at": "2026-05-06 00:34:25"
+  "saved_at": "2026-05-06 00:34:56"
 }
