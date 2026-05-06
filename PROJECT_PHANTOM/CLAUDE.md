@@ -90,7 +90,12 @@ Do NOT call it:
 | `agent-start` for heartbeat also blocks heartbeat | Protocol fix: heartbeat uses `heartbeat-arm` only — never `agent-start` |
 | No navigation aids after resume — Claude loses bearing | `phantom.py anchor show/check` — immovable Point A (origin) and Point B (goal) always visible |
 | Completion practices are optional — easy to skip | `phantom.py checkpoint` — non-negotiable gates: ping freshness, drift, scope, coverage |
-| Test count varies between runs | 429 tests stable as of v2.9 |
+| Anchor criteria always show `[ ]` even when verifiably met | `_eval_criteria()` — auto-marks coverage and drift criteria `[x]` when observable |
+| `complete` silently skips pre-flight checks | `_soft_checkpoint()` in `complete` — warns on stale ping, drift, zero coverage |
+| Heartbeat fire doesn't say which round it is | Fire banner: "HEARTBEAT FIRED (round N/total)" |
+| auto-save `last_session_state.json` fires SCOPE_CREEP on every commit | `drift_guard` v4 auto-detects and ignores that path by default |
+| Full status is 20+ lines — too much for quick sanity check | `status --brief` — one-line compact summary: turns, HB ETA, coverage, drift, note |
+| Test count varies between runs | 448 tests stable as of v3.0 |
 
 ### Files
 

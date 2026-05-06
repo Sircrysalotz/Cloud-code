@@ -461,6 +461,30 @@ def cmd_status(args):
     if not state:
         print("No active session.")
         return
+
+    brief = getattr(args, "brief", False)
+    if brief:
+        # One-line compact summary: Turn | HB ETA | Coverage | Drift | Note
+        turns    = f"T{state.get('turns_taken',0)}/{state.get('turns_target','?')}"
+        rounds   = f"R{state.get('rounds_remaining',0)}"
+        hb       = "HB:idle"
+        if state.get("heartbeat_active"):
+            nxt = state.get("next_heartbeat_at")
+            if nxt:
+                try:
+                    secs = (datetime.strptime(nxt, "%Y-%m-%d %H:%M:%S") - datetime.now()).total_seconds()
+                    hb = f"HB:~{max(0,int(secs))}s"
+                except Exception:
+                    hb = "HB:armed"
+            else:
+                hb = "HB:armed"
+        cov  = _quick_coverage(state)
+        cov_s = cov.split(" ")[0] if cov else "cov:?"
+        drift = "⚠drift" if state.get("drift_warning") else "drift:ok"
+        note  = (state.get("progress_note") or "—")[:40]
+        print(f"[{state.get('status','?')}] {turns} {rounds} | {hb} | {cov_s} | {drift} | {note}")
+        return
+
     # Rich status display
     started = state.get("started", "?")
     print("=" * 50)
@@ -1601,7 +1625,8 @@ p = sub.add_parser("agent-done", help="Mark a sub-agent as returned")
 p.add_argument("--id", default="", help="Optional agent identifier")
 
 sub.add_parser("heartbeat-arm", help="Arm the heartbeat before spawning")
-sub.add_parser("status",        help="Print rich session status")
+p = sub.add_parser("status",    help="Print rich session status")
+p.add_argument("--brief", action="store_true", help="One-line compact summary")
 sub.add_parser("complete",      help="Mark session complete and print summary")
 sub.add_parser("history",       help="Print session history and progress")
 

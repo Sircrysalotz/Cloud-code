@@ -1701,6 +1701,80 @@ def test_checkpoint():
     cleanup()
 
 
+def test_status_brief():
+    print("\n── phantom.py status --brief ──")
+    cleanup()
+
+    # No session — should print nothing useful / exit 0 with "No active session"
+    rc, out, err = run([PHANTOM, "status", "--brief"])
+    check("status --brief with no session exits 0", rc == 0)
+    check("status --brief with no session says no session", "No active session" in out)
+
+    # Basic brief output format
+    run([PHANTOM, "start", "brief test task", "--turns", "10", "--rounds", "5"])
+    run([PHANTOM, "ping", "initial ping"])
+    rc, out, err = run([PHANTOM, "status", "--brief"])
+    check("status --brief exits 0 with active session", rc == 0)
+    check("status --brief outputs single line", len(out.strip().splitlines()) == 1)
+    check("status --brief contains [active]", "[active]" in out)
+    check("status --brief contains turn info T0/10", "T0/10" in out or "T1/10" in out)
+    check("status --brief contains round info R5", "R5" in out)
+    check("status --brief contains HB:idle when not armed", "HB:idle" in out)
+    check("status --brief contains drift:ok when no warning", "drift:ok" in out)
+
+    # Drift warning shows ⚠drift
+    import json as _json, os as _os
+    s = _json.load(open(STATE))
+    s["drift_warning"] = "VERTICAL drift detected"
+    with open(STATE + ".tmp", "w") as f:
+        _json.dump(s, f)
+    _os.rename(STATE + ".tmp", STATE)
+    rc, out, err = run([PHANTOM, "status", "--brief"])
+    check("status --brief shows ⚠drift when drift_warning set", "⚠drift" in out)
+
+    # Clear drift warning, arm HB with future next_heartbeat_at → shows HB:~Xs
+    s = _json.load(open(STATE))
+    s["drift_warning"] = None
+    s["heartbeat_active"] = True
+    from datetime import datetime, timedelta
+    future = (datetime.now() + timedelta(seconds=90)).strftime("%Y-%m-%d %H:%M:%S")
+    s["next_heartbeat_at"] = future
+    with open(STATE + ".tmp", "w") as f:
+        _json.dump(s, f)
+    _os.rename(STATE + ".tmp", STATE)
+    rc, out, err = run([PHANTOM, "status", "--brief"])
+    check("status --brief shows HB:~Xs when armed with ETA", "HB:~" in out and "s" in out)
+
+    # No next_heartbeat_at but armed → HB:armed
+    s = _json.load(open(STATE))
+    s["next_heartbeat_at"] = None
+    with open(STATE + ".tmp", "w") as f:
+        _json.dump(s, f)
+    _os.rename(STATE + ".tmp", STATE)
+    rc, out, err = run([PHANTOM, "status", "--brief"])
+    check("status --brief shows HB:armed when armed without ETA", "HB:armed" in out)
+
+    # Progress note truncated at 40 chars
+    s = _json.load(open(STATE))
+    s["heartbeat_active"] = False
+    s["progress_note"] = "A" * 60
+    with open(STATE + ".tmp", "w") as f:
+        _json.dump(s, f)
+    _os.rename(STATE + ".tmp", STATE)
+    rc, out, err = run([PHANTOM, "status", "--brief"])
+    check("status --brief truncates note at 40 chars", ("A" * 40) in out and ("A" * 41) not in out)
+
+    # Coverage shown when coverage_targets set
+    cleanup()
+    run([PHANTOM, "start", "brief cov test", "--turns", "5",
+         "--coverage-targets", "agents/phantom.py", "agents/heartbeat_runner.py"])
+    run([PHANTOM, "ping", "ping"])
+    rc, out, err = run([PHANTOM, "status", "--brief"])
+    check("status --brief shows coverage fraction with targets", "/" in out)
+
+    cleanup()
+
+
 # ─── Run all ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -1721,6 +1795,7 @@ if __name__ == "__main__":
         test_env()
         test_anchor()
         test_checkpoint()
+        test_status_brief()
     finally:
         cleanup()
 
