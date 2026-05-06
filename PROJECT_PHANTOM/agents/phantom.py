@@ -1061,7 +1061,13 @@ def cmd_drift_arm(args):
     state["drift_guard_active"] = True
     state["drift_warning"]      = None
     atomic_write(state)
-    print("Drift guard armed.")
+    threshold  = state.get("scope_threshold", 50.0)
+    scope      = state.get("scope_files", [])
+    since      = state.get("session_start_ref", "auto")
+    print(f"Drift guard armed.")
+    print(f"  Threshold: {threshold}% | Since: {since[:12] if since != 'auto' else 'auto'}")
+    if scope:
+        print(f"  Scope:     {' '.join(scope)}")
 
 
 def cmd_drift_done(args):

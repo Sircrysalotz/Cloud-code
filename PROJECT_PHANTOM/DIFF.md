@@ -654,7 +654,7 @@ runtime fields initialized at start (5).
 
 ---
 
-## v2.8 — Coverage path-prefix fix
+## v2.8 — Observability polish + portability fixes
 
 ### Bug fix: `phantom.py check` always showed 0% coverage
 
@@ -665,8 +665,40 @@ they never matched.
 
 **Fix:** Added `_PROJECT_PREFIX = os.path.relpath(_PROJECT_DIR, REPO_DIR) + os.sep` (a
 module-level constant, e.g. `PROJECT_PHANTOM/`). Both `_quick_coverage()` and `cmd_check()`
-now strip this prefix from each changed path before comparison, so project-relative targets
-match regardless of where in a repo the project folder lives.
+now strip this prefix from each changed path before comparison.
+
+### `status` shows live coverage count
+
+Previously `status` listed coverage target filenames. Now it calls `_quick_coverage()` and
+shows `N/M (X%) — FULL COVERAGE` inline, matching the detail level of `report` and `check`.
+
+### `history` shows coverage summary
+
+`phantom.py history` now shows a coverage line at the end when `coverage_targets` are set,
+consistent with `status`, `report`, and `complete`.
+
+### `heartbeat-arm` ETA shows activity source + uses last_activity_ts
+
+Previously the ETA in `heartbeat-arm` was based only on `last_active` (ping timestamp).
+Now it picks the more recent of `last_active` and `last_activity_ts` (runner-observed
+filesystem/git activity), and shows the source label (`[ping]`, `[file:foo.py]`,
+`[git:index]`) matching the format used by `status`.
+
+### `drift-arm` shows scope context
+
+`phantom.py drift-arm` now prints the threshold, session anchor ref, and declared scope
+files after arming — making it easy to verify the guard is configured correctly.
+
+### Bug fix: `container_logger.py` hardcoded project folder name in git add
+
+`git add "PROJECT_PHANTOM/logs/container_vitals.log"` was hardcoded as a string literal.
+Replaced with `_LOG_REL = os.path.relpath(LOG_FILE, REPO_DIR)` computed at module load.
+
+### `ANTI_DRIFT.md` updated
+
+Marks the three proposed agents (Scope Guard, Coverage Tracker, Drift Guard) as built,
+adds lessons from v2.6–v2.8 sessions (coverage path-prefix bug, hardcoded string portability),
+and updates the system diagram to reflect what actually exists.
 
 ### Test coverage
 
@@ -680,6 +712,8 @@ match regardless of where in a repo the project folder lives.
 | v2.5 | 352 |
 | v2.6 | 368 |
 | v2.7 | 377 |
-| v2.8 | 381 |
+| v2.8 | ~390 |
 
-New tests: status Coverage count format (1). Count reflects stable 381/381 passing.
+New tests: status Coverage count format (1), history shows coverage (2),
+heartbeat-arm shows source label (1). Count varies ~381–390 based on
+git state (which try/except branches run); all tests always pass.
