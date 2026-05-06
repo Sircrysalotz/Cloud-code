@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Phantom Drift Guard v2 — smarter horizontal drift detection.
+Phantom Drift Guard v3 — smarter horizontal drift detection.
 
 Four-gate evaluation replaces the naive file-percentage threshold:
 
@@ -377,7 +377,7 @@ def evaluate_drift(
 
 def parse_args():
     p = argparse.ArgumentParser(
-        description="Drift Guard v2 — smarter horizontal drift detection")
+        description="Drift Guard v3 — smarter horizontal drift detection")
     p.add_argument("--interval",     type=int,   default=60)
     p.add_argument("--threshold",    type=float, default=50.0,
                    help="Raw %% threshold (last-resort gate, default 50)")
@@ -429,7 +429,7 @@ def main():
     tracker      = TrendTracker(window=args.trend_checks)
     checks       = 0
 
-    print("Drift Guard v2 active")
+    print("Drift Guard v3 active")
     print(f"  Workspace:  {workspace}")
     since_src = "cli" if args.since else ("session_start_ref" if state.get("session_start_ref") else "auto")
     print(f"  Threshold:  {args.threshold:.0f}% | Poll: {args.interval}s | Since: {since} ({since_src})")

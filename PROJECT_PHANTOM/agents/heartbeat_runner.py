@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Phantom Heartbeat Runner v2.
+Phantom Heartbeat Runner v5.
 
 Fires ONLY when ALL of these are true:
   1. gap since last activity >= idle_threshold
@@ -293,6 +293,8 @@ def main():
         rounds_remaining = state.get("rounds_remaining", 0)
         if rounds_remaining <= 0:
             print("Rounds exhausted. Heartbeat shutting down.")
+            print("  To continue: increase rounds at session start (--rounds N)")
+            print("  or re-arm manually: phantom.py heartbeat-arm")
             state["heartbeat_active"] = False
             atomic_write(state)
             return
@@ -367,6 +369,9 @@ def main():
 
         atomic_write(state)
 
+        dg_active = state.get("drift_guard_active", False)
+        dw        = state.get("drift_warning")
+
         print("=" * 54)
         print("  HEARTBEAT FIRED")
         print(f"  Idle:      {gap:.0f}s (threshold: {idle_threshold}s, drift: +{drift:.0f}s)")
@@ -376,6 +381,10 @@ def main():
         print(f"  Progress:  {state.get('progress_note', 'none')}")
         print(f"  Turns:     {state.get('turns_taken')}/{state.get('turns_target')}")
         print(f"  Rounds left: {state['rounds_remaining']}")
+        if dg_active:
+            print(f"  Drift Guard: ARMED (still running)")
+        elif dw:
+            print(f"  Drift Guard: idle  ⚠ WARNING PENDING — run drift-done")
         print("=" * 54)
         print("RESUME: phantom.py ping [note] → phantom.py heartbeat-arm → spawn next round.")
         return
