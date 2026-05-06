@@ -158,6 +158,43 @@ def git_index_mtime(workspace: str) -> float:
         return 0.0
 
 
+def eval_criteria_quick(state: dict) -> list[tuple[str, bool]]:
+    """
+    Lightweight criteria evaluator for the fire banner.
+    Checks counters in state — no git/filesystem calls.
+    Coverage criterion is left as [ ] (needs git ops).
+    """
+    import re as _re
+    criteria = (state.get("anchor_b") or {}).get("done_criteria") or []
+    if not criteria:
+        return []
+    anchor_checks  = state.get("anchor_checks_count", 0)
+    ckpt_calls     = state.get("checkpoint_calls_count", 0)
+    hb_fires       = len(state.get("heartbeat_fires", []))
+    tests_count    = state.get("tests_last_count", 0)
+    dw             = state.get("drift_warning")
+    results = []
+    for c in criteria:
+        cl = c.lower()
+        done = False
+        if "drift" in cl and ("clean" in cl or "no" in cl):
+            done = not bool(dw)
+        elif "anchor check" in cl:
+            done = anchor_checks > 0
+        elif "checkpoint" in cl and ("used" in cl or "before" in cl or "run" in cl):
+            done = ckpt_calls > 0
+        elif "heartbeat fire" in cl or ("heartbeat" in cl and "fire" in cl):
+            m = _re.search(r'(\d+)', c)
+            needed = int(m.group(1)) if m else 1
+            done = hb_fires >= needed
+        elif "test" in cl and ("pass" in cl or "passing" in cl):
+            m = _re.search(r'(\d+)', c)
+            if m and tests_count > 0:
+                done = tests_count >= int(m.group(1))
+        results.append((c, done))
+    return results
+
+
 def get_last_activity(state: dict,
                       tracked_exts: set | None = None,
                       scan_depth: int = DEFAULT_SCAN_DEPTH) -> tuple[float, str]:
@@ -317,7 +354,9 @@ def main():
                 prev_activity_ts     = last_activity_ts
                 prev_activity_source = activity_source
                 consecutive_idle     = 0  # new activity resets idle streak
-                fire_eta = datetime.fromtimestamp(last_activity_ts + idle_threshold)
+                # ETA accounts for min_idle_polls: threshold + (polls-1)*interval
+                extra_secs = max(0, min_idle_polls - 1) * check_interval
+                fire_eta = datetime.fromtimestamp(last_activity_ts + idle_threshold + extra_secs)
                 state["last_activity_source"] = activity_source
                 state["last_activity_ts"]     = datetime.fromtimestamp(last_activity_ts).strftime("%Y-%m-%d %H:%M:%S")
                 state["next_heartbeat_at"]    = fire_eta.strftime("%Y-%m-%d %H:%M:%S")
@@ -377,8 +416,10 @@ def main():
         dg_active = state.get("drift_guard_active", False)
         dw        = state.get("drift_warning")
 
+        rounds_used  = state.get("rounds_used", 0)
+        rounds_total = rounds_used + state["rounds_remaining"]  # used + remaining = original
         print("=" * 54)
-        print("  HEARTBEAT FIRED")
+        print(f"  HEARTBEAT FIRED  (round {rounds_used}/{rounds_total})")
         print(f"  Idle:      {gap:.0f}s (threshold: {idle_threshold}s, drift: +{drift:.0f}s)")
         print(f"  Polls:     {consecutive_idle} consecutive above threshold")
         print(f"  Signal:    {activity_source}")
@@ -392,8 +433,10 @@ def main():
             goal = anchor_b.get("goal", "")
             if goal:
                 print(f"  ── Anchor B: {goal[:70]}{'...' if len(goal) > 70 else ''}")
-            for criterion in (anchor_b.get("done_criteria") or [])[:3]:
-                print(f"    [ ] {criterion}")
+            evaluated = eval_criteria_quick(state)
+            for c, done in evaluated[:3]:
+                mark = "x" if done else " "
+                print(f"    [{mark}] {c}")
         if dg_active:
             print(f"  Drift Guard: ARMED (still running)")
         elif dw:

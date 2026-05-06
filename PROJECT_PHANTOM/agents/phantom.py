@@ -369,6 +369,9 @@ def cmd_ping(args):
         ping_log = state.get("ping_log", [])
         ping_log.append(log_entry)
         state["ping_log"] = ping_log[-20:]
+    tests_passed = getattr(args, "tests", None)
+    if tests_passed is not None:
+        state["tests_last_count"] = tests_passed
     atomic_write(state)
     agents      = state.get("agents_running", 0)
     rounds      = state.get("rounds_remaining", 0)
@@ -378,6 +381,8 @@ def cmd_ping(args):
     print(f"PING — Turn {turns_taken}/{turns_target} | Rounds left: {rounds} | Agents: {agents} | Elapsed: {elapsed_str}")
     if args.note:
         print(f"  Note: {args.note}")
+    if tests_passed is not None:
+        print(f"  Tests recorded: {tests_passed}")
     auto_save(state)
     if isinstance(turns_target, int) and turns_taken == turns_target:
         # Turn budget met — print milestone but keep session active
@@ -461,6 +466,30 @@ def cmd_status(args):
     if not state:
         print("No active session.")
         return
+
+    brief = getattr(args, "brief", False)
+    if brief:
+        # One-line compact summary: Turn | HB ETA | Coverage | Drift | Note
+        turns    = f"T{state.get('turns_taken',0)}/{state.get('turns_target','?')}"
+        rounds   = f"R{state.get('rounds_remaining',0)}"
+        hb       = "HB:idle"
+        if state.get("heartbeat_active"):
+            nxt = state.get("next_heartbeat_at")
+            if nxt:
+                try:
+                    secs = (datetime.strptime(nxt, "%Y-%m-%d %H:%M:%S") - datetime.now()).total_seconds()
+                    hb = f"HB:~{max(0,int(secs))}s"
+                except Exception:
+                    hb = "HB:armed"
+            else:
+                hb = "HB:armed"
+        cov  = _quick_coverage(state)
+        cov_s = cov.split(" ")[0] if cov else "cov:?"
+        drift = "⚠drift" if state.get("drift_warning") else "drift:ok"
+        note  = (state.get("progress_note") or "—")[:40]
+        print(f"[{state.get('status','?')}] {turns} {rounds} | {hb} | {cov_s} | {drift} | {note}")
+        return
+
     # Rich status display
     started = state.get("started", "?")
     print("=" * 50)
@@ -517,6 +546,9 @@ def cmd_status(args):
         print(f"  Coverage:  {cov_line or ' '.join(cov_targets)}")
     if scope_files:
         print(f"  Scope:     {' '.join(scope_files)}")
+    tests_count = state.get("tests_last_count")
+    if tests_count:
+        print(f"  Tests:     {tests_count} (recorded via ping --tests)")
 
     # Pending drift warning block
     dw = state.get("drift_warning")
@@ -538,8 +570,37 @@ def cmd_status(args):
     print("=" * 50)
 
 
+def _soft_checkpoint(state: dict) -> list[str]:
+    """Return list of checkpoint failures without side effects or exit calls."""
+    issues = []
+    last_active = state.get("last_active", "")
+    threshold   = state.get("idle_threshold_seconds", 180)
+    if last_active:
+        try:
+            age = (datetime.now() - datetime.strptime(last_active, "%Y-%m-%d %H:%M:%S")).total_seconds()
+            if age > threshold * 0.75:
+                issues.append(f"stale ping ({age:.0f}s since last ping)")
+        except Exception:
+            pass
+    if state.get("drift_warning"):
+        issues.append("unresolved drift warning")
+    targets = state.get("coverage_targets") or []
+    if targets:
+        cov = _quick_coverage(state)
+        if cov and int(cov.split("/")[0]) == 0:
+            issues.append("zero coverage — no targets touched")
+    return issues
+
+
 def cmd_complete(args):
     state = require_state()
+    # Soft pre-complete checkpoint — warn on issues but don't block
+    issues = _soft_checkpoint(state)
+    if issues:
+        print("⚠  Pre-complete check found issues (run 'checkpoint' to review):")
+        for iss in issues:
+            print(f"    • {iss}")
+        print()
     state["status"]    = "complete"
     state["completed"] = now_str()
     atomic_write(state)
@@ -623,15 +684,21 @@ def cmd_scope(args):
         if not lines:
             print(f"No file changes found ({label}).")
             return
+        # Filter auto-save state file (same as drift_guard v4 default ignore)
         totals = {}
         for line in lines:
             parts = line.split("|")
             fname = parts[0].strip()
+            if _SAVED_REL and fname == _SAVED_REL:
+                continue
             try:
                 changes = int(parts[1].strip().split()[0])
                 totals[fname] = changes
             except (IndexError, ValueError):
                 pass
+        if not totals:
+            print(f"No file changes found ({label}) after filtering.")
+            return
         grand_total = sum(totals.values()) or 1
         # Use session scope_threshold when CLI threshold is at default and session active
         cli_threshold = getattr(args, "threshold", 50.0)
@@ -714,12 +781,14 @@ def cmd_check(args):
             for line in lines:
                 parts = line.split("|")
                 fname = parts[0].strip()
+                if fname == _SAVED_REL:
+                    continue  # filter auto-save file same as drift_guard/scope
                 try:
                     scope_result["files"][fname] = int(parts[1].strip().split()[0])
                 except (IndexError, ValueError):
                     pass
             grand = sum(scope_result["files"].values()) or 1
-            scope_result["max_pct"] = max(scope_result["files"].values()) / grand * 100
+            scope_result["max_pct"] = max(scope_result["files"].values()) / grand * 100 if scope_result["files"] else 0
             scope_result["clean"] = scope_result["max_pct"] <= threshold
     except Exception as e:
         scope_result["error"] = str(e)
@@ -1114,6 +1183,56 @@ def cmd_drift_status(args):
 
 # --- Anchor system ---
 
+def _eval_criteria(state: dict) -> list[tuple[str, bool]]:
+    """
+    Evaluate each done criterion against observable session state.
+    Returns list of (criterion_text, is_done) pairs.
+
+    Heuristics (simple keyword matching against measurable signals):
+      - "coverage" + fraction → check _quick_coverage() for full coverage
+      - "tests pass" / "passing" → not checkable live; always False (needs manual verify)
+      - "all" + "pass" / "complete" → not checkable; False
+      - anything else → False (unknown, needs manual verify)
+    """
+    criteria = (state.get("anchor_b") or {}).get("done_criteria") or []
+    results = []
+    cov_str = _quick_coverage(state)
+    full_cov = cov_str is not None and "FULL COVERAGE" in cov_str
+
+    anchor_checks = state.get("anchor_checks_count", 0)
+    hb_fires      = len(state.get("heartbeat_fires", []))
+    import re as _re
+
+    for c in criteria:
+        c_lower = c.lower()
+        done = False
+        # Coverage criterion: "coverage 4/4", "full coverage", "coverage complete"
+        if "coverage" in c_lower:
+            done = full_cov
+        # Drift criterion: "drift clean", "no drift"
+        elif "drift" in c_lower and ("clean" in c_lower or "no" in c_lower):
+            done = not bool(state.get("drift_warning"))
+        # Anchor check criterion: "anchor check used"
+        elif "anchor check" in c_lower:
+            done = anchor_checks > 0
+        # Checkpoint criterion: "checkpoint used", "checkpoint before completion"
+        elif "checkpoint" in c_lower and ("used" in c_lower or "before" in c_lower or "run" in c_lower):
+            done = state.get("checkpoint_calls_count", 0) > 0
+        # Heartbeat observed: "observed ... heartbeat fire", "heartbeat fire"
+        elif "heartbeat fire" in c_lower or ("heartbeat" in c_lower and "fire" in c_lower):
+            m = _re.search(r'(\d+)', c)
+            needed = int(m.group(1)) if m else 1
+            done = hb_fires >= needed
+        # Tests passing: "N+ tests passing", "N tests pass"
+        elif "test" in c_lower and ("pass" in c_lower or "passing" in c_lower):
+            last_count = state.get("tests_last_count", 0)
+            m = _re.search(r'(\d+)', c)
+            if m and last_count > 0:
+                done = last_count >= int(m.group(1))
+        results.append((c, done))
+    return results
+
+
 def cmd_anchor(args):
     """Anchor-based navigation: Point A (origin) never changes, Point B (goal) is the target."""
     sub   = args.anchor_cmd
@@ -1135,8 +1254,10 @@ def cmd_anchor(args):
         criteria = b.get("done_criteria") or []
         if criteria:
             print(f"    Done when:")
-            for c in criteria:
-                print(f"      [ ] {c}")
+            evaluated = _eval_criteria(state)
+            for c, done in evaluated:
+                mark = "x" if done else " "
+                print(f"      [{mark}] {c}")
         else:
             print(f"    Done when: (not set — use 'anchor set-goal --criteria ...' to define)")
         print(f"    Set at:    {b.get('set_at', '?')}")
@@ -1148,6 +1269,10 @@ def cmd_anchor(args):
         print(sep)
 
     elif sub == "check":
+        # Increment usage counter so _eval_criteria can auto-mark "anchor check used"
+        state["anchor_checks_count"] = state.get("anchor_checks_count", 0) + 1
+        atomic_write(state)
+
         a = state.get("anchor_a", {})
         b = state.get("anchor_b", {})
         print(sep)
@@ -1161,8 +1286,12 @@ def cmd_anchor(args):
         criteria = b.get("done_criteria") or []
         if criteria:
             print(f"  Done criteria:")
-            for c in criteria:
-                print(f"    [ ] {c}")
+            evaluated = _eval_criteria(state)
+            done_count = sum(1 for _, d in evaluated if d)
+            for c, done in evaluated:
+                mark = "x" if done else " "
+                print(f"    [{mark}] {c}")
+            print(f"  Progress: {done_count}/{len(criteria)} criteria verifiably met")
         print()
         print(f"  CURRENT:")
         print(f"    Turn:     {state.get('turns_taken', 0)}/{state.get('turns_target', '?')}")
@@ -1199,6 +1328,10 @@ def cmd_anchor(args):
 def cmd_checkpoint(args):
     """Run non-negotiable gate checks. Exits 1 if any gate fails."""
     state         = require_state()
+    # Track usage so _eval_criteria can auto-mark "checkpoint used" criteria
+    state["checkpoint_calls_count"] = state.get("checkpoint_calls_count", 0) + 1
+    atomic_write(state)
+
     gate_mode     = getattr(args, "gate", False)
     require_full  = getattr(args, "require_full_coverage", False)
     failures: list[str] = []
@@ -1238,6 +1371,8 @@ def cmd_checkpoint(args):
                 for line in lines:
                     parts = line.split("|")
                     fname = parts[0].strip()
+                    if _SAVED_REL and fname == _SAVED_REL:
+                        continue
                     try:
                         totals[fname] = int(parts[1].strip().split()[0])
                     except (IndexError, ValueError):
@@ -1523,6 +1658,8 @@ p.add_argument("--force", action="store_true", help="Overwrite existing profile"
 
 p = sub.add_parser("ping", help="Signal active turn (run at start of every turn)")
 p.add_argument("note", nargs="?", default="", help="Optional progress note")
+p.add_argument("--tests", type=int, default=None, metavar="N",
+               help="Record test pass count (used by criteria eval)")
 
 p = sub.add_parser("agent-start", help="Register a spawned sub-agent")
 p.add_argument("--id", default="", help="Optional agent identifier")
@@ -1531,7 +1668,8 @@ p = sub.add_parser("agent-done", help="Mark a sub-agent as returned")
 p.add_argument("--id", default="", help="Optional agent identifier")
 
 sub.add_parser("heartbeat-arm", help="Arm the heartbeat before spawning")
-sub.add_parser("status",        help="Print rich session status")
+p = sub.add_parser("status",    help="Print rich session status")
+p.add_argument("--brief", action="store_true", help="One-line compact summary")
 sub.add_parser("complete",      help="Mark session complete and print summary")
 sub.add_parser("history",       help="Print session history and progress")
 

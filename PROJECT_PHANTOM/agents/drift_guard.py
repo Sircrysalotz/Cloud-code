@@ -429,7 +429,13 @@ def main():
 
     task           = state.get("task", "")
     scope_files    = args.scope or state.get("scope_files") or []
-    ignore_patterns = args.ignore_patterns or []
+    # Build ignore list: CLI patterns + auto-detected session state file (always a false positive)
+    _saved_state_rel = os.path.relpath(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "logs", "last_session_state.json"),
+        workspace
+    ) if workspace else ""
+    _default_ignores = [_saved_state_rel] if _saved_state_rel else []
+    ignore_patterns = list(set((args.ignore_patterns or []) + _default_ignores))
     # Prefer session_start_ref (stored at session start) — only checks this session's changes
     since        = args.since or state.get("session_start_ref") or find_since(workspace)
     # Use session state scope_threshold when CLI scope-threshold is at default

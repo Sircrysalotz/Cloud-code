@@ -25,6 +25,9 @@ If either check fails, exit immediately without doing anything.
 
 ## Main execution
 
+Run **blocking** with explicit 10-minute timeout — do NOT use `run_in_background: true`.
+If the shell exits before drift_guard finishes, `drift_guard_active` stays stuck True.
+
 ```bash
 python3 $AGENTS_DIR/drift_guard.py \
   --interval 60 \
@@ -116,7 +119,7 @@ After spreading changes:
 ```bash
 python3 $AGENTS_DIR/phantom.py drift-arm
 # Spawn: "Read $AGENTS_DIR/DRIFT_GUARD.md and execute."
-# use run_in_background: true
+# run_in_background: true (for the AGENT, not for the drift_guard.py command itself)
 # Do NOT call agent-start — drift-guard uses drift-arm/drift-done only.
 ```
 

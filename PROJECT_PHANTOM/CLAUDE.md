@@ -85,12 +85,23 @@ Do NOT call it:
 | `--scope-threshold` only settable per-run in drift_guard | `--scope-threshold` on `start` — stored in state, read by drift_guard + check |
 | Profile list fields not loaded from profile | scope_files, coverage_targets, tracked_extensions, scan_depth all profile-resolved |
 | Status/complete/report hide coverage status | All three commands show coverage summary when coverage_targets or scope_files set |
-| Test count varies between runs | Fixed conditional check() blocks — stable count (381 as of v2.8) |
+| Test count varies between runs | Accepted: count is git-state-dependent (~479 as of v3.1) |
 | `agent-start` for drift-guard blocked heartbeat forever | Protocol fix: drift-guard uses `drift-arm`/`drift-done` only — never `agent-start` |
 | `agent-start` for heartbeat also blocks heartbeat | Protocol fix: heartbeat uses `heartbeat-arm` only — never `agent-start` |
 | No navigation aids after resume — Claude loses bearing | `phantom.py anchor show/check` — immovable Point A (origin) and Point B (goal) always visible |
 | Completion practices are optional — easy to skip | `phantom.py checkpoint` — non-negotiable gates: ping freshness, drift, scope, coverage |
-| Test count varies between runs | 429 tests stable as of v2.9 |
+| Anchor criteria always show `[ ]` even when verifiably met | `_eval_criteria()` — auto-marks coverage and drift criteria `[x]` when observable |
+| `complete` silently skips pre-flight checks | `_soft_checkpoint()` in `complete` — warns on stale ping, drift, zero coverage |
+| Heartbeat fire doesn't say which round it is | Fire banner: "HEARTBEAT FIRED (round N/total)" |
+| auto-save `last_session_state.json` fires SCOPE_CREEP on every commit | `drift_guard` v4 auto-detects and ignores that path by default |
+| Full status is 20+ lines — too much for quick sanity check | `status --brief` — one-line compact summary: turns, HB ETA, coverage, drift, note |
+| Anchor/checkpoint/HB-fire/test criteria unverifiable at runtime | `anchor_checks_count`, `checkpoint_calls_count`, `tests_last_count`, `heartbeat_fires[]` — all 4 tracked and auto-eval |
+| `ping --tests N` confirmation not shown | Prints "Tests recorded: N" so recording is auditable |
+| HB ETA ignores `min_idle_polls` extra delay | ETA = threshold + (min_idle_polls-1) × interval — accurately reflects actual fire time |
+| Heartbeat agent uses `run_in_background: true` → runner dies on agent return | `HEARTBEAT.md` v4: CRITICAL note — blocking Bash with `timeout=600000`, never `run_in_background` |
+| `scope`, `check`, `checkpoint` show `last_session_state.json` inflating % | All three now filter the auto-save file via `_SAVED_REL` constant, same as `drift_guard` |
+| Fire banner shows `[ ]` for all criteria even when met | `eval_criteria_quick()` in runner evaluates state counters — shows `[x]` for met criteria |
+| `DRIFT_GUARD.md` agent uses `run_in_background: true` → process dies on return | `DRIFT_GUARD.md` v4: CRITICAL note — blocking Bash with `timeout=600000`, never `run_in_background` |
 
 ### Files
 
@@ -107,7 +118,7 @@ Do NOT call it:
 | `tools/scope_guard.py` | Portable drift checker for any git repo |
 | `tools/coverage_tracker.py` | Target file coverage checker |
 | `tools/setup.sh` | Drop-in environment checker for fresh machines |
-| `test_phantom.py` | Full integration test suite (429 tests) |
+| `test_phantom.py` | Full integration test suite (~472 tests) |
 | `DIFF.md` | Version changelog (v2.0 → v2.5) |
 | `PLAN.md` | Horizontal improvement tracker |
 | `ANTI_DRIFT.md` | Anti-drift observations from sessions |
@@ -201,6 +212,9 @@ python3 PROJECT_PHANTOM/agents/phantom.py start "task" \
 ### 3. Ping at the start of every turn (no exceptions)
 ```bash
 python3 PROJECT_PHANTOM/agents/phantom.py ping "what I just did / what's next"
+
+# After running tests, record the count so criteria eval can auto-mark "N+ tests passing":
+python3 PROJECT_PHANTOM/agents/phantom.py ping "note" --tests 472
 ```
 
 ### 4. Start drift guard (run alongside heartbeat)
@@ -401,7 +415,7 @@ Last pushed entry on GitHub = last confirmed alive before container death.
 
 ```bash
 python3 PROJECT_PHANTOM/test_phantom.py
-# 381 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
+# ~472 tests covering all phantom.py commands, heartbeat_runner, drift_guard, container_logger
 ```
 
 ---

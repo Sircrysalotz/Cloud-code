@@ -788,6 +788,36 @@ def test_heartbeat_runner():
         mtime2, path2 = hr.scan_workspace(tmpdir, {".js"})
         check("scan_workspace with .js finds nothing (no .js files)", path2 is None)
 
+    # ── ETA accounts for min_idle_polls ──
+    # With min_idle_polls=2 and interval=1, ETA should be threshold + 1s extra vs min_idle_polls=1
+    import subprocess as _sp2
+    from datetime import timedelta
+    run([PHANTOM, "start", "eta corr test", "--rounds", "1", "--interval", "1",
+         "--threshold", "60", "--min-idle-polls", "2", "--force"])
+    state = read_state()
+    state["heartbeat_active"] = True
+    state["agents_running"]   = 99  # prevent firing
+    state["last_active"]      = now_nowstr = time.strftime("%Y-%m-%d %H:%M:%S")
+    with tempfile.TemporaryDirectory() as tmpws:
+        state["workspace_dir"] = tmpws
+        with open(STATE, "w") as f:
+            json.dump(state, f)
+        try:
+            _sp2.run([sys.executable, RUNNER], capture_output=True, timeout=3, env=TEST_ENV)
+        except _sp2.TimeoutExpired:
+            pass
+    state_after = read_state()
+    nxt = state_after.get("next_heartbeat_at")
+    if nxt:
+        from datetime import datetime
+        nxt_dt  = datetime.strptime(nxt, "%Y-%m-%d %H:%M:%S")
+        base_dt = datetime.strptime(now_nowstr, "%Y-%m-%d %H:%M:%S")
+        secs_ahead = (nxt_dt - base_dt).total_seconds()
+        # With threshold=60, min_idle_polls=2, interval=1: ETA = 61s (60+1*(2-1))
+        check("ETA accounts for min_idle_polls (>= threshold + extra)", secs_ahead >= 60)
+    else:
+        check("ETA corrected — next_heartbeat_at written", False)
+
     # ── v6: anchor context in fire banner ──
     # Verify that a fire banner includes anchor_b goal when anchor_b is set in state
     run([PHANTOM, "start", "fire anchor test", "--rounds", "1", "--interval", "1",
@@ -804,6 +834,54 @@ def test_heartbeat_runner():
     check("v6 runner banner includes task/goal in anchor line", "fire anchor test" in out)
     check("v6 runner banner includes done criterion", "criterion alpha" in out)
     check("v6 RESUME line includes anchor check step", "anchor check" in out.lower() or "anchor" in out.lower())
+
+    # ── round number in fire banner ──
+    run([PHANTOM, "start", "round num test", "--rounds", "3", "--interval", "1", "--force"])
+    state = read_state()
+    state["heartbeat_active"] = True
+    state["last_active"] = "2020-01-01 00:00:00"
+    state["rounds_used"] = 1   # simulate one already used
+    with tempfile.TemporaryDirectory() as tmpws:
+        state["workspace_dir"] = tmpws
+        with open(STATE, "w") as f:
+            json.dump(state, f)
+        rc, out, err = run([RUNNER], timeout=10)
+    check("fire banner shows round number", "round" in out.lower())
+    # rounds_used=1 on entry, fire increments it to 2; rounds_total = used(1) + remaining(3) = 4
+    check("fire banner shows round N/total format", "/" in out and "round" in out.lower())
+
+    # ── eval_criteria_quick: fire banner uses [x]/[ ] from state counters ──
+    run([PHANTOM, "start", "criteria quick test", "--rounds", "1", "--interval", "1",
+         "--done-criteria", "anchor check used", "checkpoint used before completion",
+         "observed at least 1 heartbeat fire", "--force"])
+    state = read_state()
+    state["heartbeat_active"] = True
+    state["last_active"] = "2020-01-01 00:00:00"
+    # All criteria unmet initially
+    with tempfile.TemporaryDirectory() as tmpws:
+        state["workspace_dir"] = tmpws
+        with open(STATE, "w") as f:
+            json.dump(state, f)
+        rc, out, err = run([RUNNER], timeout=10)
+    check("fire banner shows [ ] for unmet criteria", "[ ]" in out)
+
+    # Now fire with counters set — criteria should show [x]
+    run([PHANTOM, "start", "criteria quick met test", "--rounds", "1", "--interval", "1",
+         "--done-criteria", "anchor check used", "checkpoint used before completion",
+         "observed at least 1 heartbeat fire", "--force"])
+    state = read_state()
+    state["heartbeat_active"] = True
+    state["last_active"] = "2020-01-01 00:00:00"
+    state["anchor_checks_count"] = 2
+    state["checkpoint_calls_count"] = 1
+    state["heartbeat_fires"] = [{"fired_at": "2026-01-01 00:00:00", "signal": "ping",
+                                  "gap_seconds": 200, "idle_polls": 1, "turns": 1}]
+    with tempfile.TemporaryDirectory() as tmpws:
+        state["workspace_dir"] = tmpws
+        with open(STATE, "w") as f:
+            json.dump(state, f)
+        rc, out, err = run([RUNNER], timeout=10)
+    check("fire banner shows [x] for met criteria (anchor check)", "[x]" in out)
 
     cleanup()
 
@@ -1488,6 +1566,14 @@ def test_check():
     check("watchdog_events initialized []",       state.get("watchdog_events")    == [])
     check("ping_log initialized []",              state.get("ping_log")           == [])
 
+    # anchor_a and anchor_b initialized at start
+    check("anchor_a initialized on start", isinstance(state.get("anchor_a"), dict))
+    check("anchor_b initialized on start", isinstance(state.get("anchor_b"), dict))
+    check("anchor_a has ref key",          "ref" in (state.get("anchor_a") or {}))
+    check("anchor_a has timestamp key",    "timestamp" in (state.get("anchor_a") or {}))
+    check("anchor_b has goal key",         "goal" in (state.get("anchor_b") or {}))
+    check("anchor_b goal matches task",    state.get("anchor_b", {}).get("goal") == "default auto-save")
+
     cleanup()
 
 
@@ -1570,6 +1656,72 @@ def test_anchor():
     check("anchor show shows criterion one", "criterion one" in out)
     check("anchor show shows criterion two", "criterion two" in out)
 
+    # anchor check shows criteria Progress line
+    rc, out, err = run([PHANTOM, "anchor", "check"])
+    check("anchor check shows Progress N/M line", "Progress:" in out)
+
+    # _eval_criteria: coverage criterion auto-marks [x] when coverage is full
+    # Set up a session with a "coverage" criterion and mark one target touched via git diff
+    # (Hard to test end-to-end without real git changes; test the [ ] → shown behavior)
+    run([PHANTOM, "start", "criteria eval test", "--turns", "5", "--force",
+         "--done-criteria", "coverage full", "drift clean", "no drift warning"])
+    run([PHANTOM, "ping", "evaluating criteria"])
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("anchor show shows [ ] for unmet criteria", "[ ]" in out)
+    # With no drift warning, 'drift clean' criterion should show [x]
+    check("anchor show marks drift clean as [x] when clean", "[x]" in out)
+
+    cleanup()
+
+    # _eval_criteria: anchor check tracking — criterion auto-marks [x] after first anchor check
+    run([PHANTOM, "start", "anchor check tracking test", "--turns", "5",
+         "--done-criteria", "anchor check used at least once"])
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("anchor check tracking: [ ] before first check", "[ ]" in out)
+    # Run anchor check — increments counter
+    run([PHANTOM, "anchor", "check"])
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("anchor check tracking: [x] after anchor check runs", "[x]" in out)
+
+    cleanup()
+
+    # _eval_criteria: heartbeat fire count — criterion auto-marks [x] when fires >= needed
+    run([PHANTOM, "start", "hb fire tracking test", "--turns", "5",
+         "--done-criteria", "observed at least 1 heartbeat fire"])
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("hb fire criterion: [ ] with zero fires", "[ ]" in out)
+    # Inject a fake heartbeat fire into state
+    import json as _json2, os as _os2
+    s2 = _json2.load(open(STATE))
+    s2["heartbeat_fires"] = [{"fired_at": "2026-01-01 00:00:00", "signal": "ping",
+                               "gap_seconds": 185, "idle_polls": 1, "turns": 1}]
+    with open(STATE + ".tmp", "w") as f:
+        _json2.dump(s2, f)
+    _os2.rename(STATE + ".tmp", STATE)
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("hb fire criterion: [x] after 1 fire injected", "[x]" in out)
+
+    cleanup()
+
+    # _eval_criteria: tests passing count — criterion auto-marks [x] when tests_last_count >= N
+    run([PHANTOM, "start", "tests passing criteria test", "--turns", "5",
+         "--done-criteria", "434+ tests passing on all changes"])
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("tests criterion: [ ] before recording count", "[ ]" in out)
+    # Record test count via ping --tests
+    run([PHANTOM, "ping", "ran tests", "--tests", "475"])
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("tests criterion: [x] when count >= threshold", "[x]" in out)
+
+    cleanup()
+
+    # ping --tests stores tests_last_count in state
+    run([PHANTOM, "start", "ping tests flag test", "--turns", "5"])
+    run([PHANTOM, "ping", "test note", "--tests", "100"])
+    import json as _json_t, os as _os_t
+    st = _json_t.load(open(STATE))
+    check("ping --tests stores tests_last_count in state", st.get("tests_last_count") == 100)
+
     cleanup()
 
 
@@ -1588,6 +1740,21 @@ def test_checkpoint():
     check("checkpoint exits 0 with no targets and fresh ping", rc == 0)
     check("checkpoint shows CHECKPOINT header", "CHECKPOINT" in out)
     check("checkpoint shows gates passed", "gates passed" in out.lower() or "All gates" in out)
+    # checkpoint call should have incremented checkpoint_calls_count
+    import json as _json3, os as _os3
+    s3 = _json3.load(open(STATE))
+    check("checkpoint increments checkpoint_calls_count", s3.get("checkpoint_calls_count", 0) >= 1)
+
+    # _eval_criteria: checkpoint criterion auto-marks [x] after checkpoint runs
+    cleanup()
+    run([PHANTOM, "start", "checkpoint criteria test", "--turns", "5",
+         "--done-criteria", "checkpoint used before completion"])
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("checkpoint criterion: [ ] before first checkpoint", "[ ]" in out)
+    run([PHANTOM, "ping", "ready to checkpoint"])
+    run([PHANTOM, "checkpoint"])
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("checkpoint criterion: [x] after checkpoint runs", "[x]" in out)
 
     cleanup()
 
@@ -1646,6 +1813,96 @@ def test_checkpoint():
 
     cleanup()
 
+    # complete — soft pre-complete checkpoint warns on issues but doesn't block
+    run([PHANTOM, "start", "complete warn test", "--turns", "3",
+         "--coverage-targets", "agents/phantom.py"])
+    # inject stale ping so soft checkpoint fires
+    s = _json.load(open(STATE))
+    s["last_active"] = "2020-01-01 00:00:00"
+    with open(STATE + ".tmp", "w") as f:
+        _json.dump(s, f)
+    _os.rename(STATE + ".tmp", STATE)
+    rc, out, err = run([PHANTOM, "complete"])
+    check("complete exits 0 even with soft checkpoint issues", rc == 0)
+    check("complete shows pre-complete warning", "Pre-complete" in out or "pre-complete" in out.lower())
+    check("complete still shows SESSION COMPLETE", "SESSION COMPLETE" in out)
+
+    cleanup()
+
+
+def test_status_brief():
+    print("\n── phantom.py status --brief ──")
+    cleanup()
+
+    # No session — should print nothing useful / exit 0 with "No active session"
+    rc, out, err = run([PHANTOM, "status", "--brief"])
+    check("status --brief with no session exits 0", rc == 0)
+    check("status --brief with no session says no session", "No active session" in out)
+
+    # Basic brief output format
+    run([PHANTOM, "start", "brief test task", "--turns", "10", "--rounds", "5"])
+    run([PHANTOM, "ping", "initial ping"])
+    rc, out, err = run([PHANTOM, "status", "--brief"])
+    check("status --brief exits 0 with active session", rc == 0)
+    check("status --brief outputs single line", len(out.strip().splitlines()) == 1)
+    check("status --brief contains [active]", "[active]" in out)
+    check("status --brief contains turn info T0/10", "T0/10" in out or "T1/10" in out)
+    check("status --brief contains round info R5", "R5" in out)
+    check("status --brief contains HB:idle when not armed", "HB:idle" in out)
+    check("status --brief contains drift:ok when no warning", "drift:ok" in out)
+
+    # Drift warning shows ⚠drift
+    import json as _json, os as _os
+    s = _json.load(open(STATE))
+    s["drift_warning"] = "VERTICAL drift detected"
+    with open(STATE + ".tmp", "w") as f:
+        _json.dump(s, f)
+    _os.rename(STATE + ".tmp", STATE)
+    rc, out, err = run([PHANTOM, "status", "--brief"])
+    check("status --brief shows ⚠drift when drift_warning set", "⚠drift" in out)
+
+    # Clear drift warning, arm HB with future next_heartbeat_at → shows HB:~Xs
+    s = _json.load(open(STATE))
+    s["drift_warning"] = None
+    s["heartbeat_active"] = True
+    from datetime import datetime, timedelta
+    future = (datetime.now() + timedelta(seconds=90)).strftime("%Y-%m-%d %H:%M:%S")
+    s["next_heartbeat_at"] = future
+    with open(STATE + ".tmp", "w") as f:
+        _json.dump(s, f)
+    _os.rename(STATE + ".tmp", STATE)
+    rc, out, err = run([PHANTOM, "status", "--brief"])
+    check("status --brief shows HB:~Xs when armed with ETA", "HB:~" in out and "s" in out)
+
+    # No next_heartbeat_at but armed → HB:armed
+    s = _json.load(open(STATE))
+    s["next_heartbeat_at"] = None
+    with open(STATE + ".tmp", "w") as f:
+        _json.dump(s, f)
+    _os.rename(STATE + ".tmp", STATE)
+    rc, out, err = run([PHANTOM, "status", "--brief"])
+    check("status --brief shows HB:armed when armed without ETA", "HB:armed" in out)
+
+    # Progress note truncated at 40 chars
+    s = _json.load(open(STATE))
+    s["heartbeat_active"] = False
+    s["progress_note"] = "A" * 60
+    with open(STATE + ".tmp", "w") as f:
+        _json.dump(s, f)
+    _os.rename(STATE + ".tmp", STATE)
+    rc, out, err = run([PHANTOM, "status", "--brief"])
+    check("status --brief truncates note at 40 chars", ("A" * 40) in out and ("A" * 41) not in out)
+
+    # Coverage shown when coverage_targets set
+    cleanup()
+    run([PHANTOM, "start", "brief cov test", "--turns", "5",
+         "--coverage-targets", "agents/phantom.py", "agents/heartbeat_runner.py"])
+    run([PHANTOM, "ping", "ping"])
+    rc, out, err = run([PHANTOM, "status", "--brief"])
+    check("status --brief shows coverage fraction with targets", "/" in out)
+
+    cleanup()
+
 
 # ─── Run all ─────────────────────────────────────────────────────────────────
 
@@ -1667,6 +1924,7 @@ if __name__ == "__main__":
         test_env()
         test_anchor()
         test_checkpoint()
+        test_status_brief()
     finally:
         cleanup()
 

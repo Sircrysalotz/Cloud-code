@@ -1,20 +1,20 @@
 {
-  "task": "Make PHANTOM reliable, dynamic, and self-aligning \u2014 anchor-based navigation, enforced good practices, configurable per codebase, works unsupervised",
-  "last_active": "2026-05-06 19:53:11",
-  "turns_taken": 5,
-  "turns_target": 25,
-  "rounds_remaining": 8,
+  "task": "Dogfood PHANTOM v2.9 \u2014 run the full system live, observe friction, fix what breaks or annoys, improve horizontal spread across all 5 core files",
+  "last_active": "2026-05-06 20:56:19",
+  "turns_taken": 21,
+  "turns_target": 30,
+  "rounds_remaining": 9,
   "idle_threshold_seconds": 180,
   "check_interval_seconds": 30,
   "cooldown_factor": 1.0,
   "min_idle_polls": 2,
-  "rounds_used": 0,
+  "rounds_used": 1,
   "agents_running": 0,
   "active_agent_ids": [],
   "heartbeat_active": true,
-  "last_heartbeat_fired": null,
-  "progress_note": "4/4 coverage, all tests pass. Running checkpoint before push.",
-  "started": "2026-05-06 19:38:36",
+  "last_heartbeat_fired": "2026-05-06 20:52:39",
+  "progress_note": "CLAUDE.md: fire banner eval_criteria_quick + DRIFT_GUARD blocking entries",
+  "started": "2026-05-06 20:15:07",
   "status": "active",
   "workspace_dir": "/home/user/Cloud-code",
   "profile": null,
@@ -31,61 +31,147 @@
     "agents/drift_guard.py",
     "test_phantom.py"
   ],
-  "scope_threshold": 40.0,
-  "session_start_ref": "e817a0832a0a18ed999735de521920b3a31cc46e",
+  "scope_threshold": 35.0,
+  "session_start_ref": "8bc5538cef4a730f8cea1ff32ba052ca52314fce",
   "tracked_extensions": [],
   "scan_depth": 5,
   "auto_save_every": 5,
-  "drift_guard_active": false,
-  "drift_warning": "DRIFT DETECTED [SCOPE_CREEP] after 1 check(s):\n  46% of changes are outside declared scope (PROJECT_PHANTOM/logs/last_session_state.json, PROJECT_PHANTOM/ANTI_DRIFT.md; threshold 40%)\n  Since: e817a0832a0a18ed999735de521920b3a31cc46e\n  Top files:\n     31.3%  PROJECT_PHANTOM/logs/last_session_state.json  (23 hunks, spread=43%)\n     30.7%  PROJECT_PHANTOM/agents/phantom.py  (5 hunks, spread=100%) [in-scope]\n     18.8%  PROJECT_PHANTOM/test_phantom.py  (2 hunks, spread=48%) [in-scope]",
-  "drift_warned_at": "2026-05-06 19:49:24",
-  "heartbeat_fires": [],
+  "drift_guard_active": true,
+  "drift_warning": null,
+  "drift_warned_at": "2026-05-06 20:18:25",
+  "heartbeat_fires": [
+    {
+      "fired_at": "2026-05-06 20:52:39",
+      "signal": "git:index",
+      "gap_seconds": 236,
+      "idle_polls": 2,
+      "turns": 18
+    }
+  ],
   "watchdog_events": [],
   "ping_log": [
     {
-      "turn": 1,
-      "note": "Session started \u2014 goal: anchor-based nav, infinity-stones checkpoints, horizontal gate, sub-agent loop. Planning implementation targets before writing any code.",
-      "at": "2026-05-06 19:38:46"
-    },
-    {
       "turn": 2,
-      "note": "429/429 tests pass \u2014 anchor + checkpoint system complete; handling drift false-positive on log file then updating CLAUDE.md and ANTI_DRIFT.md",
-      "at": "2026-05-06 19:44:30"
+      "note": "448/448 tests pass \u2014 all 4 friction fixes done. Handling drift false-positive then committing.",
+      "at": "2026-05-06 20:19:59"
     },
     {
       "turn": 3,
-      "note": "All files updated \u2014 anchor/checkpoint system, 429 tests, CLAUDE.md, ANTI_DRIFT.md. Committing now.",
-      "at": "2026-05-06 19:47:01"
+      "note": "Committed and pushed v3.0. Drift guard re-armed with new ignore-patterns code. Running anchor check.",
+      "at": "2026-05-06 20:20:36"
     },
     {
       "turn": 4,
-      "note": "434/434 tests \u2014 heartbeat_runner v6 (anchor context in fire banner) + drift_guard v4 (--ignore-patterns). Committing.",
-      "at": "2026-05-06 19:52:45"
+      "note": "Tests pass 468/468 \u2014 status --brief tested; committing final v3.0 changes",
+      "at": "2026-05-06 20:24:52"
     },
     {
       "turn": 5,
-      "note": "4/4 coverage, all tests pass. Running checkpoint before push.",
-      "at": "2026-05-06 19:53:11"
+      "note": "anchor criteria tracking: check/HB-fire auto-mark; 466/466 tests pass",
+      "at": "2026-05-06 20:29:29"
+    },
+    {
+      "turn": 6,
+      "note": "checkpoint tracking added; 475/475 pass. Drift guard v4 confirmed running clean",
+      "at": "2026-05-06 20:31:09"
+    },
+    {
+      "turn": 7,
+      "note": "added --tests flag to ping; testing criteria eval",
+      "at": "2026-05-06 20:33:16"
+    },
+    {
+      "turn": 8,
+      "note": "ping --tests flag + criteria eval for tests/hb-fire; 472/472",
+      "at": "2026-05-06 20:34:43"
+    },
+    {
+      "turn": 9,
+      "note": "CLAUDE.md updated with v3.1 improvements",
+      "at": "2026-05-06 20:35:17"
+    },
+    {
+      "turn": 10,
+      "note": "testing --tests confirmation output",
+      "at": "2026-05-06 20:36:45"
+    },
+    {
+      "turn": 11,
+      "note": "HEARTBEAT.md v4: block with timeout=600000, never run_in_background",
+      "at": "2026-05-06 20:38:40"
+    },
+    {
+      "turn": 12,
+      "note": "status shows tests_last_count; 478/478",
+      "at": "2026-05-06 20:40:04"
+    },
+    {
+      "turn": 13,
+      "note": "HB ETA now accounts for min_idle_polls (threshold + (polls-1)*interval)",
+      "at": "2026-05-06 20:40:40"
+    },
+    {
+      "turn": 14,
+      "note": "ETA fix tested; 479/479 \u2014 committing v3.1 batch",
+      "at": "2026-05-06 20:42:11"
+    },
+    {
+      "turn": 15,
+      "note": "CLAUDE.md improvement table reconciled + v3.1 entries complete",
+      "at": "2026-05-06 20:44:02"
+    },
+    {
+      "turn": 16,
+      "note": "scope cmd filters last_session_state.json; 479/479",
+      "at": "2026-05-06 20:45:36"
+    },
+    {
+      "turn": 17,
+      "note": "checkpoint+check also filter auto-save file; 476/476",
+      "at": "2026-05-06 20:47:15"
+    },
+    {
+      "turn": 18,
+      "note": "refactored _SAVED_REL; CLAUDE.md v3.1 complete; 476/476; going quiet for HB fire",
+      "at": "2026-05-06 20:48:39"
+    },
+    {
+      "turn": 19,
+      "note": "HEARTBEAT FIRED round 1/10 \u2014 resuming. Fixing criteria eval in fire banner",
+      "at": "2026-05-06 20:53:08"
+    },
+    {
+      "turn": 20,
+      "note": "fire banner [x] criteria; DRIFT_GUARD.md blocking fix; 481/481",
+      "at": "2026-05-06 20:55:22"
+    },
+    {
+      "turn": 21,
+      "note": "CLAUDE.md: fire banner eval_criteria_quick + DRIFT_GUARD blocking entries",
+      "at": "2026-05-06 20:56:19"
     }
   ],
-  "last_activity_source": "file:PROJECT_PHANTOM/agents/heartbeat_runner.py",
-  "last_activity_ts": "2026-05-06 19:49:03",
-  "next_heartbeat_at": "2026-05-06 19:52:03",
+  "last_activity_source": "git:index",
+  "last_activity_ts": "2026-05-06 20:56:24",
+  "next_heartbeat_at": "2026-05-06 20:59:54",
   "completed": null,
-  "saved_at": "2026-05-06 19:53:11",
+  "saved_at": "2026-05-06 20:57:12",
   "anchor_a": {
-    "ref": "e817a0832a0a18ed999735de521920b3a31cc46e",
-    "timestamp": "2026-05-06 19:38:36"
+    "ref": "8bc5538cef4a730f8cea1ff32ba052ca52314fce",
+    "timestamp": "2026-05-06 20:15:07"
   },
   "anchor_b": {
-    "goal": "Make PHANTOM reliable, dynamic, and self-aligning \u2014 anchor-based navigation, enforced good practices, configurable per codebase, works unsupervised",
+    "goal": "Dogfood PHANTOM v2.9 \u2014 run the full system live, observe friction, fix what breaks or annoys, improve horizontal spread across all 5 core files",
     "done_criteria": [
-      "anchor show/check commands work and are tested",
-      "checkpoint command gates on ping freshness, drift, scope, coverage",
-      "tests pass: all existing + new anchor/checkpoint tests",
-      "CLAUDE.md documents new commands",
-      "ANTI_DRIFT.md updated with anchor/checkpoint patterns"
+      "observed at least 1 real heartbeat fire and resumed correctly",
+      "anchor check used at least once mid-session",
+      "checkpoint used before completion",
+      "at least 2 real improvements made per covered file",
+      "434+ tests passing on all changes"
     ],
-    "set_at": "2026-05-06 19:42:55"
-  }
+    "set_at": "2026-05-06 20:15:07"
+  },
+  "anchor_checks_count": 7,
+  "checkpoint_calls_count": 3,
+  "tests_last_count": 481
 }
