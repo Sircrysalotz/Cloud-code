@@ -395,6 +395,10 @@ def main():
     scope_files  = args.scope or state.get("scope_files") or []
     # Prefer session_start_ref (stored at session start) — only checks this session's changes
     since        = args.since or state.get("session_start_ref") or find_since(workspace)
+    # Use session state scope_threshold when CLI scope-threshold is at default
+    threshold       = args.threshold  # raw file % threshold (not overridden by state)
+    scope_threshold = (state.get("scope_threshold", args.scope_threshold)
+                       if args.scope_threshold == 30.0 else args.scope_threshold)
     tracker      = TrendTracker(window=args.trend_checks)
     checks       = 0
 
@@ -403,7 +407,7 @@ def main():
     since_src = "cli" if args.since else ("session_start_ref" if state.get("session_start_ref") else "auto")
     print(f"  Threshold:  {args.threshold:.0f}% | Poll: {args.interval}s | Since: {since} ({since_src})")
     print(f"  Hunk spread min: {args.hunk_spread:.0%} | Hunk count min: {args.hunk_count_min}")
-    print(f"  Scope threshold: {args.scope_threshold:.0f}% outside | Trend window: {args.trend_checks} checks")
+    print(f"  Scope threshold: {scope_threshold:.0f}% outside | Trend window: {args.trend_checks} checks")
     if scope_files:
         print(f"  Scope:      {', '.join(scope_files)}")
     else:
@@ -448,10 +452,10 @@ def main():
             scored, total, hunk_data, tracker,
             state.get("task", ""),
             scope_files,
-            args.threshold,
+            threshold,
             args.min_lines,
             args.hunk_spread,
-            scope_threshold=args.scope_threshold,
+            scope_threshold=scope_threshold,
             hunk_count_min=args.hunk_count_min,
         )
 

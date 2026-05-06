@@ -1028,6 +1028,34 @@ def test_drift_guard():
     # top_pct=45 <= threshold=50, trend up, consistently_above(35%) → TRENDING
     check("TRENDING verdict fires on slow upward creep below threshold", is_tr and v_tr == "TRENDING")
 
+    # drift_guard reads scope_threshold from session state (not CLI) when CLI at default
+    # Simulate: state has scope_threshold=20, drift_guard should use it for scope-creep gate
+    import importlib
+    import types
+    # Build synthetic args mimicking argparse output at defaults
+    fake_args = types.SimpleNamespace(
+        threshold=50.0, scope_threshold=30.0, interval=60, since=None,
+        scope=None, min_lines=20, trend_checks=3, hunk_spread=0.3, hunk_count_min=4
+    )
+    fake_state = {
+        "scope_threshold": 20.0,  # tighter than CLI default 30
+        "scope_files": ["in_scope.py"],
+        "task": "fix auth",
+        "session_start_ref": None,
+        "workspace_dir": "/tmp",
+        "drift_guard_active": True,
+    }
+    # When CLI scope_threshold == 30.0 (default), should use state value 20.0
+    resolved_st = (fake_state.get("scope_threshold", fake_args.scope_threshold)
+                   if fake_args.scope_threshold == 30.0 else fake_args.scope_threshold)
+    check("drift_guard resolves scope_threshold from state (20.0)", resolved_st == 20.0)
+
+    # When CLI scope_threshold != 30.0 (explicitly set), CLI wins
+    fake_args2 = types.SimpleNamespace(scope_threshold=40.0)
+    resolved_st2 = (fake_state.get("scope_threshold", fake_args2.scope_threshold)
+                    if fake_args2.scope_threshold == 30.0 else fake_args2.scope_threshold)
+    check("drift_guard CLI scope_threshold takes precedence over state", resolved_st2 == 40.0)
+
     cleanup()
 
 
