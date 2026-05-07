@@ -68,6 +68,7 @@ Optional flags:
 - `--hunk-count-min N` — minimum hunk count required before spread analysis can exempt a file (default 4)
 - `--hunk-spread N` — minimum hunk spread ratio (0–1) to consider work horizontal (default 0.3)
 - `--trend-checks N` — history window: checks above threshold before TRENDING fires (default 3)
+- `--max-checks N` — exit cleanly after N clean checks (0 = run until session complete or drift; useful with direct-command spawn)
 
 Four-gate evaluation order:
 1. **Declared scope** — if scope_files set and dominant file is in scope, CLEAN; if outside scope > 30%, SCOPE_CREEP

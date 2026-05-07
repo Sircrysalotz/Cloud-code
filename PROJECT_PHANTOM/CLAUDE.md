@@ -266,10 +266,11 @@ Call 1 (Bash, timeout=30000): python3 <AGENTS_DIR>/phantom.py status
   If drift_guard_active=false → stop. Return "Not armed."
 Call 2 (Bash, timeout=600000, blocking — NOT run_in_background, NOT Monitor):
   python3 <AGENTS_DIR>/drift_guard.py --interval 60 --threshold 50
-Call 3 (Bash, timeout=30000): python3 <AGENTS_DIR>/phantom.py drift-done
+Call 3 (Bash, timeout=30000): python3 <AGENTS_DIR>/phantom.py status
 
 Your response = full output from calls 2 and 3 verbatim. Nothing else.
 ```
+Note: the main session calls `drift-done` after this agent returns — the agent does NOT call drift-done.
 
 Fallback: `"Read <path-to-agents-dir>/DRIFT_GUARD.md and execute."`
 

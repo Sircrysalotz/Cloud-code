@@ -1366,6 +1366,19 @@ def test_drift_guard():
 
     cleanup()
 
+    # drift_guard --max-checks: exits cleanly after N clean checks
+    import tempfile as _tf_dg
+    run([PHANTOM, "start", "drift max-checks test", "--rounds", "3", "--interval", "1",
+         "--threshold", "5", "--force"])
+    run([PHANTOM, "ping", "max-checks test"])
+    run([PHANTOM, "drift-arm"])
+    rc, out, err = run([DRIFT, "--interval", "1", "--max-checks", "2"], timeout=30)
+    check("drift --max-checks 2 exits 0", rc == 0)
+    check("drift --max-checks 2 prints max checks message", "Max checks" in out)
+    check("drift_guard v5 active banner", "Drift Guard v5 active" in out)
+
+    cleanup()
+
 
 # ─── scope_guard.py tests ────────────────────────────────────────────────────
 
