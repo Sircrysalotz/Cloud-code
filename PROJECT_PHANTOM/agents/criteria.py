@@ -5,16 +5,22 @@ Shared criteria evaluator for PHANTOM session done-criteria.
 Used by both phantom.py (_eval_criteria) and heartbeat_runner.py (eval_criteria_quick)
 so fire banners and anchor checks always show identical results.
 
-Heuristics (keyword matching against measurable session state):
-  coverage     → state["coverage_full"] (written by check/anchor-check; no git calls)
-  drift clean  → not state["drift_warning"]
-  anchor check → state["anchor_checks_count"] > 0
-  checkpoint   → state["checkpoint_calls_count"] > 0
-  heartbeat N  → len(state["heartbeat_fires"]) >= N
-  N+ tests     → state["tests_last_count"] >= N
-  FILE updated/created → git diff --name-only session_start_ref..HEAD contains FILE
-                         (keywords: updated, changed, done, committed, created, documented, added, written)
-  elapsed N minutes  → (now - state["started"]).total_seconds()/60 >= N
+Auto-eval patterns — write done-criteria using these forms to get [x]/[ ] automatically:
+
+  Pattern              Example criterion                     What it checks
+  ─────────────────────────────────────────────────────────────────────────────────
+  coverage             "coverage 4/4" / "full coverage"      state["coverage_full"]
+  drift clean          "drift clean" / "no drift"            not state["drift_warning"]
+  anchor check         "anchor check used at least once"     anchor_checks_count > 0
+  checkpoint           "checkpoint before completion"        checkpoint_calls_count > 0
+  heartbeat fires      "observed 6+ heartbeat fires"         len(heartbeat_fires) >= N
+  tests passing        "583+ tests passing"                  tests_last_count >= N
+  file updated/created "CLAUDE.md updated" / "README.md created"
+                                                             git diff --name-only since session start
+                       (trigger words: updated, changed, done, committed,
+                                       created, documented, added, written)
+  elapsed time         "session elapsed 90+ minutes"         (now - started).total_seconds()/60 >= N
+                       (trigger words: elapsed, minute, min + a number)
 """
 
 import re
