@@ -54,7 +54,8 @@ Your only job: tool call (pre-flight) → tool call (drift_guard.py) → text ou
 ```bash
 python3 $AGENTS_DIR/drift_guard.py \
   --interval 60 \
-  --threshold 50
+  --threshold 50 \
+  --max-checks 10
 ```
 
 Optional flags:
