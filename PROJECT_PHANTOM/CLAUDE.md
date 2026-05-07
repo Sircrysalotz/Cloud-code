@@ -135,6 +135,7 @@ Do NOT call it:
 | `_eval_criteria` couldn't auto-mark "CLAUDE.md updated" or similar file criteria | New "file updated" pattern: extracts filename from criterion, checks `git diff --name-only` since session start |
 | `eval_criteria_quick` (runner) and `_eval_criteria` (phantom.py) are two separate implementations that drift apart | Extracted `criteria.py` shared module; both files import `eval_criteria` from it — one implementation forever |
 | Drift guard agent spawned with "Read DRIFT_GUARD.md" causes Pattern 9 (formatted summary) | Direct-command spawn prompt added to CLAUDE.md protocol step 4, same approach as heartbeat |
+| Context compaction mid-session leaves `heartbeat_active`/`drift_guard_active` stuck True with no running process | `phantom.py recover` → re-arm → re-spawn; after any resume, verify `Agents: 0` vs `ARMED` before assuming agents are live |
 
 ### Files
 
@@ -545,6 +546,16 @@ Fix:
 ```bash
 python3 PROJECT_PHANTOM/agents/phantom.py recover   # clear stuck heartbeat_active
 python3 PROJECT_PHANTOM/agents/phantom.py heartbeat-arm  # re-arm and spawn new agent
+```
+
+### Context compaction leaves arm flags stuck after resume
+Symptom: `phantom.py status` shows `Heartbeat: ARMED` and/or `Drift Guard: ARMED`, but `Agents: 0 running`. `heartbeat-arm` returns exit 2 ("already active").
+Cause: context compaction exhausted the session before the background agents were spawned — arm flags set, processes never started.
+Fix:
+```bash
+python3 PROJECT_PHANTOM/agents/phantom.py recover    # clears both stuck flags
+python3 PROJECT_PHANTOM/agents/phantom.py heartbeat-arm  # exit 0 → spawn
+python3 PROJECT_PHANTOM/agents/phantom.py drift-arm      # exit 0 → spawn
 ```
 
 ### Container dies mid-session

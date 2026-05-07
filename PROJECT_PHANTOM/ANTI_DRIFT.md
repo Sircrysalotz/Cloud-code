@@ -201,13 +201,46 @@ interprets this as "produce a helpful summary" rather than "literal copy-paste".
 session reads a narrative instead of machine-parseable lines. For drift_guard this is advisory
 (main session reads state, not agent text), but it can confuse the human reading the output.
 
-**Fix (v3.4):** The direct-command approach for heartbeat is also applicable to drift guard.
-Explicit instructions to paste verbatim help but aren't fully reliable. State remains
-authoritative — the main session always calls `drift-done` to read state, never trusts agent text.
+**Fix (v3.4 → v3.5):** Direct-command spawn prompt added to CLAUDE.md step 4 — same
+approach that solved Pattern 8 for heartbeat. Instead of "Read DRIFT_GUARD.md and execute",
+the prompt specifies exactly 3 Bash calls and says "Your response = full output from calls 2
+and 3 verbatim." Confirmed working in v3.5 marathon round 1: verbatim output, clean `--max-checks`
+exit, no formatted summary.
 
 **Lesson:** Text output format instructions ("paste verbatim") are not reliably followed.
 Design systems so correctness doesn't depend on agent output format — use state as the source
-of truth, and use agent text only for human readability.
+of truth, and use agent text only for human readability. When verbatim output IS needed, use
+direct-command spawn (specify tool calls explicitly) rather than prose instructions.
+
+---
+
+## Pattern 10: Context Compaction Leaves Arm Flags Stuck (v3.5)
+
+**What happened:** A marathon session started heartbeat-arm and drift-arm but ran out of
+context before the background agents were spawned. On resume after compaction, `phantom.py status`
+showed `Heartbeat: ARMED — overdue by 197s` and `Drift Guard: ARMED`, but `Agents: 0 running`.
+
+**How it manifested:** Both `heartbeat-arm` and `drift-arm` returned exit 2 (already active)
+with "WARNING: already active — not re-arming." No agent was actually running. The heartbeat
+would never fire in this state — `heartbeat_active` stuck True, no runner process.
+
+**Root cause:** `heartbeat-arm` sets `heartbeat_active: True` and `drift-arm` sets
+`drift_guard_active: True` as part of their "reserve a slot" logic. If the main session
+exits (context exhausted) after arming but before spawning the agent, the flags stay set
+with no process behind them.
+
+**Fix:** `phantom.py recover` → clears both stuck flags → re-arm → re-spawn. Reliable pattern:
+```bash
+python3 agents/phantom.py recover
+python3 agents/phantom.py heartbeat-arm  # exit 0 → spawn
+python3 agents/phantom.py drift-arm      # exit 0 → spawn
+```
+
+**Detection:** After any resume or context loss, check `Agents: 0 running` vs `Heartbeat: ARMED`.
+If armed but no agents running, run `recover` before re-arming.
+
+**Lesson:** Context compaction mid-turn is an invisible session interruption. After any resume,
+verify arm flags match actual running agents before assuming agents are live.
 
 ---
 
