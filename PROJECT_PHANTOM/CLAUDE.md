@@ -127,6 +127,11 @@ Do NOT call it:
 | `status` shows no criteria progress — must run `anchor check` to see criterion state | `status` now shows criteria mini-view: `N/M met \| [x] [ ] [ ]` from `_eval_criteria()` |
 | Heartbeat agent returns early with "I will relay output once runner exits" (no output) | `HEARTBEAT.md` v7: warning at top — do NOT generate text before Bash call; text = return value |
 | Runner sleeps `check_interval` (30s) before first check — agent can return before any output | `heartbeat_runner.py`: `first_iteration` flag skips sleep on first poll; if already idle, fires in < 1s |
+| `check` command re-runs git diff on every call — slow if called often | `check` caches result in session state (30s TTL); use `--no-cache` to force fresh run |
+| `status` criteria mini-view shows marks only — no criterion text visible | `status --verbose` expands to full list with text and `[x]/[ ]` per criterion |
+| Warning-only HEARTBEAT.md v7 still caused early returns — model acknowledges warning as text | `HEARTBEAT.md` v8: execution steps (STEP 1/2/3) placed at the very top before any prose |
+| `heartbeat_runner.py` fire banner shows only first 3 criteria — rest hidden | Runner v8: fire banner shows ALL criteria with `Criteria: N/M met` count header |
+| No session elapsed visible during marathon — hard to track progress | Runner v8 fire banner + drift_guard status lines include session elapsed (e.g. `+1h05m`) |
 
 ### Files
 
@@ -259,8 +264,22 @@ python3 PROJECT_PHANTOM/agents/phantom.py heartbeat-arm
 # exit 0 → spawn heartbeat
 # exit 2 → already active OR rounds=0 — do NOT spawn
 ```
-Spawn prompt: `"Read <path-to-agents-dir>/HEARTBEAT.md and execute."`
 Use `run_in_background: true`.
+
+**Preferred spawn prompt** (direct command — avoids "read file" planning step that causes early returns):
+```
+You are a phantom heartbeat monitoring agent. Make exactly 3 Bash tool calls in order, then return their output. Do NOT write any text until all 3 calls complete.
+
+Call 1 (Bash, timeout=30000): python3 <AGENTS_DIR>/phantom.py status
+  If rounds_remaining=0 or heartbeat_active=false → stop. Return "Not armed / no rounds."
+Call 2 (Bash, timeout=600000, blocking — NOT run_in_background, NOT Monitor):
+  python3 <AGENTS_DIR>/heartbeat_runner.py
+Call 3 (Bash, timeout=30000): python3 <AGENTS_DIR>/phantom.py status
+
+Your response = full output from calls 2 and 3 verbatim. Nothing else.
+```
+
+Fallback (if direct approach unavailable): `"Read <path-to-agents-dir>/HEARTBEAT.md and execute."`
 **IMPORTANT:** Do NOT call `agent-start` for heartbeat either. Use `heartbeat-arm` only.
 
 ### 6. When heartbeat fires
@@ -532,3 +551,5 @@ python3 PROJECT_PHANTOM/agents/phantom.py restore   # recovers saved state
 - Run `checkpoint` before calling `complete` — ensure all gates pass first
 - `logs/` directory auto-saves on every ping-divisible turn (amends one commit, no new commits) — this is expected, not drift; the entire `logs/` dir is filtered from scope analysis
 - **Always verify heartbeat fires are real** — after the HB agent returns, check `rounds_remaining` decreased and `last_heartbeat_fired` is set; if not, run `recover` and re-arm
+- **Use direct-command spawn for heartbeat** — "Read HEARTBEAT.md and execute" causes the agent to generate planning text (Pattern 8); direct command prompt reduces this risk
+- **Don't re-arm heartbeat immediately after commits** — git:index stays fresh for ~3min after push; arm after the next turn's work is committed, then go idle
