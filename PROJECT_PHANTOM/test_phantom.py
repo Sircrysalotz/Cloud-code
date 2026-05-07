@@ -931,6 +931,27 @@ def test_heartbeat_runner():
         rc, out, err = run([RUNNER], timeout=10)
     check("fire banner shows [ ] for coverage criterion when coverage_full absent", "[ ]" in out)
 
+    # ── shared criteria module: criteria.py importable and consistent ──
+    import importlib.util as _ilu, os as _os_crit2
+    _crit_path = _os_crit2.path.join(_os_crit2.path.dirname(PHANTOM), "criteria.py")
+    check("criteria.py exists in agents dir", _os_crit2.path.isfile(_crit_path))
+    spec = _ilu.spec_from_file_location("criteria", _crit_path)
+    _crit_mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(_crit_mod)
+    check("criteria.py exports eval_criteria", hasattr(_crit_mod, "eval_criteria"))
+    # eval_criteria returns same results as runner via same state
+    _test_state = {
+        "anchor_b": {"done_criteria": ["anchor check used", "coverage 2/2 done"]},
+        "anchor_checks_count": 1,
+        "coverage_full": True,
+        "workspace_dir": "/tmp",
+        "session_start_ref": "",
+    }
+    _results = _crit_mod.eval_criteria(_test_state)
+    check("criteria.eval_criteria returns list", isinstance(_results, list))
+    check("criteria: anchor check met", _results[0] == ("anchor check used", True))
+    check("criteria: coverage met via coverage_full", _results[1] == ("coverage 2/2 done", True))
+
     # ── first-iteration no-sleep: runner fires immediately when already idle ──
     # Verifies that an already-idle session fires on first poll without waiting check_interval
     run([PHANTOM, "start", "quick fire test", "--rounds", "1", "--interval", "30", "--threshold", "5",

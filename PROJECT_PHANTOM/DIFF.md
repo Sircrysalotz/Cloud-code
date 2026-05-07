@@ -5,6 +5,16 @@ during a live dogfood session and fixed in the same or next iteration.
 
 ---
 
+## v3.4 → v3.5
+
+| Problem | Fix |
+|---|---|
+| `eval_criteria_quick` (runner) and `_eval_criteria` (phantom.py) are two separate implementations — diverged in v3.4 | `criteria.py` shared module; both import `eval_criteria` from it |
+| Fire banner missing "file updated" criterion check — runner can't do git diff | Shared `eval_criteria` does git diff (cached per call); runner and phantom.py always identical |
+| Drift guard "Read DRIFT_GUARD.md" spawn → Pattern 9 (formatted summary) every round | Direct-command spawn prompt added to CLAUDE.md step 4 |
+
+---
+
 ## v3.3 → v3.4
 
 | Problem | Fix |

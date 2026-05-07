@@ -57,6 +57,9 @@ import sys
 import time
 from datetime import datetime
 
+sys.path.insert(0, os.path.dirname(__file__))
+from criteria import eval_criteria
+
 STATE_FILE = os.environ.get("PHANTOM_STATE", "/tmp/phantom_session.json")
 TEMP_FILE  = STATE_FILE + ".tmp"
 LOCK_FILE  = STATE_FILE.replace(".json", ".lock")
@@ -169,43 +172,8 @@ def git_index_mtime(workspace: str) -> float:
 
 
 def eval_criteria_quick(state: dict) -> list[tuple[str, bool]]:
-    """
-    Lightweight criteria evaluator for the fire banner.
-    Checks counters in state — no git calls needed.
-    Coverage uses coverage_full written by cmd_check/anchor-check.
-    """
-    import re as _re
-    criteria = (state.get("anchor_b") or {}).get("done_criteria") or []
-    if not criteria:
-        return []
-    anchor_checks  = state.get("anchor_checks_count", 0)
-    ckpt_calls     = state.get("checkpoint_calls_count", 0)
-    hb_fires       = len(state.get("heartbeat_fires", []))
-    tests_count    = state.get("tests_last_count", 0)
-    dw             = state.get("drift_warning")
-    coverage_full  = state.get("coverage_full", False)
-    results = []
-    for c in criteria:
-        cl = c.lower()
-        done = False
-        if "coverage" in cl:
-            done = bool(coverage_full)
-        elif "drift" in cl and ("clean" in cl or "no" in cl):
-            done = not bool(dw)
-        elif "anchor check" in cl:
-            done = anchor_checks > 0
-        elif "checkpoint" in cl and ("used" in cl or "before" in cl or "run" in cl):
-            done = ckpt_calls > 0
-        elif "heartbeat fire" in cl or ("heartbeat" in cl and "fire" in cl):
-            m = _re.search(r'(\d+)', c)
-            needed = int(m.group(1)) if m else 1
-            done = hb_fires >= needed
-        elif "test" in cl and ("pass" in cl or "passing" in cl):
-            m = _re.search(r'(\d+)', c)
-            if m and tests_count > 0:
-                done = tests_count >= int(m.group(1))
-        results.append((c, done))
-    return results
+    """Delegates to shared criteria.eval_criteria — single implementation."""
+    return eval_criteria(state)
 
 
 def get_last_activity(state: dict,

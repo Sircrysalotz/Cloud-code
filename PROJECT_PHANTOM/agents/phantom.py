@@ -44,6 +44,9 @@ import sys
 import time
 from datetime import datetime
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from criteria import eval_criteria as _eval_criteria
+
 _AGENTS_DIR  = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_DIR = os.path.dirname(_AGENTS_DIR)
 
@@ -1346,74 +1349,8 @@ def cmd_drift_status(args):
 
 # --- Anchor system ---
 
-def _eval_criteria(state: dict) -> list[tuple[str, bool]]:
-    """
-    Evaluate each done criterion against observable session state.
-    Returns list of (criterion_text, is_done) pairs.
-
-    Heuristics (simple keyword matching against measurable signals):
-      - "coverage" + fraction → check _quick_coverage() for full coverage
-      - "tests pass" / "passing" → not checkable live; always False (needs manual verify)
-      - "all" + "pass" / "complete" → not checkable; False
-      - anything else → False (unknown, needs manual verify)
-    """
-    criteria = (state.get("anchor_b") or {}).get("done_criteria") or []
-    results = []
-    cov_str = _quick_coverage(state)
-    full_cov = cov_str is not None and "FULL COVERAGE" in cov_str
-
-    anchor_checks = state.get("anchor_checks_count", 0)
-    hb_fires      = len(state.get("heartbeat_fires", []))
-    import re as _re
-
-    for c in criteria:
-        c_lower = c.lower()
-        done = False
-        # Coverage criterion: "coverage 4/4", "full coverage", "coverage complete"
-        if "coverage" in c_lower:
-            done = full_cov
-        # Drift criterion: "drift clean", "no drift"
-        elif "drift" in c_lower and ("clean" in c_lower or "no" in c_lower):
-            done = not bool(state.get("drift_warning"))
-        # Anchor check criterion: "anchor check used"
-        elif "anchor check" in c_lower:
-            done = anchor_checks > 0
-        # Checkpoint criterion: "checkpoint used", "checkpoint before completion"
-        elif "checkpoint" in c_lower and ("used" in c_lower or "before" in c_lower or "run" in c_lower):
-            done = state.get("checkpoint_calls_count", 0) > 0
-        # Heartbeat observed: "observed ... heartbeat fire", "heartbeat fire"
-        elif "heartbeat fire" in c_lower or ("heartbeat" in c_lower and "fire" in c_lower):
-            m = _re.search(r'(\d+)', c)
-            needed = int(m.group(1)) if m else 1
-            done = hb_fires >= needed
-        # Tests passing: "N+ tests passing", "N tests pass"
-        elif "test" in c_lower and ("pass" in c_lower or "passing" in c_lower):
-            last_count = state.get("tests_last_count", 0)
-            m = _re.search(r'(\d+)', c)
-            if m and last_count > 0:
-                done = last_count >= int(m.group(1))
-        # File updated: "CLAUDE.md updated", "heartbeat_runner.py changed"
-        elif _re.search(r'\b[\w.\-]+\.(?:py|md|txt|json|sh|yml|yaml)\b', c):
-            fm = _re.search(r'\b([\w.\-/]+\.(?:py|md|txt|json|sh|yml|yaml))\b', c)
-            if fm and any(kw in c_lower for kw in ("updated", "changed", "done", "committed")):
-                fname = fm.group(1)
-                start_ref = state.get("session_start_ref", "")
-                workspace = state.get("workspace_dir", ".")
-                if start_ref:
-                    try:
-                        diff_out = subprocess.check_output(
-                            ["git", "diff", "--name-only", start_ref, "HEAD"],
-                            stderr=subprocess.DEVNULL,
-                            cwd=workspace,
-                        ).decode()
-                        done = any(
-                            p == fname or p.endswith("/" + fname)
-                            for p in diff_out.splitlines() if p
-                        )
-                    except Exception:
-                        done = False
-        results.append((c, done))
-    return results
+# _eval_criteria is imported from criteria.py at the top of this file.
+# See criteria.py for the full implementation.
 
 
 def cmd_anchor(args):
