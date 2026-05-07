@@ -131,6 +131,7 @@ Do NOT call it:
 | `heartbeat_runner.py` fire banner shows only first 3 criteria — rest hidden | Runner v8: fire banner shows ALL criteria with `Criteria: N/M met` count header |
 | No session elapsed visible during marathon — hard to track progress | Runner v8 fire banner + drift_guard status lines include session elapsed (e.g. `+1h05m`) |
 | `_eval_criteria` couldn't auto-mark "CLAUDE.md updated" or similar file criteria | New "file updated" pattern: extracts filename from criterion, checks `git diff --name-only` since session start |
+| File criteria only matched "updated/changed/done/committed" — "README.md created" always showed `[ ]` | `criteria.py`: added "created", "documented", "added", "written" to keyword list |
 | `eval_criteria_quick` (runner) and `_eval_criteria` (phantom.py) are two separate implementations that drift apart | Extracted `criteria.py` shared module; both files import `eval_criteria` from it — one implementation forever |
 | Drift guard agent spawned with "Read DRIFT_GUARD.md" causes Pattern 9 (formatted summary) | Direct-command spawn prompt added to CLAUDE.md protocol step 4, same approach as heartbeat |
 | Context compaction mid-session leaves `heartbeat_active`/`drift_guard_active` stuck True with no running process | `phantom.py recover` → re-arm → re-spawn; after any resume, verify `Agents: 0` vs `ARMED` before assuming agents are live |
