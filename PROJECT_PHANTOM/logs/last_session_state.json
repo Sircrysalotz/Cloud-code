@@ -1,9 +1,9 @@
 {
-  "task": "dogfood v3.2 \u2014 run PHANTOM live, observe friction, fix it",
-  "last_active": "2026-05-07 00:07:36",
-  "turns_taken": 15,
-  "turns_target": 20,
-  "rounds_remaining": 6,
+  "task": "save test",
+  "last_active": "2026-05-07 00:09:01",
+  "turns_taken": 1,
+  "turns_target": 5,
+  "rounds_remaining": 5,
   "idle_threshold_seconds": 180,
   "check_interval_seconds": 30,
   "cooldown_factor": 1.0,
@@ -11,28 +11,17 @@
   "rounds_used": 0,
   "agents_running": 0,
   "active_agent_ids": [],
-  "heartbeat_active": true,
+  "heartbeat_active": false,
   "last_heartbeat_fired": null,
-  "progress_note": "Fix #13: scope-update command; DRIFT_GUARD.md fix; 524/524 tests",
-  "started": "2026-05-06 23:23:27",
+  "progress_note": "saved progress",
+  "started": "2026-05-07 00:09:01",
   "status": "active",
   "workspace_dir": "/home/user/Cloud-code",
   "profile": null,
-  "scope_files": [
-    "agents/phantom.py",
-    "agents/heartbeat_runner.py",
-    "test_phantom.py",
-    "agents/HEARTBEAT.md",
-    "CLAUDE.md",
-    "agents/drift_guard.py"
-  ],
-  "coverage_targets": [
-    "agents/phantom.py",
-    "agents/heartbeat_runner.py",
-    "agents/drift_guard.py"
-  ],
+  "scope_files": [],
+  "coverage_targets": [],
   "scope_threshold": 50.0,
-  "session_start_ref": "509d741df296cf7fc04d2605c185f365339bf44c",
+  "session_start_ref": "5a95a13fcd25ccc1c47a7ec3f97f288a3ca1e86b",
   "tracked_extensions": [],
   "scan_depth": 5,
   "auto_save_every": 5,
@@ -44,104 +33,22 @@
   "ping_log": [
     {
       "turn": 1,
-      "note": "session started \u2014 checking anchor, arming heartbeat and drift guard",
-      "at": "2026-05-06 23:23:30"
-    },
-    {
-      "turn": 2,
-      "note": "heartbeat + drift guard armed \u2014 starting live observation",
-      "at": "2026-05-06 23:23:45"
-    },
-    {
-      "turn": 3,
-      "note": "492/492 baseline \u2014 now exercising commands live",
-      "at": "2026-05-06 23:24:35"
-    },
-    {
-      "turn": 4,
-      "note": "4 friction fixes: brief cov label, brief note truncation, report scope filter, report ping truncation \u2014 498/498",
-      "at": "2026-05-06 23:28:24"
-    },
-    {
-      "turn": 5,
-      "note": "logs/ dir filter + report coverage markers \u2014 500/500",
-      "at": "2026-05-06 23:31:54"
-    },
-    {
-      "turn": 6,
-      "note": "history ping truncation fixed \u2014 502/502; now touching heartbeat_runner.py",
-      "at": "2026-05-06 23:33:48"
-    },
-    {
-      "turn": 7,
-      "note": "heartbeat runner died \u2014 recovered, re-arming",
-      "at": "2026-05-06 23:35:28"
-    },
-    {
-      "turn": 8,
-      "note": "HEARTBEAT.md + DRIFT_GUARD.md: explicit NOT Monitor tool warning added",
-      "at": "2026-05-06 23:37:52"
-    },
-    {
-      "turn": 9,
-      "note": "502/502 clean \u2014 CLAUDE.md updated with Monitor tool friction",
-      "at": "2026-05-06 23:38:56"
-    },
-    {
-      "turn": 10,
-      "note": "status panel polish: agents list + last fired dash \u2014 502/502",
-      "at": "2026-05-06 23:40:34"
-    },
-    {
-      "turn": 11,
-      "note": "CLAUDE.md: fixed stale auto-save + scope filter references",
-      "at": "2026-05-06 23:41:43"
-    },
-    {
-      "turn": 12,
-      "note": "heartbeat fired round 1 \u2014 resuming; checking anchor criteria",
-      "at": "2026-05-06 23:49:19"
-    },
-    {
-      "turn": 13,
-      "note": "Fix #12: HEARTBEAT.md v6 \u2014 fabrication prevention + post-flight verify + exact HOLD/fire formats",
-      "at": "2026-05-06 23:57:44"
-    },
-    {
-      "turn": 14,
-      "note": "committed Fix #12 HEARTBEAT.md v6; re-arming heartbeat for real fire",
-      "at": "2026-05-07 00:01:21"
-    },
-    {
-      "turn": 15,
-      "note": "Fix #13: scope-update command; DRIFT_GUARD.md fix; 524/524 tests",
-      "at": "2026-05-07 00:07:36"
+      "note": "saved progress",
+      "at": "2026-05-07 00:09:01"
     }
   ],
-  "last_activity_source": "git:index",
-  "last_activity_ts": "2026-05-07 00:07:26",
-  "next_heartbeat_at": "2026-05-07 00:10:26",
+  "last_activity_source": "ping",
+  "last_activity_ts": "2026-05-07 00:09:01",
+  "next_heartbeat_at": null,
   "completed": null,
-  "saved_at": "2026-05-07 00:07:36",
+  "saved_at": "2026-05-07 00:09:01",
   "anchor_a": {
-    "ref": "509d741df296cf7fc04d2605c185f365339bf44c",
-    "timestamp": "2026-05-06 23:23:27"
+    "ref": "5a95a13fcd25ccc1c47a7ec3f97f288a3ca1e86b",
+    "timestamp": "2026-05-07 00:09:01"
   },
   "anchor_b": {
-    "goal": "dogfood v3.2 \u2014 run PHANTOM live, observe friction, fix it",
-    "done_criteria": [
-      "anchor check used at least once",
-      "checkpoint used before completion",
-      "observed at least 1 heartbeat fire",
-      "492+ tests passing on all changes",
-      "coverage 3/3 targets touched",
-      "no drift warning"
-    ],
-    "set_at": "2026-05-06 23:23:27"
-  },
-  "tests_last_count": 524,
-  "coverage_full": true,
-  "anchor_checks_count": 4,
-  "auto_save_commit": "ec1668a7836f541c6387428c6b97d092e8fa4fcd",
-  "checkpoint_calls_count": 3
+    "goal": "save test",
+    "done_criteria": [],
+    "set_at": "2026-05-07 00:09:01"
+  }
 }
