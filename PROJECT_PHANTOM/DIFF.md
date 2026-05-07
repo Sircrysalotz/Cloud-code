@@ -11,8 +11,13 @@ during a live dogfood session and fixed in the same or next iteration.
 |---|---|
 | `check` command re-runs git diff on every call — slow if called often | Cache result in session state (30s TTL); `--no-cache` to force refresh |
 | `status` criteria mini-view shows marks only — no criterion text | `status --verbose` expands to full list with text and `[x]/[ ]` per criterion |
+| `status` criteria mini-view caps at 4 marks with "+N more" — rest hidden | Mini-view now shows ALL marks (no cap); verbose shows text |
 | Warning-only HEARTBEAT.md v7 still caused early returns — model acknowledges warning as text | HEARTBEAT.md v8: execution steps appear at the very top, before any prose |
 | Warning-only fix insufficient — documented pattern in ANTI_DRIFT.md | Pattern 8 added: warnings prompt acknowledgment text; put tool calls first instead |
+| Heartbeat fire banner showed only first 3 criteria — rest hidden in long sessions | Runner v8: fire banner shows ALL criteria with `Criteria: N/M met` count |
+| No marathon context in fire banner — hard to know session age at fire time | Runner v8: fire banner includes session elapsed (e.g. `+1h05m`) |
+| Drift guard status lines lack session context in long runs | drift_guard.py: each poll line prefixed with `+Xh YYm` elapsed since session start |
+| `check` caching stored in external file — cross-session pollution in tests | Cache moved into session state (keyed to same STATE_FILE + session) |
 
 ---
 
