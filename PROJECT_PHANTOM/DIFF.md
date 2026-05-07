@@ -13,6 +13,8 @@ during a live dogfood session and fixed in the same or next iteration.
 | Fire banner missing "file updated" criterion check — runner can't do git diff | Shared `eval_criteria` does git diff (cached per call); runner and phantom.py always identical |
 | Drift guard "Read DRIFT_GUARD.md" spawn → Pattern 9 (formatted summary) every round | Direct-command spawn prompt added to CLAUDE.md step 4 |
 | `drift_guard.py` runs indefinitely — direct-command agent blocks until session complete | `--max-checks N` flag: exit cleanly after N clean checks; main session re-arms after agent returns |
+| `auto_save()` created a new git commit every N pings → bloated history (dozens of "[phantom] auto-save" commits) | `auto_save()` now writes `last_session_state.json` locally only — no git commits; log files untracked |
+| `last_session_state.json` and `container_vitals.log` still tracked by git → stop hook fires on every ping | Both files removed from git index (`git rm --cached`); `.gitignore` updated with comment |
 
 ---
 

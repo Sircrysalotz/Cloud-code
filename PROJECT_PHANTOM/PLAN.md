@@ -3,7 +3,7 @@
 The system improves itself through dogfood sessions — running PHANTOM to build PHANTOM.
 Each session observes friction in real use and fixes it before completing.
 
-**Current version:** v3.5 (584 tests, in progress)
+**Current version:** v3.5 (583 tests, in progress)
 **Active branch:** `phantom/v3.5-shared-criteria` → merges to `claude/document-environment-status-vQRKB`
 
 ---
@@ -17,7 +17,7 @@ Each session observes friction in real use and fixes it before completing.
 | v3.2 | `phantom/v3.2-dogfood` | HEARTBEAT.md v6 (fabrication), `scope-update`, DRIFT_GUARD.md v4, display fixes | 528 |
 | v3.3 | `phantom/v3.3-dogfood` | MD file rewrites, early-return fix, status criteria view, scope-update warning | 557 |
 | v3.4 | `phantom/v3.4-marathon` | check caching, status --verbose, HEARTBEAT.md v8, file-updated criterion auto-eval | 576 |
-| v3.5 | `phantom/v3.5-shared-criteria` | criteria.py shared module, drift_guard v5 --max-checks, direct-command drift guard | 584 |
+| v3.5 | `phantom/v3.5-shared-criteria` | criteria.py shared module, drift_guard v5 --max-checks, direct-command drift guard, auto-save local-only | 583 |
 
 ---
 
@@ -52,6 +52,8 @@ Priority order based on severity and impact:
 | `eval_criteria_quick` and `_eval_criteria` are separate implementations that diverge | ✓ Done v3.5: `criteria.py` shared module — imported by both, one implementation forever |
 | Drift guard agent returns formatted summary every round (Pattern 9) | ✓ Done v3.5: direct-command spawn prompt in CLAUDE.md step 4 |
 | `drift_guard.py` runs until session complete — blocks direct-command agent for hours | ✓ Done v3.5: `--max-checks N` flag — exit cleanly after N checks, re-arm after |
+| `auto_save()` creates new git commit every N pings → history spam ("auto-save turn X" every 5 turns) | ✓ Done v3.5: `auto_save()` writes `last_session_state.json` locally only; no git commits |
+| `last_session_state.json` and `container_vitals.log` tracked by git → stop hook fires every ping | ✓ Done v3.5: both untracked via `git rm --cached`; `.gitignore` updated |
 
 ---
 
