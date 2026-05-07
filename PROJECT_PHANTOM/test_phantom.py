@@ -1892,6 +1892,15 @@ def test_anchor():
     check("anchor show shows [ ] for unmet criteria", "[ ]" in out)
     # With no drift warning, 'drift clean' criterion should show [x]
     check("anchor show marks drift clean as [x] when clean", "[x]" in out)
+    # With drift_warning set, 'drift clean' should show [ ]
+    import json as _json_dw, os as _os_dw
+    _st_dw = _json_dw.load(open(STATE))
+    _st_dw["drift_warning"] = "TRENDING"
+    with open(STATE + ".tmp", "w") as _f_dw:
+        _json_dw.dump(_st_dw, _f_dw)
+    _os_dw.rename(STATE + ".tmp", STATE)
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("anchor show marks drift clean as [ ] when drift_warning set", out.count("[ ]") >= 2)
 
     cleanup()
 
