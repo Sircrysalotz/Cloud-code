@@ -14,10 +14,12 @@ Heuristics (keyword matching against measurable session state):
   N+ tests     → state["tests_last_count"] >= N
   FILE updated/created → git diff --name-only session_start_ref..HEAD contains FILE
                          (keywords: updated, changed, done, committed, created, documented, added, written)
+  elapsed N minutes  → (now - state["started"]).total_seconds()/60 >= N
 """
 
 import re
 import subprocess
+from datetime import datetime
 
 
 def eval_criteria(state: dict) -> list[tuple[str, bool]]:
@@ -37,6 +39,11 @@ def eval_criteria(state: dict) -> list[tuple[str, bool]]:
     tests_count     = state.get("tests_last_count", 0)
     start_ref       = state.get("session_start_ref", "")
     workspace       = state.get("workspace_dir", ".")
+    started_str     = state.get("started", "")
+    try:
+        elapsed_minutes = (datetime.now() - datetime.strptime(started_str, "%Y-%m-%d %H:%M:%S")).total_seconds() / 60
+    except Exception:
+        elapsed_minutes = 0
 
     # Cache git diff result so multiple file-criteria don't each spawn git
     _diff_files: list[str] | None = None
@@ -79,6 +86,11 @@ def eval_criteria(state: dict) -> list[tuple[str, bool]]:
             m = re.search(r'(\d+)', c)
             needed = int(m.group(1)) if m else 1
             done = hb_fires >= needed
+
+        elif ("elapsed" in cl or "minute" in cl or "session" in cl) and re.search(r'\d+', c) and ("minute" in cl or "min" in cl):
+            m = re.search(r'(\d+)', c)
+            needed_min = int(m.group(1)) if m else 0
+            done = elapsed_minutes >= needed_min
 
         elif "test" in cl and ("pass" in cl or "passing" in cl):
             m = re.search(r'(\d+)', c)

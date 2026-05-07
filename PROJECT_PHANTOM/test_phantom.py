@@ -952,6 +952,25 @@ def test_heartbeat_runner():
     check("criteria: anchor check met", _results[0] == ("anchor check used", True))
     check("criteria: coverage met via coverage_full", _results[1] == ("coverage 2/2 done", True))
 
+    # elapsed-time heuristic
+    import datetime as _dt
+    _old_start = ((_dt.datetime.now() - _dt.timedelta(minutes=100))
+                  .strftime("%Y-%m-%d %H:%M:%S"))
+    _recent_start = ((_dt.datetime.now() - _dt.timedelta(minutes=5))
+                     .strftime("%Y-%m-%d %H:%M:%S"))
+    _elapsed_state_old = {
+        "anchor_b": {"done_criteria": ["session elapsed 90+ minutes"]},
+        "started": _old_start, "workspace_dir": "/tmp", "session_start_ref": "",
+    }
+    _elapsed_state_new = {
+        "anchor_b": {"done_criteria": ["session elapsed 90+ minutes"]},
+        "started": _recent_start, "workspace_dir": "/tmp", "session_start_ref": "",
+    }
+    _res_old = _crit_mod.eval_criteria(_elapsed_state_old)
+    _res_new = _crit_mod.eval_criteria(_elapsed_state_new)
+    check("criteria: elapsed 90min met when session is 100min old", _res_old[0][1] is True)
+    check("criteria: elapsed 90min not met when session is 5min old", _res_new[0][1] is False)
+
     # ── first-iteration no-sleep: runner fires immediately when already idle ──
     # Verifies that an already-idle session fires on first poll without waiting check_interval
     run([PHANTOM, "start", "quick fire test", "--rounds", "1", "--interval", "30", "--threshold", "5",
