@@ -1756,30 +1756,20 @@ def test_check():
     check("anchor_b has goal key",         "goal" in (state.get("anchor_b") or {}))
     check("anchor_b goal matches task",    state.get("anchor_b", {}).get("goal") == "default auto-save")
 
-    # auto-save amend: second auto-save should amend the first (no new commit)
+    # auto-save: local-only (no git commits — logs/ is gitignored)
     import subprocess as _sp
     run([PHANTOM, "reset"])
-    run([PHANTOM, "start", "amend test", "--turns", "10", "--auto-save-every", "2"])
+    run([PHANTOM, "start", "local auto-save test", "--turns", "10", "--auto-save-every", "2"])
     before_count = len(_sp.run(
         ["git", "log", "--oneline"], cwd=GIT_ROOT, capture_output=True, text=True
     ).stdout.strip().splitlines())
     run([PHANTOM, "ping", "turn 1"])
-    run([PHANTOM, "ping", "turn 2"])  # triggers first auto-save (new commit)
-    after_first = len(_sp.run(
+    rc, out, err = run([PHANTOM, "ping", "turn 2"])  # triggers auto-save
+    after_count = len(_sp.run(
         ["git", "log", "--oneline"], cwd=GIT_ROOT, capture_output=True, text=True
     ).stdout.strip().splitlines())
-    check("first auto-save creates one new commit", after_first == before_count + 1)
-    run([PHANTOM, "ping", "turn 3"])
-    run([PHANTOM, "ping", "turn 4"])  # triggers second auto-save (should amend)
-    after_second = len(_sp.run(
-        ["git", "log", "--oneline"], cwd=GIT_ROOT, capture_output=True, text=True
-    ).stdout.strip().splitlines())
-    check("second auto-save amends (no extra commit)", after_second == after_first)
-    # commit message reflects current turn after amend
-    last_msg = _sp.run(
-        ["git", "log", "-1", "--format=%s"], cwd=GIT_ROOT, capture_output=True, text=True
-    ).stdout.strip()
-    check("amended auto-save message shows latest turn", "turn 4" in last_msg)
+    check("auto-save does NOT create a git commit", after_count == before_count)
+    check("auto-save prints local confirmation", "auto-saved locally" in out)
 
     cleanup()
 

@@ -1,6 +1,6 @@
-# Phantom session state (runtime only — use 'phantom.py save' to persist deliberately)
-# /tmp files are already outside the repo; these guard against accidental adds
+# Runtime files — never commit automatically; use 'phantom.py save' to persist deliberately
 logs/container_vitals.log
+logs/last_session_state.json
 
 # Python cache
 __pycache__/
