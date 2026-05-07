@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Phantom session manager v2.6. Single interface for all session state operations.
+Phantom session manager v3.5. Single interface for all session state operations.
 All writes are atomic (write-to-temp + rename) with a lock file to prevent races.
 
 Session lifecycle:

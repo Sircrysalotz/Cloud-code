@@ -6,7 +6,7 @@ Used by both phantom.py (_eval_criteria) and heartbeat_runner.py (eval_criteria_
 so fire banners and anchor checks always show identical results.
 
 Heuristics (keyword matching against measurable session state):
-  coverage     → state["coverage_full"] (written by check/anchor-check)
+  coverage     → state["coverage_full"] (written by check/anchor-check; no git calls)
   drift clean  → not state["drift_warning"]
   anchor check → state["anchor_checks_count"] > 0
   checkpoint   → state["checkpoint_calls_count"] > 0

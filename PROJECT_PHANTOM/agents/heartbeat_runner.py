@@ -48,6 +48,10 @@ v8 additions:
   - Fire banner shows session elapsed time for marathon context
   - Fire banner shows ALL criteria (not just first 3)
   - Startup banner updated to v8
+
+v3.5 (criteria module):
+  - eval_criteria_quick now delegates to criteria.py shared module
+  - Fire banner and phantom.py anchor check always show identical criterion results
 """
 
 import json
