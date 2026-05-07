@@ -145,7 +145,7 @@ python3 agents/phantom.py start "task" --profile marathon
 | `agents/container_logger.py` | Logs container vitals every 60s |
 | `agents/HEARTBEAT.md` | Instructions for the heartbeat sub-agent |
 | `agents/DRIFT_GUARD.md` | Instructions for the drift guard sub-agent |
-| `test_phantom.py` | 583 integration tests |
+| `test_phantom.py` | 588 integration tests |
 | `CLAUDE.md` | Full protocol, session state reference, troubleshooting |
 | `DIFF.md` | Version changelog (every improvement since v1) |
 | `PLAN.md` | Friction backlog + dogfood session log |
