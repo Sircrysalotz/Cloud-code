@@ -117,6 +117,7 @@ Do NOT call it:
 | `container_vitals.log` in scope analysis (10% inflation) — only `last_session_state.json` was filtered | `_is_auto_generated()` helper filters entire `logs/` dir from all scope paths (phantom.py + drift_guard.py) |
 | `report` coverage section lists targets without ✓/✗ — `check` shows them, `report` doesn't | `report` now runs git diff and shows ✓/✗ per target, consistent with `check` |
 | Scope declared at start can't be updated mid-session — `start --force` resets everything | `scope-update` command: updates `scope_files`, `coverage_targets`, `scope_threshold` without resetting session state |
+| Drift guard agent can fabricate "clean" verdict — real drift goes undetected | `DRIFT_GUARD.md` v4: fabrication prevention section; main session reads state via `drift-done`, not agent text |
 | Heartbeat agent fabricates entire fire output using HEARTBEAT.md docs as template — state never updated | `HEARTBEAT.md` v6: fabrication prevention rules + post-flight state verification + exact HOLD/fire formats |
 | After fabricated fire, main session has no way to detect it without manual inspection | Protocol: check `rounds_remaining` decreased + `last_heartbeat_fired` set before accepting fire as real |
 
