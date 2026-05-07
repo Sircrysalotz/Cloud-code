@@ -353,7 +353,10 @@ python3 PROJECT_PHANTOM/agents/phantom.py reset
 python3 PROJECT_PHANTOM/agents/phantom.py env
 
 # ── Anchor-based navigation ──────────────────────────────────────────────────
-# Show Point A (origin ref) and Point B (goal + criteria) — use after resume
+# After resume, prefer anchor check (not anchor show) — it evaluates criteria in one step
+python3 PROJECT_PHANTOM/agents/phantom.py anchor check
+
+# anchor show: just displays anchors, no criteria evaluation (use only for quick reference)
 python3 PROJECT_PHANTOM/agents/phantom.py anchor show
 
 # Re-orient: compare current position against origin and goal
