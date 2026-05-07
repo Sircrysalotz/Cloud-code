@@ -597,7 +597,8 @@ def cmd_status(args):
 
     fires = state.get("heartbeat_fires", [])
     if fires:
-        print(f"  Fire log:   (last {len(fires)})")
+        shown = min(3, len(fires))
+        print(f"  Fire log:   {len(fires)} total, showing last {shown}")
         for ev in fires[-3:]:
             print(f"    {ev['fired_at']}  gap={ev['gap_seconds']}s  signal={ev['signal']}  turn={ev['turns']}")
     wdevents = state.get("watchdog_events", [])
@@ -764,6 +765,7 @@ def cmd_history(args):
     if not state:
         print("No active session.")
         return
+    last_n = getattr(args, "last", None)
     print("=" * 50)
     print("  SESSION HISTORY")
     print("=" * 50)
@@ -776,8 +778,13 @@ def cmd_history(args):
     # Ping log
     ping_log = state.get("ping_log", [])
     if ping_log:
-        print(f"\n  Ping log ({len(ping_log)} entries):")
-        for entry in ping_log:
+        shown = ping_log[-last_n:] if last_n else ping_log
+        omitted = len(ping_log) - len(shown)
+        header = f"\n  Ping log ({len(ping_log)} entries{f', showing last {last_n}' if last_n else ''}):"
+        print(header)
+        if omitted > 0:
+            print(f"    ... {omitted} earlier entries omitted (use history without --last to see all)")
+        for entry in shown:
             n = entry['note']
             note_str = (n[:57] + "...") if len(n) > 60 else n
             print(f"    Turn {entry['turn']:3d}  {entry['at']}  {note_str}")
@@ -1171,6 +1178,20 @@ def cmd_env(args):
             ok(f"{label} exists")
         else:
             warn(f"{label} missing: {path}")
+
+    # Container logger
+    print("Container logger:")
+    try:
+        ps_out = subprocess.check_output(
+            ["ps", "aux"], text=True, stderr=subprocess.DEVNULL
+        )
+        if "container_logger.py" in ps_out:
+            ok("container_logger.py running")
+        else:
+            warn("container_logger.py NOT running — start it:")
+            warn(f"  nohup python3 {_AGENTS_DIR}/container_logger.py --interval 60 --push-every 5 > /tmp/container_logger.out 2>&1 &")
+    except Exception:
+        warn("could not check container_logger process")
 
     # Session state
     print("Session:")
@@ -1792,7 +1813,9 @@ sub.add_parser("heartbeat-arm", help="Arm the heartbeat before spawning")
 p = sub.add_parser("status",    help="Print rich session status")
 p.add_argument("--brief", action="store_true", help="One-line compact summary")
 sub.add_parser("complete",      help="Mark session complete and print summary")
-sub.add_parser("history",       help="Print session history and progress")
+p = sub.add_parser("history",   help="Print session history and progress")
+p.add_argument("--last", type=int, default=None, metavar="N",
+               help="Show only the last N ping-log entries (default: all)")
 
 p = sub.add_parser("scope",   help="Check git diff for horizontal balance (anti-drift)")
 p.add_argument("--depth",     type=int,   default=5,    help="Number of commits to check (default 5)")

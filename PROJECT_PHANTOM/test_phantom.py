@@ -218,6 +218,20 @@ def test_phantom():
     check("history shows turns", "1/3" in out)
     check("history shows last note", "did some work" in out)
 
+    # history --last N flag
+    cleanup()
+    run([PHANTOM, "start", "history last test", "--turns", "10"])
+    run([PHANTOM, "ping", "turn one"])
+    run([PHANTOM, "ping", "turn two"])
+    run([PHANTOM, "ping", "turn three"])
+    rc, out, _ = run([PHANTOM, "history", "--last", "2"])
+    check("history --last exits 0", rc == 0)
+    check("history --last shows only tail entries", "turn three" in out)
+    check("history --last omits earlier entries notice", "omitted" in out or "earlier" in out)
+    check("history --last hides entry beyond N", "turn one" not in out)
+    rc2, out2, _ = run([PHANTOM, "history"])
+    check("history without --last shows all entries", "turn one" in out2 and "turn three" in out2)
+
     # history shows coverage summary when coverage_targets set
     cleanup()
     run([PHANTOM, "start", "history cov test", "--turns", "3",
@@ -1720,6 +1734,11 @@ def test_env():
 
     # Session section shows warning when no session
     check("env warns no active session", "no active session" in out.lower())
+
+    # Container logger section always shown
+    check("env shows Container logger section", "Container logger" in out)
+    # Either OK (if logger is running) or WARN with start command
+    check("env reports container_logger status", "container_logger.py" in out)
 
     # With active session — shows session info
     run([PHANTOM, "start", "env test session", "--turns", "3"])

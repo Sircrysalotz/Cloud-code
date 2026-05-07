@@ -36,14 +36,14 @@ Priority order based on severity and impact:
 |---|---|
 | `phantom.py start` done-criteria not shown in `status` output | Add criteria preview to status (or status --verbose) |
 | `anchor show` full output is long; `anchor check` is better for resumption | Add CLAUDE.md note: use `anchor check` not `anchor show` after resume |
-| Container logger not auto-started on new session — easy to forget | Add `env` command check or start-session warning if logger not running |
+| Container logger not auto-started on new session — easy to forget | ✓ Done v3.3: `env` now shows `[OK]` or `[WARN]` for container_logger with start command |
 | `check` command re-runs git diff on every call — slow if called often | Cache result with timestamp (valid for 30s) |
 
 ### Low — polish / docs
 | Issue | Proposed fix |
 |---|---|
-| `history` command shows all turns verbatim — gets long | Add `--last N` flag to show only last N turns |
-| `status` fire log shows "last 1" in parentheses — awkward phrasing | Tighten display format |
+| `history` command shows all turns verbatim — gets long | ✓ Done v3.3: `history --last N` shows only last N ping entries with "N omitted" notice |
+| `status` fire log shows "last 1" in parentheses — awkward phrasing | ✓ Done v3.3: shows "N total, showing last M" |
 | DIFF.md / PLAN.md / ANTI_DRIFT.md were stale since v1→v2 *(fixed in v3.3)* | ✓ done |
 
 ---
