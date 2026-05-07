@@ -2249,13 +2249,13 @@ def test_docs_content():
     fire_section = hb_md.split("### On fire")[1] if "### On fire" in hb_md else ""
     check("HEARTBEAT.md fire banner section does NOT show box chars", "╔══" not in fire_section)
 
-    # DRIFT_GUARD.md v5 content checks
+    # DRIFT_GUARD.md v6 content checks
     dg_md = open(_os.path.join(agents_dir, "DRIFT_GUARD.md")).read()
-    check("DRIFT_GUARD.md header is v5", "v5" in dg_md.splitlines()[0])
+    check("DRIFT_GUARD.md header is v6", "v6" in dg_md.splitlines()[0])
     check("DRIFT_GUARD.md has fabrication prevention section", "Never fabricate" in dg_md)
     check("DRIFT_GUARD.md scope-update in SCOPE_CREEP action", "scope-update" in dg_md)
-    check("DRIFT_GUARD.md warns against text before Bash call", "Do NOT generate any text" in dg_md or "text output before" in dg_md.lower())
-    check("DRIFT_GUARD.md warns against early commentary", "running drift guard" in dg_md.lower() or "I will return" in dg_md or "will return the output" in dg_md.lower())
+    check("DRIFT_GUARD.md has execution-first steps at top", "STEP 1" in dg_md and "STEP 2" in dg_md)
+    check("DRIFT_GUARD.md warns against text before tool calls", "DO NOT write any text" in dg_md or "Text = your return value" in dg_md)
 
     # CLAUDE.md fire verification rule
     claude_md_path = _os.path.join(agents_dir, "..", "CLAUDE.md")
