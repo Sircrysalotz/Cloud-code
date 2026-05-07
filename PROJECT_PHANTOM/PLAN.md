@@ -29,7 +29,7 @@ Priority order based on severity and impact:
 | `drift-done` SCOPE_CREEP message says "spreading changes" — doesn't mention `scope-update` | ✓ Done v3.3: `drift-done` shows Option A/B with explicit `scope-update` hint |
 | After `scope-update`, drift guard still uses old scope (must re-arm manually) | ✓ Done v3.3: `scope-update` now warns when drift guard armed (re-arm required) |
 | Heartbeat agent returns early before runner fires | ✓ Done v3.3: `HEARTBEAT.md` v7 + runner first-poll-no-sleep fix |
-| DRIFT_GUARD.md lacks exact output format docs (unlike HEARTBEAT.md v7) | Add exact status-line format + what "CLEAN: Gate N" looks like |
+| DRIFT_GUARD.md lacks exact output format docs | ✓ Done v3.3: DRIFT_GUARD.md v5 has status-line format + gate-cleared reason format |
 
 ### Medium — usability friction
 | Issue | Proposed fix |
