@@ -1551,6 +1551,23 @@ def test_check():
     cov_status_line = out.split("Coverage:")[1].split("\n")[0] if "Coverage:" in out else ""
     check("status Coverage line shows N/M count format", "/" in cov_status_line and "%" in cov_status_line)
 
+    # status shows criteria mini-view when done-criteria set
+    run([PHANTOM, "reset"])
+    run([PHANTOM, "start", "criteria view test", "--turns", "5",
+         "--done-criteria", "tests pass", "coverage ok", "docs done"])
+    run([PHANTOM, "ping", "turn 1", "--tests", "500"])
+    rc, out, err = run([PHANTOM, "status"])
+    check("status shows Criteria: line when done-criteria set", "Criteria:" in out)
+    check("status Criteria line shows N/M met format", "/3 met" in out or "0/3 met" in out or "1/3 met" in out)
+    check("status Criteria line shows [x] or [ ] marks", "[x]" in out or "[ ]" in out)
+
+    # scope-update warns when drift guard is armed
+    run([PHANTOM, "drift-arm"])
+    rc, out, err = run([PHANTOM, "scope-update", "--scope", "agents/phantom.py", "CLAUDE.md"])
+    check("scope-update warns about armed drift guard", "⚠" in out or "Drift guard" in out)
+    check("scope-update armed warning mentions re-arm", "drift-arm" in out or "re-arm" in out.lower())
+    run([PHANTOM, "drift-done"])  # cleanup
+
     # complete shows coverage summary when coverage_targets set
     run([PHANTOM, "reset"])
     run([PHANTOM, "start", "complete test", "--turns", "3",

@@ -576,6 +576,16 @@ def cmd_status(args):
     tests_count = state.get("tests_last_count")
     if tests_count:
         print(f"  Tests:     {tests_count} (recorded via ping --tests)")
+    # Criteria mini-view — only if anchor_b criteria set
+    anchor_b = state.get("anchor_b") or {}
+    criteria = anchor_b.get("done_criteria") or []
+    if criteria:
+        evaluated = _eval_criteria(state)
+        met = sum(1 for _, done in evaluated if done)
+        total = len(evaluated)
+        marks = " ".join(("[x]" if done else "[ ]") for _, done in evaluated[:4])
+        suffix = f" +{total - 4} more" if total > 4 else ""
+        print(f"  Criteria:  {met}/{total} met | {marks}{suffix}")
 
     # Pending drift warning block
     dw = state.get("drift_warning")
@@ -1212,6 +1222,9 @@ def cmd_scope_update(args):
         state["drift_warned_at"] = None
         changed = True
         print(f"Scope updated: {' '.join(args.scope) if args.scope else '(cleared)'}")
+        if state.get("drift_guard_active"):
+            print("  ⚠ Drift guard is armed — running process uses OLD scope.")
+            print("    Call drift-done then re-arm: phantom.py drift-arm")
     if args.coverage_targets is not None:
         state["coverage_targets"] = args.coverage_targets
         state["coverage_full"] = None

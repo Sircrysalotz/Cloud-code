@@ -534,7 +534,7 @@ def main():
             "SCOPE_CREEP": (
                 "Changes are drifting outside declared scope.\n"
                 "  Option A: Move edits back to scope files.\n"
-                "  Option B: Update scope — phantom.py start --scope <files> --force\n"
+                "  Option B: Expand scope — phantom.py scope-update --scope <files>\n"
                 "  Then re-arm: phantom.py drift-arm"
             ),
             "VERTICAL": (
