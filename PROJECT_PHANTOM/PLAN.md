@@ -3,7 +3,7 @@
 The system improves itself through dogfood sessions — running PHANTOM to build PHANTOM.
 Each session observes friction in real use and fixes it before completing.
 
-**Current version:** v3.6 (588 tests, in progress)
+**Current version:** v3.6 (590 tests, in progress)
 **Active branch:** `phantom/v3.6-readme-docs` → merges to `claude/document-environment-status-vQRKB`
 
 ---
@@ -18,7 +18,7 @@ Each session observes friction in real use and fixes it before completing.
 | v3.3 | `phantom/v3.3-dogfood` | MD file rewrites, early-return fix, status criteria view, scope-update warning | 557 |
 | v3.4 | `phantom/v3.4-marathon` | check caching, status --verbose, HEARTBEAT.md v8, file-updated criterion auto-eval | 576 |
 | v3.5 | `phantom/v3.5-shared-criteria` | criteria.py shared module, drift_guard v5 --max-checks, direct-command drift guard, auto-save local-only | 583 |
-| v3.6 | `phantom/v3.6-readme-docs` | README.md, human-first commit format, criteria keyword fix, elapsed-time criterion, timing-sensitive test fix | 588 |
+| v3.6 | `phantom/v3.6-readme-docs` | README.md, human-first commit format, criteria keyword fix, elapsed-time criterion, timing-sensitive test fix, keyword coverage tests | 590 |
 
 ---
 
@@ -62,6 +62,7 @@ Priority order based on severity and impact:
 | File criteria only matched "updated/changed/done/committed" — "README.md created" always `[ ]` | ✓ Done v3.6: `criteria.py` expanded keyword list: "created", "documented", "added", "written" |
 | No way to auto-verify elapsed-time criteria like "session elapsed 90+ minutes" | ✓ Done v3.6: `criteria.py` elapsed-time heuristic — checks `(now - started) >= N minutes` |
 | `test_phantom.py` "effective gap < 300s" test fails after any lull — wrong semantics (should verify function uses fs mtime, not that it's fresh) | ✓ Done v3.6: assertion changed to `ts > 1577836800` — correct invariant, not environment-sensitive |
+| `criteria.py` keywords "written" and "changed" added in v3.6 but had no tests — could silently break | ✓ Done v3.6: two new test checks; all 6 trigger words (updated, created, documented, added, written, changed) now have dedicated coverage |
 
 ---
 
