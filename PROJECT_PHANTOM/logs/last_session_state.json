@@ -1,8 +1,8 @@
 {
-  "task": "amend test",
-  "last_active": "2026-05-07 04:28:27",
-  "turns_taken": 4,
-  "turns_target": 10,
+  "task": "save test",
+  "last_active": "2026-05-07 04:29:17",
+  "turns_taken": 1,
+  "turns_target": 5,
   "rounds_remaining": 5,
   "idle_threshold_seconds": 180,
   "check_interval_seconds": 30,
@@ -13,18 +13,18 @@
   "active_agent_ids": [],
   "heartbeat_active": false,
   "last_heartbeat_fired": null,
-  "progress_note": "turn 4",
-  "started": "2026-05-07 04:28:25",
+  "progress_note": "saved progress",
+  "started": "2026-05-07 04:29:17",
   "status": "active",
   "workspace_dir": "/home/user/Cloud-code",
   "profile": null,
   "scope_files": [],
   "coverage_targets": [],
   "scope_threshold": 50.0,
-  "session_start_ref": "bcd73d52781cce2edde8d7b2f23485a887a9b6d2",
+  "session_start_ref": "9eb8ef061f21393436f726662dbc4312e15a758c",
   "tracked_extensions": [],
   "scan_depth": 5,
-  "auto_save_every": 2,
+  "auto_save_every": 5,
   "drift_guard_active": false,
   "drift_warning": null,
   "drift_warned_at": null,
@@ -33,38 +33,22 @@
   "ping_log": [
     {
       "turn": 1,
-      "note": "turn 1",
-      "at": "2026-05-07 04:28:25"
-    },
-    {
-      "turn": 2,
-      "note": "turn 2",
-      "at": "2026-05-07 04:28:25"
-    },
-    {
-      "turn": 3,
-      "note": "turn 3",
-      "at": "2026-05-07 04:28:27"
-    },
-    {
-      "turn": 4,
-      "note": "turn 4",
-      "at": "2026-05-07 04:28:27"
+      "note": "saved progress",
+      "at": "2026-05-07 04:29:17"
     }
   ],
   "last_activity_source": "ping",
-  "last_activity_ts": "2026-05-07 04:28:25",
+  "last_activity_ts": "2026-05-07 04:29:17",
   "next_heartbeat_at": null,
   "completed": null,
-  "saved_at": "2026-05-07 04:28:27",
+  "saved_at": "2026-05-07 04:29:17",
   "anchor_a": {
-    "ref": "bcd73d52781cce2edde8d7b2f23485a887a9b6d2",
-    "timestamp": "2026-05-07 04:28:25"
+    "ref": "9eb8ef061f21393436f726662dbc4312e15a758c",
+    "timestamp": "2026-05-07 04:29:17"
   },
   "anchor_b": {
-    "goal": "amend test",
+    "goal": "save test",
     "done_criteria": [],
-    "set_at": "2026-05-07 04:28:25"
-  },
-  "auto_save_commit": "b1c18f68cfec2c5963626e0d273fa9cdc54b47ec"
+    "set_at": "2026-05-07 04:29:17"
+  }
 }
