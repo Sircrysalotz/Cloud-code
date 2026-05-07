@@ -107,3 +107,5 @@ These must remain true across all versions:
 4. **`complete` is the only session ender** — turn count is a budget, not deadline
 5. **Tests must pass before every commit** — no broken-window commits
 6. **All scope paths filter `_is_auto_generated()`** — logs dir never inflates scope %
+7. **`criteria.py` is the single eval implementation** — never duplicate criterion logic in phantom.py or heartbeat_runner.py; all heuristics live in `eval_criteria()` only
+8. **Commit messages are human-first** — line 1 is plain English anyone can read; technical details go in the body
