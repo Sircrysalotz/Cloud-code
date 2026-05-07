@@ -1,9 +1,9 @@
 {
-  "task": "amend test",
-  "last_active": "2026-05-07 04:54:49",
-  "turns_taken": 4,
-  "turns_target": 10,
-  "rounds_remaining": 5,
+  "task": "dogfood v3.3 \u2014 observe friction, fix MD files, improve system",
+  "last_active": "2026-05-07 04:55:11",
+  "turns_taken": 5,
+  "turns_target": 20,
+  "rounds_remaining": 8,
   "idle_threshold_seconds": 180,
   "check_interval_seconds": 30,
   "cooldown_factor": 1.0,
@@ -11,60 +11,88 @@
   "rounds_used": 0,
   "agents_running": 0,
   "active_agent_ids": [],
-  "heartbeat_active": false,
+  "heartbeat_active": true,
   "last_heartbeat_fired": null,
-  "progress_note": "turn 4",
-  "started": "2026-05-07 04:54:47",
+  "progress_note": "CLAUDE.md/DIFF.md/PLAN.md updated; 548 tests; waiting for heartbeat fire",
+  "started": "2026-05-07 04:23:52",
   "status": "active",
   "workspace_dir": "/home/user/Cloud-code",
   "profile": null,
-  "scope_files": [],
-  "coverage_targets": [],
+  "scope_files": [
+    "agents/phantom.py",
+    "agents/heartbeat_runner.py",
+    "test_phantom.py",
+    "agents/HEARTBEAT.md",
+    "agents/DRIFT_GUARD.md",
+    "CLAUDE.md",
+    "DIFF.md",
+    "PLAN.md",
+    "ANTI_DRIFT.md"
+  ],
+  "coverage_targets": [
+    "agents/phantom.py",
+    "agents/heartbeat_runner.py",
+    "agents/drift_guard.py"
+  ],
   "scope_threshold": 50.0,
-  "session_start_ref": "4ac027799b1b01d0e55d8332140a67ff11843fd5",
+  "session_start_ref": "cf57655a553b5d1eb7c37552dd02261490b96cc0",
   "tracked_extensions": [],
   "scan_depth": 5,
-  "auto_save_every": 2,
-  "drift_guard_active": false,
+  "auto_save_every": 5,
+  "drift_guard_active": true,
   "drift_warning": null,
-  "drift_warned_at": null,
+  "drift_warned_at": "2026-05-07 04:31:20",
   "heartbeat_fires": [],
   "watchdog_events": [],
   "ping_log": [
     {
       "turn": 1,
-      "note": "turn 1",
-      "at": "2026-05-07 04:54:47"
+      "note": "session start \u2014 audit friction, update MD files, run dogfood loop",
+      "at": "2026-05-07 04:23:56"
     },
     {
       "turn": 2,
-      "note": "turn 2",
-      "at": "2026-05-07 04:54:47"
+      "note": "rewrote DIFF/PLAN/ANTI_DRIFT; drift-done scope-update hint; 536/536",
+      "at": "2026-05-07 04:30:11"
     },
     {
       "turn": 3,
-      "note": "turn 3",
-      "at": "2026-05-07 04:54:49"
+      "note": "committed v3.3 code fixes (541 tests); investigating heartbeat early-return; re-arming",
+      "at": "2026-05-07 04:40:41"
     },
     {
       "turn": 4,
-      "note": "turn 4",
-      "at": "2026-05-07 04:54:49"
+      "note": "fixed early-return: runner now fires immediately; re-arming drift guard + heartbeat",
+      "at": "2026-05-07 04:52:22"
+    },
+    {
+      "turn": 5,
+      "note": "CLAUDE.md/DIFF.md/PLAN.md updated; 548 tests; waiting for heartbeat fire",
+      "at": "2026-05-07 04:55:11"
     }
   ],
-  "last_activity_source": "ping",
-  "last_activity_ts": "2026-05-07 04:54:47",
-  "next_heartbeat_at": null,
+  "last_activity_source": "git:index",
+  "last_activity_ts": "2026-05-07 04:54:49",
+  "next_heartbeat_at": "2026-05-07 04:57:49",
   "completed": null,
-  "saved_at": "2026-05-07 04:54:49",
+  "saved_at": "2026-05-07 04:55:11",
   "anchor_a": {
-    "ref": "4ac027799b1b01d0e55d8332140a67ff11843fd5",
-    "timestamp": "2026-05-07 04:54:47"
+    "ref": "cf57655a553b5d1eb7c37552dd02261490b96cc0",
+    "timestamp": "2026-05-07 04:23:52"
   },
   "anchor_b": {
-    "goal": "amend test",
-    "done_criteria": [],
-    "set_at": "2026-05-07 04:54:47"
+    "goal": "dogfood v3.3 \u2014 observe friction, fix MD files, improve system",
+    "done_criteria": [
+      "528+ tests passing",
+      "coverage 3/3 targets touched",
+      "CLAUDE.md updated with v3.3 improvements",
+      "observed at least 1 heartbeat fire",
+      "anchor check used at least once",
+      "checkpoint before completion"
+    ],
+    "set_at": "2026-05-07 04:23:52"
   },
-  "auto_save_commit": "d641feb6ea73ed9e8c06b0c057ffe1ffc9d42969"
+  "tests_last_count": 548,
+  "anchor_checks_count": 1,
+  "coverage_full": true
 }
