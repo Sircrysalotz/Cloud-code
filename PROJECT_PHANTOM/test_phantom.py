@@ -2167,15 +2167,16 @@ def test_docs_content():
 
     agents_dir = _os.path.dirname(_os.path.abspath(PHANTOM))
 
-    # HEARTBEAT.md v7 content checks
+    # HEARTBEAT.md v8 content checks
     hb_md = open(_os.path.join(agents_dir, "HEARTBEAT.md")).read()
-    check("HEARTBEAT.md header is v7", "v7" in hb_md.splitlines()[0])
+    check("HEARTBEAT.md header is v8", "v8" in hb_md.splitlines()[0])
+    check("HEARTBEAT.md execution block appears near top (within first 20 lines)", any("STEP" in l or "Bash tool" in l for l in hb_md.splitlines()[:20]))
     check("HEARTBEAT.md has fabrication prevention section", "Never fabricate" in hb_md)
     check("HEARTBEAT.md warns against generating fire output", "Do NOT generate fire output" in hb_md)
     check("HEARTBEAT.md has post-flight verification step", "rounds_remaining" in hb_md and "decreased" in hb_md)
     check("HEARTBEAT.md shows exact HOLD active format", "active Xs ago" in hb_md)
     check("HEARTBEAT.md fire banner shows plain === chars", "======" in hb_md)
-    check("HEARTBEAT.md warns against text before Bash call", "Do NOT generate any text" in hb_md or "no text before" in hb_md.lower() or "text only at the end" in hb_md.lower() or "text output before" in hb_md.lower())
+    check("HEARTBEAT.md warns against text before Bash call", "Do NOT generate any text" in hb_md or "no text before" in hb_md.lower() or "text only at the end" in hb_md.lower() or "text output before" in hb_md.lower() or "DO NOT write" in hb_md)
     check("HEARTBEAT.md warns against 'waiting for' pattern", "waiting for" in hb_md.lower() or "will relay" in hb_md.lower())
     # Box char appears in fabrication warning (as example of what NOT to do) — not in fire banner section
     fire_section = hb_md.split("### On fire")[1] if "### On fire" in hb_md else ""

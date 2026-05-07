@@ -146,6 +146,39 @@ not to generate text between steps. Text output = return value; writing it early
 
 ---
 
+---
+
+## Pattern 8: Warning-Only Fix Insufficient for Early-Return (v3.4)
+
+**What happened:** HEARTBEAT.md v7 added an explicit WARNING block at the top: "Do NOT generate
+text output before the Bash call completes." The agent continued returning early with
+"Waiting for heartbeat runner output..." anyway — the exact text the warning prohibits.
+
+**How it manifested:** Multiple consecutive early returns in the v3.4 marathon, despite v7 being
+in effect. The warning was read and acknowledged, but acknowledgment IS text output — meaning the
+act of confirming the warning caused the early return.
+
+**Root cause:** Warnings prompt the model to generate an acknowledgment response. An acknowledgment
+IS text output. Once text is generated before the Bash call, the return happens early.
+
+**Fix (v3.4):** HEARTBEAT.md v8 — restructured to put execution instructions AT THE TOP of the
+file, before any warnings or explanations. The very first visible content (after the title) is:
+```
+STEP 1 — Bash tool: python3 $AGENTS_DIR/phantom.py status
+STEP 2 — Bash tool: python3 $AGENTS_DIR/heartbeat_runner.py (timeout=600000)
+STEP 3 — Bash tool: python3 $AGENTS_DIR/phantom.py status
+STEP 4 — Write text: paste output from steps 2+3 verbatim.
+```
+This gives the agent tool calls to execute before any text that might prompt commentary.
+
+**Detection:** Same as Pattern 7 — verify `rounds_remaining` decreased AND `last_heartbeat_fired`
+is set after the heartbeat agent returns.
+
+**Lesson:** Warnings in instructions are read before execution. Reading + acknowledging a warning
+IS text generation. To prevent early text generation, put tool calls first — before any prose.
+
+---
+
 ## What Works Well (Don't Break)
 
 - **Four-gate drift evaluation** — almost no false positives on legitimate single-file tasks

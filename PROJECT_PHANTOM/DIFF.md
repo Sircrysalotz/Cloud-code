@@ -5,6 +5,17 @@ during a live dogfood session and fixed in the same or next iteration.
 
 ---
 
+## v3.3 → v3.4
+
+| Problem | Fix |
+|---|---|
+| `check` command re-runs git diff on every call — slow if called often | Cache result in session state (30s TTL); `--no-cache` to force refresh |
+| `status` criteria mini-view shows marks only — no criterion text | `status --verbose` expands to full list with text and `[x]/[ ]` per criterion |
+| Warning-only HEARTBEAT.md v7 still caused early returns — model acknowledges warning as text | HEARTBEAT.md v8: execution steps appear at the very top, before any prose |
+| Warning-only fix insufficient — documented pattern in ANTI_DRIFT.md | Pattern 8 added: warnings prompt acknowledgment text; put tool calls first instead |
+
+---
+
 ## v3.2 → v3.3
 
 | Problem | Fix |
