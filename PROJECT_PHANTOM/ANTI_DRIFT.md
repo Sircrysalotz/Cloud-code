@@ -184,7 +184,8 @@ without running the runner. Root cause: the "You are... Do NOT write any text" p
 triggered commentary before the calls.
 Fix (v3.6): CLAUDE.md spawn prompts restructured — Bash calls listed FIRST, explanation moved to the
 end ("Make these 3 Bash calls in order. Your response = verbatim output..."). Same execution-first
-principle as HEARTBEAT.md v8.
+principle as HEARTBEAT.md v8. Confirmed working: next spawn after the fix fired cleanly (round 10,
+gap=190s, no early return).
 
 ---
 
