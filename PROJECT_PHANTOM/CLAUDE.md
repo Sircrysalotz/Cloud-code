@@ -580,3 +580,53 @@ python3 PROJECT_PHANTOM/agents/phantom.py restore   # recovers saved state
 - **Always verify heartbeat fires are real** — after the HB agent returns, check `rounds_remaining` decreased and `last_heartbeat_fired` is set; if not, run `recover` and re-arm
 - **Use direct-command spawn for heartbeat AND drift guard** — "Read X.md and execute" causes planning text (Patterns 8/9); direct command prompts for both are in the protocol above
 - **Don't re-arm heartbeat immediately after commits** — git:index stays fresh for ~3min after push; arm after the next turn's work is committed, then go idle
+
+---
+
+## Commit Message Format
+
+Every commit should be readable at two levels:
+
+**Line 1 — human:** Plain English. What did you actually do? Someone skimming git log should understand it instantly without knowing the codebase.
+
+**Body — technical:** What changed, why, file/line references. For AI context on future resumes.
+
+```
+Plain English description of what changed
+
+Technical: which files, what specifically changed, why it was needed.
+Any non-obvious context (e.g. "was breaking X because of Y").
+
+https://claude.ai/code/session_...
+```
+
+### Examples
+
+Good:
+```
+Added a README so humans can understand what PHANTOM is
+
+Created PROJECT_PHANTOM/README.md — overview, quick start, key commands,
+how heartbeat/drift guard work, file index, troubleshooting.
+
+https://claude.ai/code/session_01URz48AEdtJbKdvuHxoBEJ6
+```
+
+```
+Stopped the version number from showing wrong in drift guard output
+
+drift_guard.py: synced docstring (v4→v5) and argparse description (v3→v5)
+to match the "Drift Guard v5 active" banner already in use.
+
+https://claude.ai/code/session_01URz48AEdtJbKdvuHxoBEJ6
+```
+
+Too technical (avoid):
+```
+fix: sync drift_guard.py version strings to v5 (banner was stale at v4/v3)
+```
+
+Too vague (avoid):
+```
+Updates
+```
