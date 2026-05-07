@@ -268,17 +268,15 @@ python3 PROJECT_PHANTOM/agents/phantom.py drift-arm
 ```
 Use `run_in_background: true`.
 
-**Preferred spawn prompt** (direct command — avoids Pattern 9 summary-instead-of-verbatim):
+**Preferred spawn prompt** (calls-first — avoids preamble text that triggers Pattern 8):
 ```
-You are a phantom drift monitoring agent. Make exactly 3 Bash tool calls in order, then return their output. Do NOT write any text until all 3 calls complete.
-
 Call 1 (Bash, timeout=30000): python3 <AGENTS_DIR>/phantom.py status
   If drift_guard_active=false → stop. Return "Not armed."
 Call 2 (Bash, timeout=600000, blocking — NOT run_in_background, NOT Monitor):
   python3 <AGENTS_DIR>/drift_guard.py --interval 60 --threshold 50
 Call 3 (Bash, timeout=30000): python3 <AGENTS_DIR>/phantom.py status
 
-Your response = full output from calls 2 and 3 verbatim. Nothing else.
+Make these 3 Bash calls in order. Your response = verbatim output from calls 2 and 3. Nothing else.
 ```
 Note: the main session calls `drift-done` after this agent returns — the agent does NOT call drift-done.
 
@@ -295,17 +293,15 @@ python3 PROJECT_PHANTOM/agents/phantom.py heartbeat-arm
 ```
 Use `run_in_background: true`.
 
-**Preferred spawn prompt** (direct command — avoids "read file" planning step that causes early returns):
+**Preferred spawn prompt** (calls-first — avoids preamble text that triggers Pattern 8):
 ```
-You are a phantom heartbeat monitoring agent. Make exactly 3 Bash tool calls in order, then return their output. Do NOT write any text until all 3 calls complete.
-
 Call 1 (Bash, timeout=30000): python3 <AGENTS_DIR>/phantom.py status
   If rounds_remaining=0 or heartbeat_active=false → stop. Return "Not armed / no rounds."
 Call 2 (Bash, timeout=600000, blocking — NOT run_in_background, NOT Monitor):
   python3 <AGENTS_DIR>/heartbeat_runner.py
 Call 3 (Bash, timeout=30000): python3 <AGENTS_DIR>/phantom.py status
 
-Your response = full output from calls 2 and 3 verbatim. Nothing else.
+Make these 3 Bash calls in order. Your response = verbatim output from calls 2 and 3. Nothing else.
 ```
 
 Fallback (if direct approach unavailable): `"Read <path-to-agents-dir>/HEARTBEAT.md and execute."`

@@ -63,6 +63,7 @@ Priority order based on severity and impact:
 | No way to auto-verify elapsed-time criteria like "session elapsed 90+ minutes" | ✓ Done v3.6: `criteria.py` elapsed-time heuristic — checks `(now - started) >= N minutes` |
 | `test_phantom.py` "effective gap < 300s" test fails after any lull — wrong semantics (should verify function uses fs mtime, not that it's fresh) | ✓ Done v3.6: assertion changed to `ts > 1577836800` — correct invariant, not environment-sensitive |
 | `criteria.py` keywords "written" and "changed" added in v3.6 but had no tests — could silently break | ✓ Done v3.6: two new test checks; all 6 trigger words (updated, created, documented, added, written, changed) now have dedicated coverage |
+| CLAUDE.md direct-command spawn prompts opened with preamble ("You are... Do NOT write text") — Pattern 8 trigger observed v3.6 marathon | ✓ Done v3.6: both spawn prompts restructured to calls-first format — Bash calls at top, explanation after |
 
 ---
 

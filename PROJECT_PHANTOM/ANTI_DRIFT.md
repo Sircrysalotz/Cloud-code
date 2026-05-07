@@ -177,6 +177,15 @@ is set after the heartbeat agent returns.
 **Lesson:** Warnings in instructions are read before execution. Reading + acknowledging a warning
 IS text generation. To prevent early text generation, put tool calls first — before any prose.
 
+**v3.6 recurrence:** The same early-return happened with the CLAUDE.md direct-command spawn prompt.
+The prompt opened with "You are a phantom heartbeat monitoring agent. Make exactly 3 Bash tool calls
+in order... Do NOT write any text..." — the agent returned "Waiting for the heartbeat runner to fire..."
+without running the runner. Root cause: the "You are... Do NOT write any text" preamble itself
+triggered commentary before the calls.
+Fix (v3.6): CLAUDE.md spawn prompts restructured — Bash calls listed FIRST, explanation moved to the
+end ("Make these 3 Bash calls in order. Your response = verbatim output..."). Same execution-first
+principle as HEARTBEAT.md v8.
+
 ---
 
 ## Pattern 9: Drift Guard Agent Returns Summary Instead of Verbatim Output (v3.4)
