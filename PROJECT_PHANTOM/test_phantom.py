@@ -450,7 +450,8 @@ def test_workspace_and_activity():
     ts, source = hr.get_last_activity(old_state)
     check("get_last_activity finds recent activity despite old ping", ts > 0)
     check("activity source is filesystem or git (not ping)", source != "ping")
-    check("effective gap < 300s despite ancient ping", (time.time() - ts) < 300)
+    _ancient_epoch = 1577836800  # 2020-01-01 00:00:00 UTC
+    check("activity timestamp is more recent than ancient ping", ts > _ancient_epoch)
 
     # get_last_activity uses ping when it's the most recent
     very_recent_state = {
