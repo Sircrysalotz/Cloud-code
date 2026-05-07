@@ -146,6 +146,71 @@ not to generate text between steps. Text output = return value; writing it early
 
 ---
 
+---
+
+## Pattern 8: Warning-Only Fix Insufficient for Early-Return (v3.4)
+
+**What happened:** HEARTBEAT.md v7 added an explicit WARNING block at the top: "Do NOT generate
+text output before the Bash call completes." The agent continued returning early with
+"Waiting for heartbeat runner output..." anyway — the exact text the warning prohibits.
+
+**How it manifested:** Multiple consecutive early returns in the v3.4 marathon, despite v7 being
+in effect. The warning was read and acknowledged, but acknowledgment IS text output — meaning the
+act of confirming the warning caused the early return.
+
+**Root cause:** Warnings prompt the model to generate an acknowledgment response. An acknowledgment
+IS text output. Once text is generated before the Bash call, the return happens early.
+
+**Fix (v3.4):** HEARTBEAT.md v8 — restructured to put execution instructions AT THE TOP of the
+file, before any warnings or explanations. The very first visible content (after the title) is:
+```
+STEP 1 — Bash tool: python3 $AGENTS_DIR/phantom.py status
+STEP 2 — Bash tool: python3 $AGENTS_DIR/heartbeat_runner.py (timeout=600000)
+STEP 3 — Bash tool: python3 $AGENTS_DIR/phantom.py status
+STEP 4 — Write text: paste output from steps 2+3 verbatim.
+```
+This gives the agent tool calls to execute before any text that might prompt commentary.
+
+**Detection:** Same as Pattern 7 — verify `rounds_remaining` decreased AND `last_heartbeat_fired`
+is set after the heartbeat agent returns.
+
+**Lesson:** Warnings in instructions are read before execution. Reading + acknowledging a warning
+IS text generation. To prevent early text generation, put tool calls first — before any prose.
+
+---
+
+## Pattern 9: Drift Guard Agent Returns Summary Instead of Verbatim Output (v3.4)
+
+**What happened:** The drift guard agent ran `drift_guard.py` as a blocking Bash call and DID
+get real output (10 checks over ~10 minutes, all CLEAN). But instead of pasting the output
+verbatim, the agent formatted it as a narrative summary with headers and bullet points:
+"All 10 checks so far are CLEAN..." and "Status: Drift guard is running and healthy."
+
+**How it manifested:** `drift_guard_active` remains True (the agent didn't run `drift-done`),
+and the main session gets a narrative rather than the raw check output. The drift_guard.py
+process is killed when the agent returns.
+
+**Difference from earlier patterns:**
+- Pattern 7/8: Agent returns BEFORE running the Bash call (or before it completes)
+- Pattern 9: Agent runs the Bash call successfully but FORMATS the output instead of pasting verbatim
+
+**Root cause:** Instructions say "paste the output from step 2 as your result" but the model
+interprets this as "produce a helpful summary" rather than "literal copy-paste".
+
+**Implication:** Even when the Bash call succeeds, if the agent formats the output, the main
+session reads a narrative instead of machine-parseable lines. For drift_guard this is advisory
+(main session reads state, not agent text), but it can confuse the human reading the output.
+
+**Fix (v3.4):** The direct-command approach for heartbeat is also applicable to drift guard.
+Explicit instructions to paste verbatim help but aren't fully reliable. State remains
+authoritative — the main session always calls `drift-done` to read state, never trusts agent text.
+
+**Lesson:** Text output format instructions ("paste verbatim") are not reliably followed.
+Design systems so correctness doesn't depend on agent output format — use state as the source
+of truth, and use agent text only for human readability.
+
+---
+
 ## What Works Well (Don't Break)
 
 - **Four-gate drift evaluation** — almost no false positives on legitimate single-file tasks

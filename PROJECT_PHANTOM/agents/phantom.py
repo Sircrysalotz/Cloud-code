@@ -78,6 +78,8 @@ TEMP_FILE  = STATE_FILE + ".tmp"
 LOCK_FILE  = STATE_FILE.replace(".json", ".lock")
 LOCK_TIMEOUT = 5  # seconds
 
+CHECK_CACHE_TTL  = 30  # seconds — git diff is expensive; skip if called repeatedly within a turn
+
 PROFILES_FILE = os.environ.get(
     "PHANTOM_PROFILES",
     os.path.join(os.path.expanduser("~"), ".phantom_profiles.json")
@@ -147,6 +149,27 @@ def elapsed(started: str) -> str:
         return f"{h}h {m}m {s}s"
     except Exception:
         return "unknown"
+
+
+def _load_check_cache(state: dict) -> dict | None:
+    """Return check_cache from session state if still within TTL."""
+    cache = state.get("check_cache")
+    if not cache:
+        return None
+    if time.time() - cache.get("ts", 0) > CHECK_CACHE_TTL:
+        return None
+    return cache
+
+
+def _save_check_cache(state: dict, scope_result: dict, cov_result: dict,
+                      coverage_targets: list) -> None:
+    """Write check result into session state so repeated calls within TTL skip git diff."""
+    state["check_cache"] = {
+        "ts":               time.time(),
+        "scope_result":     scope_result,
+        "cov_result":       cov_result,
+        "coverage_targets": coverage_targets,
+    }
 
 
 # --- Commands ---
@@ -576,16 +599,22 @@ def cmd_status(args):
     tests_count = state.get("tests_last_count")
     if tests_count:
         print(f"  Tests:     {tests_count} (recorded via ping --tests)")
-    # Criteria mini-view — only if anchor_b criteria set
+    # Criteria view — mini by default; full text with --verbose
     anchor_b = state.get("anchor_b") or {}
     criteria = anchor_b.get("done_criteria") or []
+    verbose  = getattr(args, "verbose", False)
     if criteria:
         evaluated = _eval_criteria(state)
-        met = sum(1 for _, done in evaluated if done)
+        met   = sum(1 for _, done in evaluated if done)
         total = len(evaluated)
-        marks = " ".join(("[x]" if done else "[ ]") for _, done in evaluated[:4])
-        suffix = f" +{total - 4} more" if total > 4 else ""
-        print(f"  Criteria:  {met}/{total} met | {marks}{suffix}")
+        if verbose:
+            print(f"  Criteria:  {met}/{total} met")
+            for c, done in evaluated:
+                mark = "[x]" if done else "[ ]"
+                print(f"    {mark} {c}")
+        else:
+            marks = " ".join(("[x]" if done else "[ ]") for _, done in evaluated)
+            print(f"  Criteria:  {met}/{total} met | {marks}")
 
     # Pending drift warning block
     dw = state.get("drift_warning")
@@ -813,56 +842,70 @@ def cmd_check(args):
         sys.exit(1)
 
     session_ref = state.get("session_start_ref")
-    threshold = getattr(args, "threshold", 50)
-    use_json = getattr(args, "json", False)
-    diff_range = [session_ref, "HEAD"] if session_ref else ["HEAD~5", "HEAD"]
+    threshold   = getattr(args, "threshold", 50)
+    use_json    = getattr(args, "json", False)
+    no_cache    = getattr(args, "no_cache", False)
+    diff_range  = [session_ref, "HEAD"] if session_ref else ["HEAD~5", "HEAD"]
 
-    # ── Scope analysis ──────────────────────────────────────────────────────
-    scope_result = {"files": {}, "max_pct": 0.0, "clean": True, "error": None}
-    try:
-        r = subprocess.run(["git", "diff", "--stat"] + diff_range,
-                           cwd=REPO_DIR, capture_output=True, text=True, timeout=15)
-        lines = [l for l in r.stdout.splitlines() if "|" in l]
-        if lines:
-            for line in lines:
-                parts = line.split("|")
-                fname = parts[0].strip()
-                if _is_auto_generated(fname):
-                    continue  # filter auto-save file same as drift_guard/scope
-                try:
-                    scope_result["files"][fname] = int(parts[1].strip().split()[0])
-                except (IndexError, ValueError):
-                    pass
-            grand = sum(scope_result["files"].values()) or 1
-            scope_result["max_pct"] = max(scope_result["files"].values()) / grand * 100 if scope_result["files"] else 0
-            scope_result["clean"] = scope_result["max_pct"] <= threshold
-    except Exception as e:
-        scope_result["error"] = str(e)
-
-    # ── Coverage analysis ────────────────────────────────────────────────────
+    # ── Cache lookup (skip git diff if called repeatedly within TTL) ─────────
     coverage_targets = (
         getattr(args, "targets", None)
         or state.get("coverage_targets") or []
         or state.get("scope_files") or []
     )
-    cov_result = {"targets": coverage_targets, "touched": [], "untouched": [],
-                  "pct": 0.0, "full": False, "error": None}
-    if coverage_targets:
+    cached = None if no_cache else _load_check_cache(state)
+    if cached:
+        scope_result     = cached["scope_result"]
+        cov_result       = cached["cov_result"]
+        coverage_targets = cached.get("coverage_targets", coverage_targets)
+        cache_hit        = True
+    else:
+        cache_hit = False
+
+        # ── Scope analysis ──────────────────────────────────────────────────────
+        scope_result = {"files": {}, "max_pct": 0.0, "clean": True, "error": None}
         try:
-            r2 = subprocess.run(["git", "diff", "--name-only"] + diff_range,
-                                cwd=REPO_DIR, capture_output=True, text=True, timeout=15)
-            raw2 = set(r2.stdout.strip().splitlines())
-            changed = {(c[len(_PROJECT_PREFIX):] if c.startswith(_PROJECT_PREFIX) else c) for c in raw2}
-            def _hit(t):
-                t = t.rstrip("/")
-                return t in changed or any(c.startswith(t + "/") for c in changed)
-            cov_result["touched"]   = [t for t in coverage_targets if _hit(t)]
-            cov_result["untouched"] = [t for t in coverage_targets if t not in cov_result["touched"]]
-            n = len(coverage_targets)
-            cov_result["pct"]  = 100.0 * len(cov_result["touched"]) / n if n else 0.0
-            cov_result["full"] = len(cov_result["untouched"]) == 0
+            r = subprocess.run(["git", "diff", "--stat"] + diff_range,
+                               cwd=REPO_DIR, capture_output=True, text=True, timeout=15)
+            lines = [l for l in r.stdout.splitlines() if "|" in l]
+            if lines:
+                for line in lines:
+                    parts = line.split("|")
+                    fname = parts[0].strip()
+                    if _is_auto_generated(fname):
+                        continue  # filter auto-save file same as drift_guard/scope
+                    try:
+                        scope_result["files"][fname] = int(parts[1].strip().split()[0])
+                    except (IndexError, ValueError):
+                        pass
+            grand = sum(scope_result["files"].values()) or 1
+            scope_result["max_pct"] = max(scope_result["files"].values()) / grand * 100 if scope_result["files"] else 0
+            scope_result["clean"] = scope_result["max_pct"] <= threshold
         except Exception as e:
-            cov_result["error"] = str(e)
+            scope_result["error"] = str(e)
+
+        # ── Coverage analysis ────────────────────────────────────────────────
+        cov_result = {"targets": coverage_targets, "touched": [], "untouched": [],
+                      "pct": 0.0, "full": False, "error": None}
+        if coverage_targets:
+            try:
+                r2 = subprocess.run(["git", "diff", "--name-only"] + diff_range,
+                                    cwd=REPO_DIR, capture_output=True, text=True, timeout=15)
+                raw2 = set(r2.stdout.strip().splitlines())
+                changed = {(c[len(_PROJECT_PREFIX):] if c.startswith(_PROJECT_PREFIX) else c) for c in raw2}
+                def _hit(t):
+                    t = t.rstrip("/")
+                    return t in changed or any(c.startswith(t + "/") for c in changed)
+                cov_result["touched"]   = [t for t in coverage_targets if _hit(t)]
+                cov_result["untouched"] = [t for t in coverage_targets if t not in cov_result["touched"]]
+                n = len(coverage_targets)
+                cov_result["pct"]  = 100.0 * len(cov_result["touched"]) / n if n else 0.0
+                cov_result["full"] = len(cov_result["untouched"]) == 0
+            except Exception as e:
+                cov_result["error"] = str(e)
+
+        # Save results to session state cache so repeated calls within TTL skip git diff
+        _save_check_cache(state, scope_result, cov_result, coverage_targets)
 
     # ── Persist coverage result to state so heartbeat runner can show [x] ───
     if coverage_targets:
@@ -898,7 +941,8 @@ def cmd_check(args):
 
     sep = "=" * 56
     print(sep)
-    print("  SESSION CHECK")
+    cache_note = f"  (cached — run with --no-cache to refresh)" if cache_hit else ""
+    print(f"  SESSION CHECK{cache_note}")
     print(sep)
     print(f"  Task:   {state.get('task', '?')}")
     print(f"  Turns:  {state.get('turns_taken', 0)}/{state.get('turns_target', '?')}")
@@ -1348,6 +1392,26 @@ def _eval_criteria(state: dict) -> list[tuple[str, bool]]:
             m = _re.search(r'(\d+)', c)
             if m and last_count > 0:
                 done = last_count >= int(m.group(1))
+        # File updated: "CLAUDE.md updated", "heartbeat_runner.py changed"
+        elif _re.search(r'\b[\w.\-]+\.(?:py|md|txt|json|sh|yml|yaml)\b', c):
+            fm = _re.search(r'\b([\w.\-/]+\.(?:py|md|txt|json|sh|yml|yaml))\b', c)
+            if fm and any(kw in c_lower for kw in ("updated", "changed", "done", "committed")):
+                fname = fm.group(1)
+                start_ref = state.get("session_start_ref", "")
+                workspace = state.get("workspace_dir", ".")
+                if start_ref:
+                    try:
+                        diff_out = subprocess.check_output(
+                            ["git", "diff", "--name-only", start_ref, "HEAD"],
+                            stderr=subprocess.DEVNULL,
+                            cwd=workspace,
+                        ).decode()
+                        done = any(
+                            p == fname or p.endswith("/" + fname)
+                            for p in diff_out.splitlines() if p
+                        )
+                    except Exception:
+                        done = False
         results.append((c, done))
     return results
 
@@ -1811,7 +1875,8 @@ p.add_argument("--id", default="", help="Optional agent identifier")
 
 sub.add_parser("heartbeat-arm", help="Arm the heartbeat before spawning")
 p = sub.add_parser("status",    help="Print rich session status")
-p.add_argument("--brief", action="store_true", help="One-line compact summary")
+p.add_argument("--brief",   action="store_true", help="One-line compact summary")
+p.add_argument("--verbose", action="store_true", help="Show full done-criteria text with each criterion")
 sub.add_parser("complete",      help="Mark session complete and print summary")
 p = sub.add_parser("history",   help="Print session history and progress")
 p.add_argument("--last", type=int, default=None, metavar="N",
@@ -1837,6 +1902,8 @@ p.add_argument("--targets", nargs="+", default=None,
                help="Coverage targets (files/dirs); defaults to scope_files in state")
 p.add_argument("--json", action="store_true",
                help="Output results as JSON")
+p.add_argument("--no-cache", action="store_true", dest="no_cache",
+               help=f"Force re-run git diff even if cached result is < {CHECK_CACHE_TTL}s old")
 sub.add_parser("drift-arm",     help="Arm the drift guard before spawning drift_guard.py")
 sub.add_parser("drift-done",    help="Read drift guard findings after sub-agent returns")
 sub.add_parser("drift-status",  help="Show drift guard state and last warning")

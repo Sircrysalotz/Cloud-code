@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Phantom Heartbeat Runner v6.
+Phantom Heartbeat Runner v8.
 
 Fires ONLY when ALL of these are true:
   1. gap since last activity >= idle_threshold
@@ -43,6 +43,11 @@ v7 additions:
   - eval_criteria_quick: ETA corrects for min_idle_polls extra delay
   - eval_criteria_quick: reads coverage_full from state (written by check/anchor-check)
     so coverage criterion shows [x] without git ops
+
+v8 additions:
+  - Fire banner shows session elapsed time for marathon context
+  - Fire banner shows ALL criteria (not just first 3)
+  - Startup banner updated to v8
 """
 
 import json
@@ -289,7 +294,7 @@ def main():
     tracked_exts = set(raw_exts) if raw_exts else None  # None → use DEFAULT_TRACKED_EXTS
     scan_depth   = state.get("scan_depth", DEFAULT_SCAN_DEPTH)
 
-    print(f"Heartbeat v6 active")
+    print(f"Heartbeat v8 active")
     print(f"  Threshold: {idle_threshold}s | Cooldown: {cooldown_window:.0f}s ({cooldown_factor}x) | Poll: {check_interval}s | Rounds: {state.get('rounds_remaining')}")
     print(f"  Watchdog:  {watchdog_limit}s max per cycle | Min idle polls: {min_idle_polls}")
     if workspace:
@@ -431,23 +436,38 @@ def main():
 
         rounds_used  = state.get("rounds_used", 0)
         rounds_total = rounds_used + state["rounds_remaining"]  # used + remaining = original
+        # Session elapsed for marathon context
+        session_elapsed = ""
+        started = state.get("started", "")
+        if started:
+            try:
+                delta = now - datetime.strptime(started, "%Y-%m-%d %H:%M:%S")
+                m, s = divmod(int(delta.total_seconds()), 60)
+                h, m = divmod(m, 60)
+                session_elapsed = f" | session: {h}h {m}m"
+            except Exception:
+                pass
         print("=" * 54)
         print(f"  HEARTBEAT FIRED  (round {rounds_used}/{rounds_total})")
-        print(f"  Idle:      {gap:.0f}s (threshold: {idle_threshold}s, drift: +{drift:.0f}s)")
+        print(f"  Idle:      {gap:.0f}s (threshold: {idle_threshold}s, drift: +{drift:.0f}s{session_elapsed})")
         print(f"  Polls:     {consecutive_idle} consecutive above threshold")
         print(f"  Signal:    {activity_source}")
         print(f"  Task:      {state.get('task', '—')}")
         print(f"  Progress:  {state.get('progress_note', 'none')}")
         print(f"  Turns:     {state.get('turns_taken')}/{state.get('turns_target')}")
         print(f"  Rounds left: {state['rounds_remaining']}")
-        # Anchor re-orientation: show Point B goal + criteria on every fire
+        # Anchor re-orientation: show Point B goal + ALL criteria on every fire
         anchor_b = state.get("anchor_b") or {}
         if anchor_b:
             goal = anchor_b.get("goal", "")
             if goal:
                 print(f"  ── Anchor B: {goal[:70]}{'...' if len(goal) > 70 else ''}")
             evaluated = eval_criteria_quick(state)
-            for c, done in evaluated[:3]:
+            met_count = sum(1 for _, done in evaluated if done)
+            total = len(evaluated)
+            if total > 0:
+                print(f"  Criteria:  {met_count}/{total} met")
+            for c, done in evaluated:
                 mark = "x" if done else " "
                 print(f"    [{mark}] {c}")
         if dg_active:

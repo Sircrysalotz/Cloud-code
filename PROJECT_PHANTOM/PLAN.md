@@ -3,8 +3,8 @@
 The system improves itself through dogfood sessions — running PHANTOM to build PHANTOM.
 Each session observes friction in real use and fixes it before completing.
 
-**Current version:** v3.3 (542 tests, in progress)
-**Active branch:** `phantom/v3.3-dogfood` → merges to `claude/document-environment-status-vQRKB`
+**Current version:** v3.4 (576 tests, in progress)
+**Active branch:** `phantom/v3.4-marathon` → merges to `claude/document-environment-status-vQRKB`
 
 ---
 
@@ -15,7 +15,8 @@ Each session observes friction in real use and fixes it before completing.
 | v3.0 | `phantom/v3-self-improvement` | Profile system, four-gate drift, `check`, `recover`, `report` | ~400 |
 | v3.1 | `phantom/v3.1-dogfood` | Anchors, checkpoints, `_eval_criteria`, fire banner, `status --brief` | 481 |
 | v3.2 | `phantom/v3.2-dogfood` | HEARTBEAT.md v6 (fabrication), `scope-update`, DRIFT_GUARD.md v4, display fixes | 528 |
-| v3.3 | `phantom/v3.3-dogfood` | MD file rewrites, early-return fix, status criteria view, scope-update warning | 542 |
+| v3.3 | `phantom/v3.3-dogfood` | MD file rewrites, early-return fix, status criteria view, scope-update warning | 557 |
+| v3.4 | `phantom/v3.4-marathon` | check caching, status --verbose, HEARTBEAT.md v8, file-updated criterion auto-eval | 576 |
 
 ---
 
@@ -30,14 +31,15 @@ Priority order based on severity and impact:
 | After `scope-update`, drift guard still uses old scope (must re-arm manually) | ✓ Done v3.3: `scope-update` now warns when drift guard armed (re-arm required) |
 | Heartbeat agent returns early before runner fires | ✓ Done v3.3: `HEARTBEAT.md` v7 + runner first-poll-no-sleep fix |
 | DRIFT_GUARD.md lacks exact output format docs | ✓ Done v3.3: DRIFT_GUARD.md v5 has status-line format + gate-cleared reason format |
+| Warning-only HEARTBEAT.md v7 still caused early returns in v3.4 marathon | ✓ Done v3.4: HEARTBEAT.md v8 puts execution steps first, before any prose |
 
 ### Medium — usability friction
 | Issue | Proposed fix |
 |---|---|
-| `phantom.py start` done-criteria not shown in `status` output | Add criteria preview to status (or status --verbose) |
-| `anchor show` full output is long; `anchor check` is better for resumption | ✓ Done v3.3: CLAUDE.md note added — use `anchor check` after resume (evaluates + writes coverage_full) |
+| `phantom.py start` done-criteria not shown in `status` output | ✓ Done v3.4: `status --verbose` shows full criterion text with `[x]/[ ]` per item |
+| `anchor show` full output is long; `anchor check` is better for resumption | ✓ Done v3.3: CLAUDE.md note added — use `anchor check` after resume |
 | Container logger not auto-started on new session — easy to forget | ✓ Done v3.3: `env` now shows `[OK]` or `[WARN]` for container_logger with start command |
-| `check` command re-runs git diff on every call — slow if called often | Cache result with timestamp (valid for 30s) |
+| `check` command re-runs git diff on every call — slow if called often | ✓ Done v3.4: cached in session state (30s TTL); `--no-cache` to force refresh |
 
 ### Low — polish / docs
 | Issue | Proposed fix |
@@ -45,6 +47,7 @@ Priority order based on severity and impact:
 | `history` command shows all turns verbatim — gets long | ✓ Done v3.3: `history --last N` shows only last N ping entries with "N omitted" notice |
 | `status` fire log shows "last 1" in parentheses — awkward phrasing | ✓ Done v3.3: shows "N total, showing last M" |
 | DIFF.md / PLAN.md / ANTI_DRIFT.md were stale since v1→v2 *(fixed in v3.3)* | ✓ done |
+| `_eval_criteria` can't auto-mark file-based criteria like "CLAUDE.md updated" | ✓ Done v3.4: new "file updated" heuristic — `git diff --name-only` since session start |
 
 ---
 
