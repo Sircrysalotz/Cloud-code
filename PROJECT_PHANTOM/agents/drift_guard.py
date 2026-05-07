@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Phantom Drift Guard v4 — smarter horizontal drift detection.
+Phantom Drift Guard v5 — smarter horizontal drift detection.
 
 Four-gate evaluation replaces the naive file-percentage threshold:
 
@@ -384,7 +384,7 @@ def evaluate_drift(
 
 def parse_args():
     p = argparse.ArgumentParser(
-        description="Drift Guard v3 — smarter horizontal drift detection")
+        description="Drift Guard v5 — smarter horizontal drift detection")
     p.add_argument("--interval",     type=int,   default=60)
     p.add_argument("--threshold",    type=float, default=50.0,
                    help="Raw %% threshold (last-resort gate, default 50)")
