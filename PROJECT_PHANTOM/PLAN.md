@@ -57,6 +57,10 @@ Priority order based on severity and impact:
 | `last_session_state.json` and `container_vitals.log` tracked by git → stop hook fires every ping | ✓ Done v3.5: both untracked via `git rm --cached`; `.gitignore` updated |
 | `DRIFT_GUARD.md` v5 uses warning-based "Do NOT generate text" approach — proved insufficient (Pattern 8 equivalent) | ✓ Done v3.5: `DRIFT_GUARD.md` v6 — execution-first format (STEP 1/2/3/4 at top) matching HEARTBEAT.md v8 |
 | Context compaction leaves arm flags stuck with no running process — pattern undocumented | ✓ Done v3.5: ANTI_DRIFT.md Pattern 10 + CLAUDE.md troubleshooting entry + improvement history |
+| No README — humans landing in the folder have no entry point | ✓ Done v3.6: `README.md` — plain English overview, quick start, commands, troubleshooting |
+| Commit messages all technical — humans can't understand git log at a glance | ✓ Done v3.6: commit format section in `CLAUDE.md` — line 1 plain English, body technical |
+| File criteria only matched "updated/changed/done/committed" — "README.md created" always `[ ]` | ✓ Done v3.6: `criteria.py` expanded keyword list: "created", "documented", "added", "written" |
+| No way to auto-verify elapsed-time criteria like "session elapsed 90+ minutes" | ✓ Done v3.6: `criteria.py` elapsed-time heuristic — checks `(now - started) >= N minutes` |
 
 ---
 

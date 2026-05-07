@@ -12,6 +12,7 @@ during a live dogfood session and fixed in the same or next iteration.
 | No README — first human to land in the folder has no entry point | `README.md` created: plain English overview, quick start, key commands, troubleshooting |
 | Commit messages all technical — human skimming git log can't understand them | Commit format section added to `CLAUDE.md`: line 1 = plain English, body = technical detail |
 | File criteria only matched "updated/changed/done/committed" — "README.md created" always `[ ]` | `criteria.py`: added "created", "documented", "added", "written" to keyword list |
+| No way to auto-verify time-based criteria like "session elapsed 90+ minutes" | `criteria.py`: new elapsed-time heuristic — extracts number + "minute/min", checks `(now - started) >= N` |
 
 ---
 
