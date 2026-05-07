@@ -12,7 +12,8 @@ Heuristics (keyword matching against measurable session state):
   checkpoint   → state["checkpoint_calls_count"] > 0
   heartbeat N  → len(state["heartbeat_fires"]) >= N
   N+ tests     → state["tests_last_count"] >= N
-  FILE updated → git diff --name-only session_start_ref..HEAD contains FILE
+  FILE updated/created → git diff --name-only session_start_ref..HEAD contains FILE
+                         (keywords: updated, changed, done, committed, created, documented, added, written)
 """
 
 import re
@@ -84,10 +85,10 @@ def eval_criteria(state: dict) -> list[tuple[str, bool]]:
             if m and tests_count > 0:
                 done = tests_count >= int(m.group(1))
 
-        # File updated: "CLAUDE.md updated", "heartbeat_runner.py changed", etc.
+        # File updated/created: "CLAUDE.md updated", "README.md created", etc.
         elif re.search(r'\b[\w.\-]+\.(?:py|md|txt|json|sh|yml|yaml)\b', c):
             fm = re.search(r'\b([\w.\-/]+\.(?:py|md|txt|json|sh|yml|yaml))\b', c)
-            if fm and any(kw in cl for kw in ("updated", "changed", "done", "committed")):
+            if fm and any(kw in cl for kw in ("updated", "changed", "done", "committed", "created", "documented", "added", "written")):
                 fname = fm.group(1)
                 diff_files = _get_diff_files()
                 done = any(

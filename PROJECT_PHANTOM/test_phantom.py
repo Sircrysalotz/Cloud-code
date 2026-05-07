@@ -1917,10 +1917,11 @@ def test_anchor():
 
     cleanup()
 
-    # _eval_criteria: file updated criterion — "FILENAME updated" auto-marks [x] when file in session diff
+    # _eval_criteria: file updated/created criterion — various keywords auto-mark [x] when file in session diff
     import subprocess as _sp_crit, json as _json_crit, os as _os_crit
     run([PHANTOM, "start", "file updated criteria test", "--turns", "5",
-         "--done-criteria", "CLAUDE.md updated", "nonexistent_file_xyzzy.md updated"])
+         "--done-criteria", "CLAUDE.md updated", "README.md created",
+         "DIFF.md documented", "PLAN.md added", "nonexistent_file_xyzzy.md updated"])
     rc, out, err = run([PHANTOM, "anchor", "show"])
     check("file criterion: [ ] when session_start_ref=HEAD (nothing committed yet)", "[ ]" in out)
     # Inject an old session_start_ref so many files appear in diff
@@ -1934,7 +1935,10 @@ def test_anchor():
         _json_crit.dump(st_fc, _f)
     _os_crit.rename(tmp_fc, STATE)
     rc, out, err = run([PHANTOM, "anchor", "show"])
-    check("file criterion: [x] for CLAUDE.md when it appears in session diff", "[x]" in out)
+    check("file criterion: [x] for CLAUDE.md updated when it appears in session diff", "[x]" in out)
+    check("file criterion: [x] for README.md created when it appears in session diff", out.count("[x]") >= 2)
+    check("file criterion: [x] for DIFF.md documented when it appears in session diff", out.count("[x]") >= 3)
+    check("file criterion: [x] for PLAN.md added when it appears in session diff", out.count("[x]") >= 4)
     check("file criterion: [ ] for nonexistent file not in diff", "[ ]" in out)
 
     cleanup()
