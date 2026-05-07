@@ -19,9 +19,9 @@ PHANTOM is a meta-project. It explores environment limits and builds autonomous 
 | Internet | Allowlist-restricted — GitHub + Anthropic API confirmed reachable |
 | Databases | PostgreSQL 16 + Redis 7 available locally (not auto-started) |
 | Docker | Binary exists, daemon is not running |
-| Idle timeout | Confirmed alive past 1h 54m continuous uptime (v3.6 marathon, 22:27 reading) — no degradation observed |
+| Idle timeout | Confirmed alive past 2h 5m continuous uptime (v3.6 marathon, 22:38 reading, entry #0115) — no degradation observed |
 | Idle threshold | 180s confirmed safe; container shows no stress indicators at this interval |
-| Container resources | ~4% mem (633MB/16GB), near-zero CPU load between fires — headroom is large |
+| Container resources | ~4% mem (625MB/16GB), near-zero CPU load between fires — headroom is large |
 
 ---
 
