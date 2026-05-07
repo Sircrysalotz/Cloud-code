@@ -79,7 +79,8 @@ python3 PROJECT_PHANTOM/agents/phantom.py start "dogfood vN — ..." \
           agents/HEARTBEAT.md agents/DRIFT_GUARD.md CLAUDE.md \
   --coverage-targets agents/phantom.py agents/heartbeat_runner.py agents/drift_guard.py \
   --done-criteria "N+ tests passing" "coverage 3/3" "CLAUDE.md updated" \
-                  "observed at least 1 heartbeat fire" \
+                  "observed 6+ heartbeat fires" \
+                  "session elapsed 90+ minutes" \
                   "anchor check used at least once" "checkpoint before completion"
 
 # 3. Arm agents, work, iterate
