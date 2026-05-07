@@ -1951,7 +1951,8 @@ def test_anchor():
     run([PHANTOM, "start", "file updated criteria test", "--turns", "5",
          "--done-criteria", "CLAUDE.md updated", "README.md created",
          "DIFF.md documented", "PLAN.md added", "criteria.py written",
-         "test_phantom.py changed", "nonexistent_file_xyzzy.md updated"])
+         "test_phantom.py changed", "ANTI_DRIFT.md done",
+         "drift_guard.py committed", "nonexistent_file_xyzzy.md updated"])
     rc, out, err = run([PHANTOM, "anchor", "show"])
     check("file criterion: [ ] when session_start_ref=HEAD (nothing committed yet)", "[ ]" in out)
     # Inject an old session_start_ref so many files appear in diff
@@ -1971,6 +1972,8 @@ def test_anchor():
     check("file criterion: [x] for PLAN.md added when it appears in session diff", out.count("[x]") >= 4)
     check("file criterion: [x] for criteria.py written when it appears in session diff", out.count("[x]") >= 5)
     check("file criterion: [x] for test_phantom.py changed when it appears in session diff", out.count("[x]") >= 6)
+    check("file criterion: [x] for ANTI_DRIFT.md done when it appears in session diff", out.count("[x]") >= 7)
+    check("file criterion: [x] for drift_guard.py committed when it appears in session diff", out.count("[x]") >= 8)
     check("file criterion: [ ] for nonexistent file not in diff", "[ ]" in out)
 
     cleanup()
