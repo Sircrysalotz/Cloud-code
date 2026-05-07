@@ -35,7 +35,7 @@ Priority order based on severity and impact:
 | Issue | Proposed fix |
 |---|---|
 | `phantom.py start` done-criteria not shown in `status` output | Add criteria preview to status (or status --verbose) |
-| `anchor show` full output is long; `anchor check` is better for resumption | Add CLAUDE.md note: use `anchor check` not `anchor show` after resume |
+| `anchor show` full output is long; `anchor check` is better for resumption | ✓ Done v3.3: CLAUDE.md note added — use `anchor check` after resume (evaluates + writes coverage_full) |
 | Container logger not auto-started on new session — easy to forget | ✓ Done v3.3: `env` now shows `[OK]` or `[WARN]` for container_logger with start command |
 | `check` command re-runs git diff on every call — slow if called often | Cache result with timestamp (valid for 30s) |
 
