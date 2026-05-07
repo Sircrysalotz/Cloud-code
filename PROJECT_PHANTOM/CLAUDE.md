@@ -240,8 +240,17 @@ python3 PROJECT_PHANTOM/agents/phantom.py start "task" --scope-threshold 30
 python3 PROJECT_PHANTOM/agents/phantom.py start "task" --min-idle-polls 2
 
 # With done criteria (sets anchor Point B on session start)
+# Supported auto-eval patterns:
+#   "FILENAME updated/created/added/documented" → checks git diff for that file
+#   "N+ tests passing"                          → checks tests_last_count >= N
+#   "coverage N/M" or "full coverage"           → checks coverage_full flag
+#   "observed N+ heartbeat fires"               → checks len(heartbeat_fires) >= N
+#   "session elapsed N+ minutes"                → checks (now - started) >= N min
+#   "anchor check used"                         → checks anchor_checks_count > 0
+#   "checkpoint before completion"              → checks checkpoint_calls_count > 0
 python3 PROJECT_PHANTOM/agents/phantom.py start "task" \
-  --done-criteria "all tests pass" "coverage 4/4" "CLAUDE.md updated"
+  --done-criteria "all tests pass" "coverage 4/4" "CLAUDE.md updated" \
+                  "session elapsed 90+ minutes" "observed 6+ heartbeat fires"
 ```
 
 ### 3. Ping at the start of every turn (no exceptions)
