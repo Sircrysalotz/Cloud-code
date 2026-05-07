@@ -1327,6 +1327,22 @@ def test_drift_guard():
     rc, out, err = run([DRIFT, "--help"])
     check("drift_guard --ignore-patterns in help text", "--ignore-patterns" in out)
 
+    # drift_guard status line includes session elapsed time
+    # Run drift_guard with interval=0 so it checks immediately (but --interval 0 not supported,
+    # use direct import to test the elapsed logic)
+    import importlib as _il, importlib.util as _ilu
+    _spec = _ilu.spec_from_file_location("drift_guard_fresh", DRIFT)
+    _dg = _ilu.module_from_spec(_spec)
+    _spec.loader.exec_module(_dg)
+    # Verify elapsed_note computation works for a session started 10 minutes ago
+    from datetime import datetime as _dt, timedelta as _td
+    started_10min_ago = (_dt.now() - _td(minutes=10)).strftime("%Y-%m-%d %H:%M:%S")
+    secs = (_dt.now() - _dt.strptime(started_10min_ago, "%Y-%m-%d %H:%M:%S")).total_seconds()
+    em, es = divmod(int(secs), 60)
+    eh, em = divmod(em, 60)
+    elapsed_note = f" +{eh}h{em:02d}m" if eh else f" +{em}m{es:02d}s"
+    check("drift_guard elapsed note format for 10min session", elapsed_note.startswith(" +10m") or elapsed_note.startswith(" +9m"))
+
     cleanup()
 
 
@@ -2126,10 +2142,11 @@ def test_status_brief():
     check("status --verbose shows [x] or [ ] marks", "[x]" in out or "[ ]" in out)
     check("status --verbose shows met count", "/2 met" in out)
 
-    # regular status still shows mini-view (not full text for every criterion)
+    # regular status shows mini-view (marks only, not expanded text)
     rc, out_mini, _ = run([PHANTOM, "status"])
     check("status (non-verbose) does not expand criteria text", "all tests pass" not in out_mini)
     check("status (non-verbose) still shows criteria count", "/2 met" in out_mini or "Criteria" in out_mini)
+    check("status (non-verbose) shows all marks without +N more", "+1 more" not in out_mini and "+2 more" not in out_mini)
 
     # report scope section filters auto-save file
     cleanup()

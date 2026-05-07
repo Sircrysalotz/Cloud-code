@@ -613,9 +613,8 @@ def cmd_status(args):
                 mark = "[x]" if done else "[ ]"
                 print(f"    {mark} {c}")
         else:
-            marks  = " ".join(("[x]" if done else "[ ]") for _, done in evaluated[:4])
-            suffix = f" +{total - 4} more" if total > 4 else ""
-            print(f"  Criteria:  {met}/{total} met | {marks}{suffix}")
+            marks = " ".join(("[x]" if done else "[ ]") for _, done in evaluated)
+            print(f"  Criteria:  {met}/{total} met | {marks}")
 
     # Pending drift warning block
     dw = state.get("drift_warning")
