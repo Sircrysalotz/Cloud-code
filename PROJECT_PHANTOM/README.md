@@ -59,6 +59,8 @@ python3 agents/phantom.py complete
 | `phantom.py anchor check` | Re-orient: where am I vs. where am I going |
 | `phantom.py checkpoint` | Gate check before finishing |
 | `phantom.py complete` | End the session |
+| `phantom.py report` | Full session overview — fires, scope snapshot, watchdog events |
+| `phantom.py history` | Turn-by-turn ping log with fire markers |
 | `phantom.py recover` | Clear stuck flags without losing session data |
 | `phantom.py save / restore` | Survive container restarts |
 
