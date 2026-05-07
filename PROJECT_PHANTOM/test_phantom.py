@@ -917,6 +917,23 @@ def test_heartbeat_runner():
         rc, out, err = run([RUNNER], timeout=10)
     check("fire banner shows [ ] for coverage criterion when coverage_full absent", "[ ]" in out)
 
+    # ── first-iteration no-sleep: runner fires immediately when already idle ──
+    # Verifies that an already-idle session fires on first poll without waiting check_interval
+    run([PHANTOM, "start", "quick fire test", "--rounds", "1", "--interval", "30", "--threshold", "5", "--force"])
+    state = read_state()
+    state["heartbeat_active"] = True
+    state["last_active"] = "2020-01-01 00:00:00"  # far past threshold
+    with tempfile.TemporaryDirectory() as tmpws:
+        state["workspace_dir"] = tmpws
+        with open(STATE, "w") as f:
+            json.dump(state, f)
+        import time as _time_qt
+        t0 = _time_qt.monotonic()
+        rc, out, err = run([RUNNER], timeout=15)
+        elapsed = _time_qt.monotonic() - t0
+    check("runner prints Initial check message", "Initial check" in out)
+    check("runner fires quickly when already idle (< 10s, interval=30s)", elapsed < 10)
+
     cleanup()
 
 
@@ -2100,14 +2117,16 @@ def test_docs_content():
 
     agents_dir = _os.path.dirname(_os.path.abspath(PHANTOM))
 
-    # HEARTBEAT.md v6 content checks
+    # HEARTBEAT.md v7 content checks
     hb_md = open(_os.path.join(agents_dir, "HEARTBEAT.md")).read()
-    check("HEARTBEAT.md header is v6", "v6" in hb_md.splitlines()[0])
+    check("HEARTBEAT.md header is v7", "v7" in hb_md.splitlines()[0])
     check("HEARTBEAT.md has fabrication prevention section", "Never fabricate" in hb_md)
     check("HEARTBEAT.md warns against generating fire output", "Do NOT generate fire output" in hb_md)
     check("HEARTBEAT.md has post-flight verification step", "rounds_remaining" in hb_md and "decreased" in hb_md)
     check("HEARTBEAT.md shows exact HOLD active format", "active Xs ago" in hb_md)
     check("HEARTBEAT.md fire banner shows plain === chars", "======" in hb_md)
+    check("HEARTBEAT.md warns against text before Bash call", "Do NOT generate any text" in hb_md or "no text before" in hb_md.lower() or "text only at the end" in hb_md.lower() or "text output before" in hb_md.lower())
+    check("HEARTBEAT.md warns against 'waiting for' pattern", "waiting for" in hb_md.lower() or "will relay" in hb_md.lower())
     # Box char appears in fabrication warning (as example of what NOT to do) — not in fire banner section
     fire_section = hb_md.split("### On fire")[1] if "### On fire" in hb_md else ""
     check("HEARTBEAT.md fire banner section does NOT show box chars", "╔══" not in fire_section)

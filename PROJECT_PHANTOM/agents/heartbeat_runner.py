@@ -304,10 +304,15 @@ def main():
     prev_activity_ts     = 0.0
     prev_activity_source = ""
     consecutive_idle     = 0
+    first_iteration      = True  # skip sleep on first poll so agent gets output fast
 
     while True:
         cycle_start = time.monotonic()
-        time.sleep(check_interval)
+        if first_iteration:
+            first_iteration = False
+            print(f"[heartbeat] Initial check (no sleep) — fires immediately if already idle.")
+        else:
+            time.sleep(check_interval)
         cycle_elapsed = time.monotonic() - cycle_start
         if cycle_elapsed > watchdog_limit:
             print(f"[WATCHDOG] Poll cycle took {cycle_elapsed:.0f}s (limit {watchdog_limit}s) — possible stall.")
