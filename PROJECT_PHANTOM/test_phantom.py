@@ -2092,6 +2092,7 @@ def test_docs_content():
     check("CLAUDE.md anti-drift has fire verification rule", "verify heartbeat fires are real" in claude_md)
     check("CLAUDE.md troubleshooting has fabricated fire entry", "fabricated" in claude_md.lower() or "Fabricated" in claude_md)
     check("CLAUDE.md protocol step 6 mentions rounds_remaining check", "rounds_remaining" in claude_md and "fabricated" in claude_md.lower())
+    check("CLAUDE.md useful commands has scope-update", "scope-update" in claude_md)
 
 
 # ─── Run all ─────────────────────────────────────────────────────────────────
