@@ -104,8 +104,6 @@ Do NOT call it:
 | `DRIFT_GUARD.md` agent uses `run_in_background: true` → process dies on return | `DRIFT_GUARD.md` v4: CRITICAL note — blocking Bash with `timeout=600000`, never `run_in_background` |
 | `eval_criteria_quick` in runner duplicates `_eval_criteria` but can't check coverage | `coverage_full` bool written to state by `check` command — runner reads it, no git ops needed |
 | Coverage criterion always shows `[ ]` in fire banner even when full | `eval_criteria_quick` now evaluates coverage via `state["coverage_full"]` — shows `[x]` after `check` runs |
-| Auto-save creates a new commit every N pings → bloated git log | `auto_save` tracks `auto_save_commit` hash in state — amends own prior commit instead of creating new ones |
-| Amended auto-save message stays stale at first turn number | Amend uses `-m` with current turn — git log always shows latest turn number |
 | `anchor check` doesn't update `coverage_full` — fire banner shows `[ ]` until `check` runs | `anchor check` now writes `coverage_full` to state whenever coverage targets are set |
 | `status --brief` coverage unlabeled — `0/3` looks like a mystery number | Brief now shows `cov:0/3` — label makes it unambiguous |
 | `status --brief` note hard-truncated mid-word | Truncates at 37 chars with `...` — clean word-boundary cut |
@@ -197,7 +195,6 @@ Do NOT call it:
   "tracked_extensions": [],
   "scan_depth": 5,
   "auto_save_every": 5,
-  "auto_save_commit": null,
   "coverage_full": null,
   "profile": null,
   "anchor_a": {"ref": "abc123...", "timestamp": "2026-05-05 20:00:00"},
@@ -579,7 +576,7 @@ python3 PROJECT_PHANTOM/agents/phantom.py restore   # recovers saved state
 - `agents_running` must stay 0 while heartbeat and drift-guard run, or the heartbeat is blocked forever
 - Run `anchor check` after every heartbeat resume — always re-orient before working
 - Run `checkpoint` before calling `complete` — ensure all gates pass first
-- `logs/` directory auto-saves on every ping-divisible turn (amends one commit, no new commits) — this is expected, not drift; the entire `logs/` dir is filtered from scope analysis
+- `logs/` directory is written locally on every ping-divisible turn — no git commits, local file only; the entire `logs/` dir is filtered from scope analysis
 - **Always verify heartbeat fires are real** — after the HB agent returns, check `rounds_remaining` decreased and `last_heartbeat_fired` is set; if not, run `recover` and re-arm
 - **Use direct-command spawn for heartbeat AND drift guard** — "Read X.md and execute" causes planning text (Patterns 8/9); direct command prompts for both are in the protocol above
 - **Don't re-arm heartbeat immediately after commits** — git:index stays fresh for ~3min after push; arm after the next turn's work is committed, then go idle

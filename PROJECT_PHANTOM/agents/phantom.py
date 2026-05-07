@@ -1725,7 +1725,7 @@ def cmd_config(args):
 
 # --- CLI ---
 
-parser = argparse.ArgumentParser(description="Phantom session manager v2")
+parser = argparse.ArgumentParser(description="Phantom session manager v3.5")
 sub = parser.add_subparsers(dest="cmd", required=True)
 
 p = sub.add_parser("start", help="Initialize a new session")
