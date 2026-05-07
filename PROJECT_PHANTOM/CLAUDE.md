@@ -132,6 +132,7 @@ Do NOT call it:
 | Warning-only HEARTBEAT.md v7 still caused early returns — model acknowledges warning as text | `HEARTBEAT.md` v8: execution steps (STEP 1/2/3) placed at the very top before any prose |
 | `heartbeat_runner.py` fire banner shows only first 3 criteria — rest hidden | Runner v8: fire banner shows ALL criteria with `Criteria: N/M met` count header |
 | No session elapsed visible during marathon — hard to track progress | Runner v8 fire banner + drift_guard status lines include session elapsed (e.g. `+1h05m`) |
+| `_eval_criteria` couldn't auto-mark "CLAUDE.md updated" or similar file criteria | New "file updated" pattern: extracts filename from criterion, checks `git diff --name-only` since session start |
 
 ### Files
 

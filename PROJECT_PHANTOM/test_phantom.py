@@ -1893,6 +1893,28 @@ def test_anchor():
 
     cleanup()
 
+    # _eval_criteria: file updated criterion — "FILENAME updated" auto-marks [x] when file in session diff
+    import subprocess as _sp_crit, json as _json_crit, os as _os_crit
+    run([PHANTOM, "start", "file updated criteria test", "--turns", "5",
+         "--done-criteria", "CLAUDE.md updated", "nonexistent_file_xyzzy.md updated"])
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("file criterion: [ ] when session_start_ref=HEAD (nothing committed yet)", "[ ]" in out)
+    # Inject an old session_start_ref so many files appear in diff
+    root_ref = _sp_crit.check_output(
+        ["git", "rev-list", "--max-parents=0", "HEAD"], stderr=_sp_crit.DEVNULL
+    ).decode().strip()
+    st_fc = _json_crit.load(open(STATE))
+    st_fc["session_start_ref"] = root_ref
+    tmp_fc = STATE + ".tmp"
+    with open(tmp_fc, "w") as _f:
+        _json_crit.dump(st_fc, _f)
+    _os_crit.rename(tmp_fc, STATE)
+    rc, out, err = run([PHANTOM, "anchor", "show"])
+    check("file criterion: [x] for CLAUDE.md when it appears in session diff", "[x]" in out)
+    check("file criterion: [ ] for nonexistent file not in diff", "[ ]" in out)
+
+    cleanup()
+
     # ping --tests stores tests_last_count in state
     run([PHANTOM, "start", "ping tests flag test", "--turns", "5"])
     run([PHANTOM, "ping", "test note", "--tests", "100"])

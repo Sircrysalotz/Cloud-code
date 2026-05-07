@@ -1392,6 +1392,26 @@ def _eval_criteria(state: dict) -> list[tuple[str, bool]]:
             m = _re.search(r'(\d+)', c)
             if m and last_count > 0:
                 done = last_count >= int(m.group(1))
+        # File updated: "CLAUDE.md updated", "heartbeat_runner.py changed"
+        elif _re.search(r'\b[\w.\-]+\.(?:py|md|txt|json|sh|yml|yaml)\b', c):
+            fm = _re.search(r'\b([\w.\-/]+\.(?:py|md|txt|json|sh|yml|yaml))\b', c)
+            if fm and any(kw in c_lower for kw in ("updated", "changed", "done", "committed")):
+                fname = fm.group(1)
+                start_ref = state.get("session_start_ref", "")
+                workspace = state.get("workspace_dir", ".")
+                if start_ref:
+                    try:
+                        diff_out = subprocess.check_output(
+                            ["git", "diff", "--name-only", start_ref, "HEAD"],
+                            stderr=subprocess.DEVNULL,
+                            cwd=workspace,
+                        ).decode()
+                        done = any(
+                            p == fname or p.endswith("/" + fname)
+                            for p in diff_out.splitlines() if p
+                        )
+                    except Exception:
+                        done = False
         results.append((c, done))
     return results
 

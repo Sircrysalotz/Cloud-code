@@ -18,6 +18,7 @@ during a live dogfood session and fixed in the same or next iteration.
 | No marathon context in fire banner — hard to know session age at fire time | Runner v8: fire banner includes session elapsed (e.g. `+1h05m`) |
 | Drift guard status lines lack session context in long runs | drift_guard.py: each poll line prefixed with `+Xh YYm` elapsed since session start |
 | `check` caching stored in external file — cross-session pollution in tests | Cache moved into session state (keyed to same STATE_FILE + session) |
+| `_eval_criteria` couldn't verify file-based criteria like "CLAUDE.md updated" | New "file updated" heuristic: extracts filename, runs `git diff --name-only` since session start |
 
 ---
 
