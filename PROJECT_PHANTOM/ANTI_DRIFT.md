@@ -116,6 +116,36 @@ idle timer actually starts counting down. Factor this into expected fire timing.
 
 ---
 
+## Pattern 7: Heartbeat Agent Returns Before Bash Call Completes (v3.3)
+
+**What happened:** The heartbeat agent returned with text "Waiting for the heartbeat runner
+to fire or complete. The HEARTBEAT.md instructions say this is expected to block for up to
+several minutes. I will relay the full output once the runner exits." — but no runner output
+was included, and state was not updated.
+
+**How it manifested:** `heartbeat_active: True` stuck, `rounds_remaining: 8` unchanged,
+no output from runner. Different from Pattern 1 (fabrication) — here the agent returned
+BEFORE making the Bash call (or the call was made but returned before the runner finished).
+
+**Root causes (two contributing factors):**
+1. The agent wrote commentary text before the Bash call, then returned early without making the call.
+2. The runner sleeps `check_interval` (30s) before its first check — if the agent times out
+   or returns early within those 30 seconds, no output is ever produced.
+
+**Fix (v3.3):**
+- `HEARTBEAT.md` v7: explicit warning at the top — do NOT generate ANY text before the Bash
+  call completes; text output is the return value; write it LAST.
+- `heartbeat_runner.py`: `first_iteration` flag skips the initial sleep — if already idle,
+  runner fires in < 1 second, giving the agent immediate output.
+- Applied same "no text before Bash" warning to `DRIFT_GUARD.md` v5.
+
+**Detection:** Same as Pattern 1 — verify `rounds_remaining` decreased after agent returns.
+
+**Lesson:** Any agent instruction that produces a long-running Bash call must warn the agent
+not to generate text between steps. Text output = return value; writing it early causes early return.
+
+---
+
 ## What Works Well (Don't Break)
 
 - **Four-gate drift evaluation** — almost no false positives on legitimate single-file tasks
