@@ -1,41 +1,36 @@
-# Drift Guard Sub-Agent Instructions v5
+# Drift Guard Sub-Agent Instructions v6
 
-You are a background drift monitoring agent. Your job is to watch for horizontal
-drift during an autonomous Claude session and fire when one file dominates changes.
+**Your entire job: make 3 Bash tool calls, then return their output. Start immediately.**
 
-## Path resolution (do this first)
+```
+STEP 1 — Bash tool:  python3 $AGENTS_DIR/phantom.py status
+STEP 2 — Bash tool:  python3 $AGENTS_DIR/drift_guard.py --interval 60 --threshold 50 --max-checks 10  (timeout=600000, blocking)
+STEP 3 — Bash tool:  python3 $AGENTS_DIR/phantom.py status
+STEP 4 — Write text: paste the full output from steps 2 and 3 verbatim. Nothing else.
+```
 
-Determine AGENTS_DIR from the path you were given for this file.
-For example: if told to read `/some/path/PROJECT_PHANTOM/agents/DRIFT_GUARD.md`,
-then `AGENTS_DIR = /some/path/PROJECT_PHANTOM/agents`.
+**DO NOT write any text before all 3 tool calls are done. Text = your return value.**
 
-Use `$AGENTS_DIR` in every command below.
+---
 
-## WARNING: Do NOT generate text output before the Bash call completes
+## Path resolution
 
-The text you generate becomes your return value. If you generate text BEFORE the Bash call,
-you may return early with only that text — the drift_guard.py output will be lost.
+`AGENTS_DIR` = the directory containing this file.
+If told to read `/some/path/PROJECT_PHANTOM/agents/DRIFT_GUARD.md`, then
+`AGENTS_DIR = /some/path/PROJECT_PHANTOM/agents`.
 
-**Correct order:**
-1. Tool call: `python3 $AGENTS_DIR/phantom.py status` (pre-flight)
-2. Tool call: `python3 $AGENTS_DIR/drift_guard.py ...` (blocking Bash — wait for it)
-3. Generate text: paste the output from step 2 as your result
+---
 
-Do NOT generate any prose between steps. All text output must come after all tool calls are done.
-Do NOT write "running drift guard..." or "I will return the output..." between steps.
+## Step 1 — Pre-flight
 
-## Pre-flight checks
-
-Run this tool call first:
-```bash
+Bash tool call:
+```
 python3 $AGENTS_DIR/phantom.py status
 ```
 
-Verify:
-- `drift_guard_active` is `true` (you were armed correctly)
-- `workspace_dir` is set and exists
-
-If either check fails, your text output: "Not armed / workspace missing." and stop.
+Stop conditions (return this text and nothing else if true):
+- `drift_guard_active` is false → `"Not armed. Skipping."`
+- `workspace_dir` missing → `"Not armed / workspace missing."`
 
 ## CRITICAL: Never fabricate output
 
@@ -59,7 +54,8 @@ Your only job: tool call (pre-flight) → tool call (drift_guard.py) → text ou
 ```bash
 python3 $AGENTS_DIR/drift_guard.py \
   --interval 60 \
-  --threshold 50
+  --threshold 50 \
+  --max-checks 10
 ```
 
 Optional flags:
@@ -68,6 +64,7 @@ Optional flags:
 - `--hunk-count-min N` — minimum hunk count required before spread analysis can exempt a file (default 4)
 - `--hunk-spread N` — minimum hunk spread ratio (0–1) to consider work horizontal (default 0.3)
 - `--trend-checks N` — history window: checks above threshold before TRENDING fires (default 3)
+- `--max-checks N` — exit cleanly after N clean checks (0 = run until session complete or drift; useful with direct-command spawn)
 
 Four-gate evaluation order:
 1. **Declared scope** — if scope_files set and dominant file is in scope, CLEAN; if outside scope > 30%, SCOPE_CREEP
@@ -148,7 +145,8 @@ python3 $AGENTS_DIR/phantom.py drift-done
 After spreading changes:
 ```bash
 python3 $AGENTS_DIR/phantom.py drift-arm
-# Spawn: "Read $AGENTS_DIR/DRIFT_GUARD.md and execute."
+# Spawn with direct-command prompt (preferred — prevents Pattern 9 summary-instead-of-verbatim):
+# See CLAUDE.md protocol step 4 for the exact prompt.
 # run_in_background: true (for the AGENT, not for the drift_guard.py command itself)
 # Do NOT call agent-start — drift-guard uses drift-arm/drift-done only.
 ```

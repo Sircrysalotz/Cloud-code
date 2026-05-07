@@ -133,6 +133,9 @@ Do NOT call it:
 | `heartbeat_runner.py` fire banner shows only first 3 criteria — rest hidden | Runner v8: fire banner shows ALL criteria with `Criteria: N/M met` count header |
 | No session elapsed visible during marathon — hard to track progress | Runner v8 fire banner + drift_guard status lines include session elapsed (e.g. `+1h05m`) |
 | `_eval_criteria` couldn't auto-mark "CLAUDE.md updated" or similar file criteria | New "file updated" pattern: extracts filename from criterion, checks `git diff --name-only` since session start |
+| `eval_criteria_quick` (runner) and `_eval_criteria` (phantom.py) are two separate implementations that drift apart | Extracted `criteria.py` shared module; both files import `eval_criteria` from it — one implementation forever |
+| Drift guard agent spawned with "Read DRIFT_GUARD.md" causes Pattern 9 (formatted summary) | Direct-command spawn prompt added to CLAUDE.md protocol step 4, same approach as heartbeat |
+| Context compaction mid-session leaves `heartbeat_active`/`drift_guard_active` stuck True with no running process | `phantom.py recover` → re-arm → re-spawn; after any resume, verify `Agents: 0` vs `ARMED` before assuming agents are live |
 
 ### Files
 
@@ -253,9 +256,25 @@ python3 PROJECT_PHANTOM/agents/phantom.py ping "note" --tests 472
 ### 4. Start drift guard (run alongside heartbeat)
 ```bash
 python3 PROJECT_PHANTOM/agents/phantom.py drift-arm
-# Spawn: "Read <path-to-agents-dir>/DRIFT_GUARD.md and execute."
-# use run_in_background: true
 ```
+Use `run_in_background: true`.
+
+**Preferred spawn prompt** (direct command — avoids Pattern 9 summary-instead-of-verbatim):
+```
+You are a phantom drift monitoring agent. Make exactly 3 Bash tool calls in order, then return their output. Do NOT write any text until all 3 calls complete.
+
+Call 1 (Bash, timeout=30000): python3 <AGENTS_DIR>/phantom.py status
+  If drift_guard_active=false → stop. Return "Not armed."
+Call 2 (Bash, timeout=600000, blocking — NOT run_in_background, NOT Monitor):
+  python3 <AGENTS_DIR>/drift_guard.py --interval 60 --threshold 50
+Call 3 (Bash, timeout=30000): python3 <AGENTS_DIR>/phantom.py status
+
+Your response = full output from calls 2 and 3 verbatim. Nothing else.
+```
+Note: the main session calls `drift-done` after this agent returns — the agent does NOT call drift-done.
+
+Fallback: `"Read <path-to-agents-dir>/DRIFT_GUARD.md and execute."`
+
 **IMPORTANT:** Do NOT call `agent-start` for drift guard. It uses `drift-arm`/`drift-done` only.
 Calling `agent-start` would increment `agents_running`, permanently blocking the heartbeat.
 
@@ -529,6 +548,16 @@ python3 PROJECT_PHANTOM/agents/phantom.py recover   # clear stuck heartbeat_acti
 python3 PROJECT_PHANTOM/agents/phantom.py heartbeat-arm  # re-arm and spawn new agent
 ```
 
+### Context compaction leaves arm flags stuck after resume
+Symptom: `phantom.py status` shows `Heartbeat: ARMED` and/or `Drift Guard: ARMED`, but `Agents: 0 running`. `heartbeat-arm` returns exit 2 ("already active").
+Cause: context compaction exhausted the session before the background agents were spawned — arm flags set, processes never started.
+Fix:
+```bash
+python3 PROJECT_PHANTOM/agents/phantom.py recover    # clears both stuck flags
+python3 PROJECT_PHANTOM/agents/phantom.py heartbeat-arm  # exit 0 → spawn
+python3 PROJECT_PHANTOM/agents/phantom.py drift-arm      # exit 0 → spawn
+```
+
 ### Container dies mid-session
 ```bash
 python3 PROJECT_PHANTOM/agents/phantom.py restore   # recovers saved state
@@ -552,5 +581,5 @@ python3 PROJECT_PHANTOM/agents/phantom.py restore   # recovers saved state
 - Run `checkpoint` before calling `complete` — ensure all gates pass first
 - `logs/` directory auto-saves on every ping-divisible turn (amends one commit, no new commits) — this is expected, not drift; the entire `logs/` dir is filtered from scope analysis
 - **Always verify heartbeat fires are real** — after the HB agent returns, check `rounds_remaining` decreased and `last_heartbeat_fired` is set; if not, run `recover` and re-arm
-- **Use direct-command spawn for heartbeat** — "Read HEARTBEAT.md and execute" causes the agent to generate planning text (Pattern 8); direct command prompt reduces this risk
+- **Use direct-command spawn for heartbeat AND drift guard** — "Read X.md and execute" causes planning text (Patterns 8/9); direct command prompts for both are in the protocol above
 - **Don't re-arm heartbeat immediately after commits** — git:index stays fresh for ~3min after push; arm after the next turn's work is committed, then go idle

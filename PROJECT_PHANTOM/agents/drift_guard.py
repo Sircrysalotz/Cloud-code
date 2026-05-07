@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Phantom Drift Guard v4 — smarter horizontal drift detection.
+Phantom Drift Guard v5 — smarter horizontal drift detection.
 
 Four-gate evaluation replaces the naive file-percentage threshold:
 
@@ -384,7 +384,7 @@ def evaluate_drift(
 
 def parse_args():
     p = argparse.ArgumentParser(
-        description="Drift Guard v3 — smarter horizontal drift detection")
+        description="Drift Guard v5 — smarter horizontal drift detection")
     p.add_argument("--interval",     type=int,   default=60)
     p.add_argument("--threshold",    type=float, default=50.0,
                    help="Raw %% threshold (last-resort gate, default 50)")
@@ -402,6 +402,8 @@ def parse_args():
                    help="Min hunks required before spread analysis exempts a file (default 4)")
     p.add_argument("--ignore-patterns", nargs="+", default=None,
                    help="Substring patterns to exclude from drift analysis (e.g. logs/ .json)")
+    p.add_argument("--max-checks", type=int, default=0,
+                   help="Exit cleanly after N clean checks (0 = run until session complete)")
     return p.parse_args()
 
 
@@ -445,7 +447,7 @@ def main():
     tracker      = TrendTracker(window=args.trend_checks)
     checks       = 0
 
-    print("Drift Guard v4 active")
+    print("Drift Guard v5 active")
     print(f"  Workspace:  {workspace}")
     since_src = "cli" if args.since else ("session_start_ref" if state.get("session_start_ref") else "auto")
     print(f"  Threshold:  {args.threshold:.0f}% | Poll: {args.interval}s | Since: {since} ({since_src})")
@@ -508,6 +510,10 @@ def main():
                 except Exception:
                     pass
             print(f"[{ts}]{_elapsed} Check #{checks} — {note}")
+            if args.max_checks > 0 and checks >= args.max_checks:
+                print(f"[{ts}] Max checks ({args.max_checks}) reached — exiting cleanly.")
+                clear_active_flag()
+                sys.exit(0)
             continue
 
         hunk_data = count_hunks(workspace, since)
@@ -549,6 +555,10 @@ def main():
         print(f"[{ts}]{elapsed_note} Check #{checks} | {total}L | top: {top_name} ({top_pct:.0f}%){hunk_note}{scope_note} | {verdict}: {reason[:60]}")
 
         if not is_drift:
+            if args.max_checks > 0 and checks >= args.max_checks:
+                print(f"[{ts}] Max checks ({args.max_checks}) reached — exiting cleanly.")
+                clear_active_flag()
+                sys.exit(0)
             continue
 
         # Verdict-specific action guidance

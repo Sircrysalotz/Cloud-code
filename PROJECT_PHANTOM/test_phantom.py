@@ -931,6 +931,27 @@ def test_heartbeat_runner():
         rc, out, err = run([RUNNER], timeout=10)
     check("fire banner shows [ ] for coverage criterion when coverage_full absent", "[ ]" in out)
 
+    # ── shared criteria module: criteria.py importable and consistent ──
+    import importlib.util as _ilu, os as _os_crit2
+    _crit_path = _os_crit2.path.join(_os_crit2.path.dirname(PHANTOM), "criteria.py")
+    check("criteria.py exists in agents dir", _os_crit2.path.isfile(_crit_path))
+    spec = _ilu.spec_from_file_location("criteria", _crit_path)
+    _crit_mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(_crit_mod)
+    check("criteria.py exports eval_criteria", hasattr(_crit_mod, "eval_criteria"))
+    # eval_criteria returns same results as runner via same state
+    _test_state = {
+        "anchor_b": {"done_criteria": ["anchor check used", "coverage 2/2 done"]},
+        "anchor_checks_count": 1,
+        "coverage_full": True,
+        "workspace_dir": "/tmp",
+        "session_start_ref": "",
+    }
+    _results = _crit_mod.eval_criteria(_test_state)
+    check("criteria.eval_criteria returns list", isinstance(_results, list))
+    check("criteria: anchor check met", _results[0] == ("anchor check used", True))
+    check("criteria: coverage met via coverage_full", _results[1] == ("coverage 2/2 done", True))
+
     # ── first-iteration no-sleep: runner fires immediately when already idle ──
     # Verifies that an already-idle session fires on first poll without waiting check_interval
     run([PHANTOM, "start", "quick fire test", "--rounds", "1", "--interval", "30", "--threshold", "5",
@@ -1345,6 +1366,19 @@ def test_drift_guard():
 
     cleanup()
 
+    # drift_guard --max-checks: exits cleanly after N clean checks
+    import tempfile as _tf_dg
+    run([PHANTOM, "start", "drift max-checks test", "--rounds", "3", "--interval", "1",
+         "--threshold", "5", "--force"])
+    run([PHANTOM, "ping", "max-checks test"])
+    run([PHANTOM, "drift-arm"])
+    rc, out, err = run([DRIFT, "--interval", "1", "--max-checks", "2"], timeout=30)
+    check("drift --max-checks 2 exits 0", rc == 0)
+    check("drift --max-checks 2 prints max checks message", "Max checks" in out)
+    check("drift_guard v5 active banner", "Drift Guard v5 active" in out)
+
+    cleanup()
+
 
 # ─── scope_guard.py tests ────────────────────────────────────────────────────
 
@@ -1722,30 +1756,20 @@ def test_check():
     check("anchor_b has goal key",         "goal" in (state.get("anchor_b") or {}))
     check("anchor_b goal matches task",    state.get("anchor_b", {}).get("goal") == "default auto-save")
 
-    # auto-save amend: second auto-save should amend the first (no new commit)
+    # auto-save: local-only (no git commits — logs/ is gitignored)
     import subprocess as _sp
     run([PHANTOM, "reset"])
-    run([PHANTOM, "start", "amend test", "--turns", "10", "--auto-save-every", "2"])
+    run([PHANTOM, "start", "local auto-save test", "--turns", "10", "--auto-save-every", "2"])
     before_count = len(_sp.run(
         ["git", "log", "--oneline"], cwd=GIT_ROOT, capture_output=True, text=True
     ).stdout.strip().splitlines())
     run([PHANTOM, "ping", "turn 1"])
-    run([PHANTOM, "ping", "turn 2"])  # triggers first auto-save (new commit)
-    after_first = len(_sp.run(
+    rc, out, err = run([PHANTOM, "ping", "turn 2"])  # triggers auto-save
+    after_count = len(_sp.run(
         ["git", "log", "--oneline"], cwd=GIT_ROOT, capture_output=True, text=True
     ).stdout.strip().splitlines())
-    check("first auto-save creates one new commit", after_first == before_count + 1)
-    run([PHANTOM, "ping", "turn 3"])
-    run([PHANTOM, "ping", "turn 4"])  # triggers second auto-save (should amend)
-    after_second = len(_sp.run(
-        ["git", "log", "--oneline"], cwd=GIT_ROOT, capture_output=True, text=True
-    ).stdout.strip().splitlines())
-    check("second auto-save amends (no extra commit)", after_second == after_first)
-    # commit message reflects current turn after amend
-    last_msg = _sp.run(
-        ["git", "log", "-1", "--format=%s"], cwd=GIT_ROOT, capture_output=True, text=True
-    ).stdout.strip()
-    check("amended auto-save message shows latest turn", "turn 4" in last_msg)
+    check("auto-save does NOT create a git commit", after_count == before_count)
+    check("auto-save prints local confirmation", "auto-saved locally" in out)
 
     cleanup()
 
@@ -2225,13 +2249,13 @@ def test_docs_content():
     fire_section = hb_md.split("### On fire")[1] if "### On fire" in hb_md else ""
     check("HEARTBEAT.md fire banner section does NOT show box chars", "╔══" not in fire_section)
 
-    # DRIFT_GUARD.md v5 content checks
+    # DRIFT_GUARD.md v6 content checks
     dg_md = open(_os.path.join(agents_dir, "DRIFT_GUARD.md")).read()
-    check("DRIFT_GUARD.md header is v5", "v5" in dg_md.splitlines()[0])
+    check("DRIFT_GUARD.md header is v6", "v6" in dg_md.splitlines()[0])
     check("DRIFT_GUARD.md has fabrication prevention section", "Never fabricate" in dg_md)
     check("DRIFT_GUARD.md scope-update in SCOPE_CREEP action", "scope-update" in dg_md)
-    check("DRIFT_GUARD.md warns against text before Bash call", "Do NOT generate any text" in dg_md or "text output before" in dg_md.lower())
-    check("DRIFT_GUARD.md warns against early commentary", "running drift guard" in dg_md.lower() or "I will return" in dg_md or "will return the output" in dg_md.lower())
+    check("DRIFT_GUARD.md has execution-first steps at top", "STEP 1" in dg_md and "STEP 2" in dg_md)
+    check("DRIFT_GUARD.md warns against text before tool calls", "DO NOT write any text" in dg_md or "Text = your return value" in dg_md)
 
     # CLAUDE.md fire verification rule
     claude_md_path = _os.path.join(agents_dir, "..", "CLAUDE.md")

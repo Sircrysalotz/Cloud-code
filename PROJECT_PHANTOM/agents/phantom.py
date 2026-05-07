@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Phantom session manager v2.6. Single interface for all session state operations.
+Phantom session manager v3.5. Single interface for all session state operations.
 All writes are atomic (write-to-temp + rename) with a lock file to prevent races.
 
 Session lifecycle:
@@ -43,6 +43,9 @@ import subprocess
 import sys
 import time
 from datetime import datetime
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from criteria import eval_criteria as _eval_criteria
 
 _AGENTS_DIR  = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_DIR = os.path.dirname(_AGENTS_DIR)
@@ -365,44 +368,18 @@ def print_turn_milestone(state: dict):
 
 
 def auto_save(state: dict):
-    """Save state to git every AUTO_SAVE_EVERY pings."""
+    """Write state to logs/last_session_state.json locally every AUTO_SAVE_EVERY pings.
+    Does NOT make git commits — use 'phantom.py save' to persist deliberately."""
     AUTO_SAVE_EVERY = state.get("auto_save_every", 5)
     if state.get("turns_taken", 0) % AUTO_SAVE_EVERY == 0:
         state["saved_at"] = now_str()
         os.makedirs(os.path.dirname(SAVED_STATE_FILE), exist_ok=True)
-        with open(SAVED_STATE_FILE, "w") as f:
-            json.dump(state, f, indent=2)
         try:
-            subprocess.run(["git", "add", _SAVED_REL],
-                           cwd=REPO_DIR, capture_output=True, timeout=30)
-            # Amend if HEAD is the commit we created last auto-save (reduces log bloat).
-            # Comparing hashes (not messages) avoids matching prior-session auto-saves.
-            head_r = subprocess.run(["git", "rev-parse", "HEAD"],
-                                    cwd=REPO_DIR, capture_output=True, text=True, timeout=10)
-            head_hash = head_r.stdout.strip()
-            prev_commit = state.get("auto_save_commit")
-            if prev_commit and head_hash == prev_commit:
-                subprocess.run(["git", "commit", "--amend", "-m",
-                                f"[phantom] auto-save turn {state.get('turns_taken')}"],
-                               cwd=REPO_DIR, capture_output=True, timeout=30)
-                push_cmd = ["git", "push", "--force-with-lease"]
-            else:
-                subprocess.run(["git", "commit", "-m",
-                                f"[phantom] auto-save turn {state.get('turns_taken')}"],
-                               cwd=REPO_DIR, capture_output=True, timeout=30)
-                push_cmd = ["git", "push"]
-            # Record new HEAD so next auto-save knows which commit to amend
-            new_head = subprocess.run(["git", "rev-parse", "HEAD"],
-                                      cwd=REPO_DIR, capture_output=True, text=True, timeout=10)
-            state["auto_save_commit"] = new_head.stdout.strip()
-            atomic_write(state)
-            r = subprocess.run(push_cmd, cwd=REPO_DIR, capture_output=True, timeout=30)
-            if r.returncode == 0:
-                print(f"  [auto-saved to git]")
-            else:
-                print(f"  [auto-save: local only — git push failed: {r.stderr.strip().decode(errors='replace') if r.stderr else 'unknown'}]")
+            with open(SAVED_STATE_FILE, "w") as f:
+                json.dump(state, f, indent=2)
+            print(f"  [auto-saved locally]")
         except Exception as e:
-            print(f"  [auto-save failed — state written locally: {e}]")
+            print(f"  [auto-save failed: {e}]")
 
 
 def cmd_ping(args):
@@ -1346,74 +1323,8 @@ def cmd_drift_status(args):
 
 # --- Anchor system ---
 
-def _eval_criteria(state: dict) -> list[tuple[str, bool]]:
-    """
-    Evaluate each done criterion against observable session state.
-    Returns list of (criterion_text, is_done) pairs.
-
-    Heuristics (simple keyword matching against measurable signals):
-      - "coverage" + fraction → check _quick_coverage() for full coverage
-      - "tests pass" / "passing" → not checkable live; always False (needs manual verify)
-      - "all" + "pass" / "complete" → not checkable; False
-      - anything else → False (unknown, needs manual verify)
-    """
-    criteria = (state.get("anchor_b") or {}).get("done_criteria") or []
-    results = []
-    cov_str = _quick_coverage(state)
-    full_cov = cov_str is not None and "FULL COVERAGE" in cov_str
-
-    anchor_checks = state.get("anchor_checks_count", 0)
-    hb_fires      = len(state.get("heartbeat_fires", []))
-    import re as _re
-
-    for c in criteria:
-        c_lower = c.lower()
-        done = False
-        # Coverage criterion: "coverage 4/4", "full coverage", "coverage complete"
-        if "coverage" in c_lower:
-            done = full_cov
-        # Drift criterion: "drift clean", "no drift"
-        elif "drift" in c_lower and ("clean" in c_lower or "no" in c_lower):
-            done = not bool(state.get("drift_warning"))
-        # Anchor check criterion: "anchor check used"
-        elif "anchor check" in c_lower:
-            done = anchor_checks > 0
-        # Checkpoint criterion: "checkpoint used", "checkpoint before completion"
-        elif "checkpoint" in c_lower and ("used" in c_lower or "before" in c_lower or "run" in c_lower):
-            done = state.get("checkpoint_calls_count", 0) > 0
-        # Heartbeat observed: "observed ... heartbeat fire", "heartbeat fire"
-        elif "heartbeat fire" in c_lower or ("heartbeat" in c_lower and "fire" in c_lower):
-            m = _re.search(r'(\d+)', c)
-            needed = int(m.group(1)) if m else 1
-            done = hb_fires >= needed
-        # Tests passing: "N+ tests passing", "N tests pass"
-        elif "test" in c_lower and ("pass" in c_lower or "passing" in c_lower):
-            last_count = state.get("tests_last_count", 0)
-            m = _re.search(r'(\d+)', c)
-            if m and last_count > 0:
-                done = last_count >= int(m.group(1))
-        # File updated: "CLAUDE.md updated", "heartbeat_runner.py changed"
-        elif _re.search(r'\b[\w.\-]+\.(?:py|md|txt|json|sh|yml|yaml)\b', c):
-            fm = _re.search(r'\b([\w.\-/]+\.(?:py|md|txt|json|sh|yml|yaml))\b', c)
-            if fm and any(kw in c_lower for kw in ("updated", "changed", "done", "committed")):
-                fname = fm.group(1)
-                start_ref = state.get("session_start_ref", "")
-                workspace = state.get("workspace_dir", ".")
-                if start_ref:
-                    try:
-                        diff_out = subprocess.check_output(
-                            ["git", "diff", "--name-only", start_ref, "HEAD"],
-                            stderr=subprocess.DEVNULL,
-                            cwd=workspace,
-                        ).decode()
-                        done = any(
-                            p == fname or p.endswith("/" + fname)
-                            for p in diff_out.splitlines() if p
-                        )
-                    except Exception:
-                        done = False
-        results.append((c, done))
-    return results
+# _eval_criteria is imported from criteria.py at the top of this file.
+# See criteria.py for the full implementation.
 
 
 def cmd_anchor(args):
