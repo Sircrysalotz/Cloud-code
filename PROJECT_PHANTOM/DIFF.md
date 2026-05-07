@@ -15,6 +15,8 @@ during a live dogfood session and fixed in the same or next iteration.
 | `drift_guard.py` runs indefinitely — direct-command agent blocks until session complete | `--max-checks N` flag: exit cleanly after N clean checks; main session re-arms after agent returns |
 | `auto_save()` created a new git commit every N pings → bloated history (dozens of "[phantom] auto-save" commits) | `auto_save()` now writes `last_session_state.json` locally only — no git commits; log files untracked |
 | `last_session_state.json` and `container_vitals.log` still tracked by git → stop hook fires on every ping | Both files removed from git index (`git rm --cached`); `.gitignore` updated with comment |
+| `DRIFT_GUARD.md` v5 used warning-based approach ("Do NOT generate text before Bash call") — proved insufficient (same failure mode as Pattern 8) | `DRIFT_GUARD.md` v6: execution-first format matching `HEARTBEAT.md` v8; STEP 1/2/3/4 at top before any prose |
+| Context compaction leaves `heartbeat_active`/`drift_guard_active` stuck True with no running process | `recover` workflow documented in CLAUDE.md troubleshooting + ANTI_DRIFT.md Pattern 10 |
 
 ---
 

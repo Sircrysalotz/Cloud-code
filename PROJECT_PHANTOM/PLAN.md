@@ -54,6 +54,8 @@ Priority order based on severity and impact:
 | `drift_guard.py` runs until session complete — blocks direct-command agent for hours | ✓ Done v3.5: `--max-checks N` flag — exit cleanly after N checks, re-arm after |
 | `auto_save()` creates new git commit every N pings → history spam ("auto-save turn X" every 5 turns) | ✓ Done v3.5: `auto_save()` writes `last_session_state.json` locally only; no git commits |
 | `last_session_state.json` and `container_vitals.log` tracked by git → stop hook fires every ping | ✓ Done v3.5: both untracked via `git rm --cached`; `.gitignore` updated |
+| `DRIFT_GUARD.md` v5 uses warning-based "Do NOT generate text" approach — proved insufficient (Pattern 8 equivalent) | ✓ Done v3.5: `DRIFT_GUARD.md` v6 — execution-first format (STEP 1/2/3/4 at top) matching HEARTBEAT.md v8 |
+| Context compaction leaves arm flags stuck with no running process — pattern undocumented | ✓ Done v3.5: ANTI_DRIFT.md Pattern 10 + CLAUDE.md troubleshooting entry + improvement history |
 
 ---
 
