@@ -3,7 +3,7 @@
 The system improves itself through dogfood sessions — running PHANTOM to build PHANTOM.
 Each session observes friction in real use and fixes it before completing.
 
-**Current version:** v3.2 (528 tests)
+**Current version:** v3.3 (542 tests, in progress)
 **Active branch:** `phantom/v3.3-dogfood` → merges to `claude/document-environment-status-vQRKB`
 
 ---
@@ -15,7 +15,7 @@ Each session observes friction in real use and fixes it before completing.
 | v3.0 | `phantom/v3-self-improvement` | Profile system, four-gate drift, `check`, `recover`, `report` | ~400 |
 | v3.1 | `phantom/v3.1-dogfood` | Anchors, checkpoints, `_eval_criteria`, fire banner, `status --brief` | 481 |
 | v3.2 | `phantom/v3.2-dogfood` | HEARTBEAT.md v6 (fabrication), `scope-update`, DRIFT_GUARD.md v4, display fixes | 528 |
-| v3.3 | `phantom/v3.3-dogfood` | MD file rewrites, *(in progress)* | — |
+| v3.3 | `phantom/v3.3-dogfood` | MD file rewrites, early-return fix, status criteria view, scope-update warning | 542 |
 
 ---
 
@@ -26,9 +26,10 @@ Priority order based on severity and impact:
 ### High — correctness issues
 | Issue | Proposed fix |
 |---|---|
-| `drift-done` SCOPE_CREEP message says "spreading changes" — doesn't mention `scope-update` | Update `cmd_drift_done` output to suggest `scope-update` when SCOPE_CREEP fires |
-| DRIFT_GUARD.md lacks exact output format docs (unlike HEARTBEAT.md v6) | Add exact status-line format + what "CLEAN: Gate N" looks like |
-| After `scope-update`, drift guard still uses old scope (must re-arm manually) | Print clearer reminder; potentially add auto-re-arm flag |
+| `drift-done` SCOPE_CREEP message says "spreading changes" — doesn't mention `scope-update` | ✓ Done v3.3: `drift-done` shows Option A/B with explicit `scope-update` hint |
+| After `scope-update`, drift guard still uses old scope (must re-arm manually) | ✓ Done v3.3: `scope-update` now warns when drift guard armed (re-arm required) |
+| Heartbeat agent returns early before runner fires | ✓ Done v3.3: `HEARTBEAT.md` v7 + runner first-poll-no-sleep fix |
+| DRIFT_GUARD.md lacks exact output format docs (unlike HEARTBEAT.md v7) | Add exact status-line format + what "CLEAN: Gate N" looks like |
 
 ### Medium — usability friction
 | Issue | Proposed fix |

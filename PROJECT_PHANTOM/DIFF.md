@@ -5,12 +5,17 @@ during a live dogfood session and fixed in the same or next iteration.
 
 ---
 
-## v3.2 → v3.3 (current)
+## v3.2 → v3.3
 
 | Problem | Fix |
 |---|---|
 | DIFF.md / PLAN.md / ANTI_DRIFT.md stale since v1→v2 | Rewrote all three to reflect v3.x reality |
-| *(dogfood in progress)* | — |
+| `drift_guard.py` SCOPE_CREEP action_map still referenced `start --force` | `drift_guard.py` action_map text updated to `scope-update --scope <files>` |
+| `scope-update` didn't warn when drift guard was armed with old scope | `scope-update` warns: "running process uses OLD scope — re-arm" |
+| `status` showed no criteria progress without running `anchor check` | `status` now shows criteria mini-view: `N/M met \| [x] [ ] [ ]` |
+| `drift-done` SCOPE_CREEP said "spread changes" — didn't mention `scope-update` | `drift-done` now shows Option A/B with explicit `scope-update` hint |
+| Heartbeat agent returns early with commentary before Bash call | `HEARTBEAT.md` v7: warning — do NOT generate text before Bash call completes |
+| Runner sleeps 30s before first check — agent can return before any output appears | `heartbeat_runner.py`: `first_iteration` skips sleep; if already idle, fires in < 1s |
 
 ---
 

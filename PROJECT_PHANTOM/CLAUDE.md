@@ -122,6 +122,11 @@ Do NOT call it:
 | After fabricated fire, main session has no way to detect it without manual inspection | Protocol: check `rounds_remaining` decreased + `last_heartbeat_fired` set before accepting fire as real |
 | `drift-done` SCOPE_CREEP message said "spread changes" — didn't mention `scope-update` | `drift-done` now shows Option A/B with explicit `scope-update` hint for SCOPE_CREEP verdict |
 | DIFF.md / PLAN.md / ANTI_DRIFT.md stale since v1→v2 session (3+ versions behind) | Rewrote all three: DIFF.md is now full changelog v1→v3.x; PLAN.md has friction backlog + invariants; ANTI_DRIFT.md has v3.x patterns |
+| `drift_guard.py` SCOPE_CREEP action_map still referenced `start --force` (not `scope-update`) | `drift_guard.py` action_map SCOPE_CREEP text updated to `scope-update --scope <files>` |
+| `scope-update` doesn't warn when drift guard is currently armed with old scope | `scope-update` now warns: "running process uses OLD scope — re-arm with `drift-arm`" |
+| `status` shows no criteria progress — must run `anchor check` to see criterion state | `status` now shows criteria mini-view: `N/M met \| [x] [ ] [ ]` from `_eval_criteria()` |
+| Heartbeat agent returns early with "I will relay output once runner exits" (no output) | `HEARTBEAT.md` v7: warning at top — do NOT generate text before Bash call; text = return value |
+| Runner sleeps `check_interval` (30s) before first check — agent can return before any output | `heartbeat_runner.py`: `first_iteration` flag skips sleep on first poll; if already idle, fires in < 1s |
 
 ### Files
 
