@@ -116,6 +116,8 @@ Do NOT call it:
 | Agents use Monitor tool for runner — process dies when Monitor closes (stuck flag) | HEARTBEAT.md + DRIFT_GUARD.md v5: explicit "NOT Monitor tool" warning with root cause |
 | `container_vitals.log` in scope analysis (10% inflation) — only `last_session_state.json` was filtered | `_is_auto_generated()` helper filters entire `logs/` dir from all scope paths (phantom.py + drift_guard.py) |
 | `report` coverage section lists targets without ✓/✗ — `check` shows them, `report` doesn't | `report` now runs git diff and shows ✓/✗ per target, consistent with `check` |
+| Heartbeat agent fabricates entire fire output using HEARTBEAT.md docs as template — state never updated | `HEARTBEAT.md` v6: fabrication prevention rules + post-flight state verification + exact HOLD/fire formats |
+| After fabricated fire, main session has no way to detect it without manual inspection | Protocol: check `rounds_remaining` decreased + `last_heartbeat_fired` set before accepting fire as real |
 
 ### Files
 
@@ -254,6 +256,13 @@ Use `run_in_background: true`.
 
 ### 6. When heartbeat fires
 ```bash
+# Verify the fire actually happened (agent may fabricate output from docs)
+python3 PROJECT_PHANTOM/agents/phantom.py status
+# Check: rounds_remaining decreased AND last_heartbeat_fired is set
+# If rounds_remaining UNCHANGED and heartbeat_active stuck True → fabricated fire:
+python3 PROJECT_PHANTOM/agents/phantom.py recover   # clear stuck flag, then re-arm
+
+# If fire was real — resume:
 python3 PROJECT_PHANTOM/agents/phantom.py ping "resuming — [what I'm doing next]"
 python3 PROJECT_PHANTOM/agents/phantom.py heartbeat-arm   # check exit code
 # if exit 0: spawn next heartbeat round
@@ -473,6 +482,15 @@ Old behavior (pre-fix). Runner now checks `status == "complete"` on each poll an
 ### Heartbeat fires immediately (threshold too low)
 Increase `--threshold` or check `--min-idle-polls`. With `--min-idle-polls 2`, requires two consecutive polls over threshold.
 
+### Heartbeat agent reported a fire but state was not updated
+Symptom: heartbeat agent returned with fire banner, but `heartbeat_fires: []` and `rounds_remaining` unchanged.
+Cause: agent fabricated the fire output using HEARTBEAT.md docs as a template — runner was killed before firing.
+Fix:
+```bash
+python3 PROJECT_PHANTOM/agents/phantom.py recover   # clear stuck heartbeat_active
+python3 PROJECT_PHANTOM/agents/phantom.py heartbeat-arm  # re-arm and spawn new agent
+```
+
 ### Container dies mid-session
 ```bash
 python3 PROJECT_PHANTOM/agents/phantom.py restore   # recovers saved state
@@ -495,3 +513,4 @@ python3 PROJECT_PHANTOM/agents/phantom.py restore   # recovers saved state
 - Run `anchor check` after every heartbeat resume — always re-orient before working
 - Run `checkpoint` before calling `complete` — ensure all gates pass first
 - `logs/` directory auto-saves on every ping-divisible turn (amends one commit, no new commits) — this is expected, not drift; the entire `logs/` dir is filtered from scope analysis
+- **Always verify heartbeat fires are real** — after the HB agent returns, check `rounds_remaining` decreased and `last_heartbeat_fired` is set; if not, run `recover` and re-arm

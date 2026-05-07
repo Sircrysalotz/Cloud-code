@@ -1827,6 +1827,8 @@ def test_checkpoint():
     check("checkpoint exits 0 with no targets and fresh ping", rc == 0)
     check("checkpoint shows CHECKPOINT header", "CHECKPOINT" in out)
     check("checkpoint shows gates passed", "gates passed" in out.lower() or "All gates" in out)
+    check("checkpoint shows ping freshness in summary", "Ping:" in out)
+    check("checkpoint shows drift status in summary", "Drift:" in out)
     # checkpoint call should have incremented checkpoint_calls_count
     import json as _json3, os as _os3
     s3 = _json3.load(open(STATE))
@@ -2031,6 +2033,32 @@ def test_status_brief():
     cleanup()
 
 
+def test_docs_content():
+    print("\n── docs content validation ──")
+    import os as _os
+
+    agents_dir = _os.path.dirname(_os.path.abspath(PHANTOM))
+
+    # HEARTBEAT.md v6 content checks
+    hb_md = open(_os.path.join(agents_dir, "HEARTBEAT.md")).read()
+    check("HEARTBEAT.md header is v6", "v6" in hb_md.splitlines()[0])
+    check("HEARTBEAT.md has fabrication prevention section", "Never fabricate" in hb_md)
+    check("HEARTBEAT.md warns against generating fire output", "Do NOT generate fire output" in hb_md)
+    check("HEARTBEAT.md has post-flight verification step", "rounds_remaining" in hb_md and "decreased" in hb_md)
+    check("HEARTBEAT.md shows exact HOLD active format", "active Xs ago" in hb_md)
+    check("HEARTBEAT.md fire banner shows plain === chars", "======" in hb_md)
+    # Box char appears in fabrication warning (as example of what NOT to do) — not in fire banner section
+    fire_section = hb_md.split("### On fire")[1] if "### On fire" in hb_md else ""
+    check("HEARTBEAT.md fire banner section does NOT show box chars", "╔══" not in fire_section)
+
+    # CLAUDE.md fire verification rule
+    claude_md_path = _os.path.join(agents_dir, "..", "CLAUDE.md")
+    claude_md = open(claude_md_path).read()
+    check("CLAUDE.md anti-drift has fire verification rule", "verify heartbeat fires are real" in claude_md)
+    check("CLAUDE.md troubleshooting has fabricated fire entry", "fabricated" in claude_md.lower() or "Fabricated" in claude_md)
+    check("CLAUDE.md protocol step 6 mentions rounds_remaining check", "rounds_remaining" in claude_md and "fabricated" in claude_md.lower())
+
+
 # ─── Run all ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -2052,6 +2080,7 @@ if __name__ == "__main__":
         test_anchor()
         test_checkpoint()
         test_status_brief()
+        test_docs_content()
     finally:
         cleanup()
 
