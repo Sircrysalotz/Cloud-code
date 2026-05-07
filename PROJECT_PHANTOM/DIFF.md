@@ -15,6 +15,7 @@ during a live dogfood session and fixed in the same or next iteration.
 | No way to auto-verify time-based criteria like "session elapsed 90+ minutes" | `criteria.py`: new elapsed-time heuristic — extracts number + "minute/min", checks `(now - started) >= N` |
 | `test_phantom.py` "effective gap < 300s" test fails after any lull in editing — wrong semantics | Changed assertion: `ts > 1577836800` (more recent than 2020 ping) — tests the correct invariant regardless of when tests run |
 | File criteria keywords "written" and "changed" added to `criteria.py` but never tested | Two new `test_phantom.py` checks: `criteria.py written` and `test_phantom.py changed` — all 6 trigger words now have dedicated tests (588 → 590) |
+| `drift clean` criterion: only tested [x] (clean) case — [ ] (warning active) case had no test | New `test_phantom.py` check: injects `drift_warning: "TRENDING"` and verifies criterion shows `[ ]` (590 → 591) |
 
 ---
 
