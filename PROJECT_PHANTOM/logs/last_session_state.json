@@ -1,9 +1,9 @@
 {
-  "task": "dogfood v3.4 marathon \u2014 2hr autonomous test; implement check caching, criteria preview in status, and explore backlog items",
-  "last_active": "2026-05-07 19:37:17",
-  "turns_taken": 5,
-  "turns_target": 50,
-  "rounds_remaining": 20,
+  "task": "save test",
+  "last_active": "2026-05-07 19:40:05",
+  "turns_taken": 1,
+  "turns_target": 5,
+  "rounds_remaining": 5,
   "idle_threshold_seconds": 180,
   "check_interval_seconds": 30,
   "cooldown_factor": 1.0,
@@ -11,35 +11,21 @@
   "rounds_used": 0,
   "agents_running": 0,
   "active_agent_ids": [],
-  "heartbeat_active": true,
+  "heartbeat_active": false,
   "last_heartbeat_fired": null,
-  "progress_note": "Turn 5: updated CLAUDE.md with all v3.4 improvements + direct-command HB spawn approach. 571/571 tests.",
-  "started": "2026-05-07 19:08:31",
+  "progress_note": "saved progress",
+  "started": "2026-05-07 19:40:04",
   "status": "active",
   "workspace_dir": "/home/user/Cloud-code",
   "profile": null,
-  "scope_files": [
-    "agents/phantom.py",
-    "agents/heartbeat_runner.py",
-    "test_phantom.py",
-    "agents/HEARTBEAT.md",
-    "agents/DRIFT_GUARD.md",
-    "CLAUDE.md",
-    "DIFF.md",
-    "PLAN.md",
-    "ANTI_DRIFT.md"
-  ],
-  "coverage_targets": [
-    "agents/phantom.py",
-    "agents/heartbeat_runner.py",
-    "agents/drift_guard.py"
-  ],
+  "scope_files": [],
+  "coverage_targets": [],
   "scope_threshold": 50.0,
-  "session_start_ref": "4c50d18118d508dd4cb31eac26a752309a3a8830",
+  "session_start_ref": "17089bc714fa244fbb331b702a373340c01fb1b3",
   "tracked_extensions": [],
   "scan_depth": 5,
   "auto_save_every": 5,
-  "drift_guard_active": true,
+  "drift_guard_active": false,
   "drift_warning": null,
   "drift_warned_at": null,
   "heartbeat_fires": [],
@@ -47,92 +33,22 @@
   "ping_log": [
     {
       "turn": 1,
-      "note": "Turn 1: v3.4 marathon started. Plan: implement check-command caching (30s TTL), criteria preview in status/status --verbose, then explore other backlog items. Arming drift guard and heartbeat.",
-      "at": "2026-05-07 19:08:36"
-    },
-    {
-      "turn": 2,
-      "note": "Turn 2: both agents returned early. Recovered. Implementing check caching + status --verbose. 564/564 tests passing. Re-arming agents.",
-      "at": "2026-05-07 19:19:52"
-    },
-    {
-      "turn": 3,
-      "note": "Turn 3: implemented check caching, status --verbose, HEARTBEAT.md v8 (exec-first structure). 568/568 tests. Committing docs updates.",
-      "at": "2026-05-07 19:26:21"
-    },
-    {
-      "turn": 4,
-      "note": "Turn 4: committed runner v8 (all criteria in fire banner, session elapsed), drift_guard elapsed display. 571 tests. Trying direct-command spawn for heartbeat to bypass Pattern 8 early-return.",
-      "at": "2026-05-07 19:33:43"
-    },
-    {
-      "turn": 5,
-      "note": "Turn 5: updated CLAUDE.md with all v3.4 improvements + direct-command HB spawn approach. 571/571 tests.",
-      "at": "2026-05-07 19:37:17"
+      "note": "saved progress",
+      "at": "2026-05-07 19:40:05"
     }
   ],
-  "last_activity_source": "git:index",
-  "last_activity_ts": "2026-05-07 19:37:06",
-  "next_heartbeat_at": "2026-05-07 19:40:06",
+  "last_activity_source": "ping",
+  "last_activity_ts": "2026-05-07 19:40:04",
+  "next_heartbeat_at": null,
   "completed": null,
-  "saved_at": "2026-05-07 19:37:17",
+  "saved_at": "2026-05-07 19:40:05",
   "anchor_a": {
-    "ref": "4c50d18118d508dd4cb31eac26a752309a3a8830",
-    "timestamp": "2026-05-07 19:08:31"
+    "ref": "17089bc714fa244fbb331b702a373340c01fb1b3",
+    "timestamp": "2026-05-07 19:40:04"
   },
   "anchor_b": {
-    "goal": "dogfood v3.4 marathon \u2014 2hr autonomous test; implement check caching, criteria preview in status, and explore backlog items",
-    "done_criteria": [
-      "557+ tests passing",
-      "coverage 3/3",
-      "CLAUDE.md updated",
-      "observed 3+ heartbeat fires",
-      "anchor check used at least once",
-      "checkpoint before completion"
-    ],
-    "set_at": "2026-05-07 19:08:31"
-  },
-  "tests_last_count": 571,
-  "check_cache": {
-    "ts": 1778182497.8672845,
-    "scope_result": {
-      "files": {
-        "PROJECT_PHANTOM/ANTI_DRIFT.md": 33,
-        "PROJECT_PHANTOM/DIFF.md": 11,
-        "PROJECT_PHANTOM/PLAN.md": 14,
-        "PROJECT_PHANTOM/agents/DRIFT_GUARD.md": 4,
-        "PROJECT_PHANTOM/agents/HEARTBEAT.md": 200,
-        "PROJECT_PHANTOM/agents/drift_guard.py": 26,
-        "PROJECT_PHANTOM/agents/heartbeat_runner.py": 30,
-        "PROJECT_PHANTOM/agents/phantom.py": 146,
-        "PROJECT_PHANTOM/test_phantom.py": 44
-      },
-      "max_pct": 39.37007874015748,
-      "clean": true,
-      "error": null
-    },
-    "cov_result": {
-      "targets": [
-        "agents/phantom.py",
-        "agents/heartbeat_runner.py",
-        "agents/drift_guard.py"
-      ],
-      "touched": [
-        "agents/phantom.py",
-        "agents/heartbeat_runner.py",
-        "agents/drift_guard.py"
-      ],
-      "untouched": [],
-      "pct": 100.0,
-      "full": true,
-      "error": null
-    },
-    "coverage_targets": [
-      "agents/phantom.py",
-      "agents/heartbeat_runner.py",
-      "agents/drift_guard.py"
-    ]
-  },
-  "coverage_full": true,
-  "anchor_checks_count": 1
+    "goal": "save test",
+    "done_criteria": [],
+    "set_at": "2026-05-07 19:40:04"
+  }
 }
