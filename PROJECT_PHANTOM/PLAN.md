@@ -3,7 +3,7 @@
 The system improves itself through dogfood sessions — running PHANTOM to build PHANTOM.
 Each session observes friction in real use and fixes it before completing.
 
-**Current version:** v3.4 (568 tests, in progress)
+**Current version:** v3.4 (576 tests, in progress)
 **Active branch:** `phantom/v3.4-marathon` → merges to `claude/document-environment-status-vQRKB`
 
 ---
@@ -16,7 +16,7 @@ Each session observes friction in real use and fixes it before completing.
 | v3.1 | `phantom/v3.1-dogfood` | Anchors, checkpoints, `_eval_criteria`, fire banner, `status --brief` | 481 |
 | v3.2 | `phantom/v3.2-dogfood` | HEARTBEAT.md v6 (fabrication), `scope-update`, DRIFT_GUARD.md v4, display fixes | 528 |
 | v3.3 | `phantom/v3.3-dogfood` | MD file rewrites, early-return fix, status criteria view, scope-update warning | 557 |
-| v3.4 | `phantom/v3.4-marathon` | check caching, status --verbose, HEARTBEAT.md v8 (exec-first structure) | 568 |
+| v3.4 | `phantom/v3.4-marathon` | check caching, status --verbose, HEARTBEAT.md v8, file-updated criterion auto-eval | 576 |
 
 ---
 
@@ -47,6 +47,7 @@ Priority order based on severity and impact:
 | `history` command shows all turns verbatim — gets long | ✓ Done v3.3: `history --last N` shows only last N ping entries with "N omitted" notice |
 | `status` fire log shows "last 1" in parentheses — awkward phrasing | ✓ Done v3.3: shows "N total, showing last M" |
 | DIFF.md / PLAN.md / ANTI_DRIFT.md were stale since v1→v2 *(fixed in v3.3)* | ✓ done |
+| `_eval_criteria` can't auto-mark file-based criteria like "CLAUDE.md updated" | ✓ Done v3.4: new "file updated" heuristic — `git diff --name-only` since session start |
 
 ---
 
