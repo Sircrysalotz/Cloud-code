@@ -86,8 +86,10 @@ This runs until one of:
 
 Each poll prints one rich status line:
 ```
-[HH:MM:SS] Check #N | <total>L | top: filename.py (<pct>%) hunks=<N> [scope <in>/<total>L] | CLEAN: <reason>
+[HH:MM:SS] +Xh YYm Check #N | <total>L | top: filename.py (<pct>%) hunks=<N> [scope <in>/<total>L] | CLEAN: <reason>
 ```
+
+- `+Xh YYm` — session elapsed time (e.g. `+1h05m` or `+3m42s`) — helps track marathon progress
 
 - `<total>L` — total changed lines since session start
 - `hunks=N` — hunk count in dominant file (higher = more spread within that file)

@@ -496,7 +496,18 @@ def main():
 
         if not scored or total < args.min_lines:
             note = f"only {total} lines" if total > 0 else "no changes yet"
-            print(f"[{ts}] Check #{checks} — {note}")
+            # Session elapsed for marathon visibility
+            _elapsed = ""
+            _started = state.get("started", "")
+            if _started:
+                try:
+                    _secs = (datetime.now() - datetime.strptime(_started, "%Y-%m-%d %H:%M:%S")).total_seconds()
+                    _em, _es = divmod(int(_secs), 60)
+                    _eh, _em = divmod(_em, 60)
+                    _elapsed = f" +{_eh}h{_em:02d}m" if _eh else f" +{_em}m{_es:02d}s"
+                except Exception:
+                    pass
+            print(f"[{ts}]{_elapsed} Check #{checks} — {note}")
             continue
 
         hunk_data = count_hunks(workspace, since)
@@ -524,7 +535,18 @@ def main():
             scope_note = f" [scope {in_scope}/{total}L]"
         top_hunk = hunk_data.get(top_name, {})
         hunk_note = f" hunks={top_hunk.get('hunk_count','?')}" if top_hunk else ""
-        print(f"[{ts}] Check #{checks} | {total}L | top: {top_name} ({top_pct:.0f}%){hunk_note}{scope_note} | {verdict}: {reason[:60]}")
+        # Session elapsed for marathon visibility
+        elapsed_note = ""
+        started = state.get("started", "")
+        if started:
+            try:
+                secs = (datetime.now() - datetime.strptime(started, "%Y-%m-%d %H:%M:%S")).total_seconds()
+                em, es = divmod(int(secs), 60)
+                eh, em = divmod(em, 60)
+                elapsed_note = f" +{eh}h{em:02d}m" if eh else f" +{em}m{es:02d}s"
+            except Exception:
+                pass
+        print(f"[{ts}]{elapsed_note} Check #{checks} | {total}L | top: {top_name} ({top_pct:.0f}%){hunk_note}{scope_note} | {verdict}: {reason[:60]}")
 
         if not is_drift:
             continue

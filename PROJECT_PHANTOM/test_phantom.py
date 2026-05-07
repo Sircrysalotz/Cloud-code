@@ -933,7 +933,8 @@ def test_heartbeat_runner():
 
     # ── first-iteration no-sleep: runner fires immediately when already idle ──
     # Verifies that an already-idle session fires on first poll without waiting check_interval
-    run([PHANTOM, "start", "quick fire test", "--rounds", "1", "--interval", "30", "--threshold", "5", "--force"])
+    run([PHANTOM, "start", "quick fire test", "--rounds", "1", "--interval", "30", "--threshold", "5",
+         "--done-criteria", "all tests pass", "--force"])
     state = read_state()
     state["heartbeat_active"] = True
     state["last_active"] = "2020-01-01 00:00:00"  # far past threshold
@@ -947,6 +948,9 @@ def test_heartbeat_runner():
         elapsed = _time_qt.monotonic() - t0
     check("runner prints Initial check message", "Initial check" in out)
     check("runner fires quickly when already idle (< 10s, interval=30s)", elapsed < 10)
+    check("runner startup banner says v8", "Heartbeat v8 active" in out)
+    check("runner fire banner includes session elapsed time", "session:" in out)
+    check("runner fire banner shows criteria count", "Criteria:  0/1 met" in out or "Criteria:" in out)
 
     cleanup()
 

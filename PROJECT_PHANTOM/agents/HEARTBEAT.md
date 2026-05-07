@@ -98,7 +98,7 @@ Signs you are about to make an error:
 
 ### Startup banner
 ```
-Heartbeat v7 active
+Heartbeat v8 active
   Threshold: 180s | Cooldown: 180s (1.0x) | Poll: 30s | Rounds: 20
   Watchdog:  90s max per cycle | Min idle polls: 1
   Workspace: /home/user/Cloud-code
@@ -121,7 +121,7 @@ Signals: `[ping]` (explicit ping), `[file:path]` (file edited), `[git:index]` (s
 ```
 ======================================================
   HEARTBEAT FIRED  (round N/total)
-  Idle:      192s (threshold: 180s, drift: +12s)
+  Idle:      192s (threshold: 180s, drift: +12s | session: 1h 5m)
   Polls:     1 consecutive above threshold
   Signal:    ping
   Task:      your task description
@@ -129,8 +129,10 @@ Signals: `[ping]` (explicit ping), `[file:path]` (file edited), `[git:index]` (s
   Turns:     N/target
   Rounds left: N
   ── Anchor B: <goal text>
+  Criteria:  3/6 met
     [x] <met criterion>
     [ ] <unmet criterion>
+    ...all criteria shown...
 ======================================================
 RESUME: phantom.py ping [note] → phantom.py anchor check → phantom.py heartbeat-arm
 ```
