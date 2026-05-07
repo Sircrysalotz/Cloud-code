@@ -1659,6 +1659,21 @@ def test_check():
     state = read_state()
     check("check does not write coverage_full when no targets", "coverage_full" not in state)
 
+    # check caching — second call within TTL uses cache
+    run([PHANTOM, "reset"])
+    run([PHANTOM, "start", "cache test", "--turns", "3",
+         "--coverage-targets", "agents/phantom.py"])
+    run([PHANTOM, "check"])
+    state_after_first = read_state()
+    check("check stores check_cache in state after first call", "check_cache" in state_after_first)
+    # second call within TTL should show "(cached)" in output
+    rc, out, _ = run([PHANTOM, "check"])
+    check("check shows cached indicator on second call within TTL", "cached" in out)
+
+    # --no-cache flag forces fresh git diff even if cache is valid
+    rc, out, _ = run([PHANTOM, "check", "--no-cache"])
+    check("check --no-cache bypasses cache (no cached note)", "cached" not in out)
+
     cleanup()
 
     # -- auto_save_every stored at start --
@@ -2095,6 +2110,22 @@ def test_status_brief():
     rc, out, err = run([PHANTOM, "status", "--brief"])
     check("status --brief truncates long note with ...", "..." in out)
     check("status --brief does not show all 50 chars", ("A" * 41) not in out)
+
+    # status --verbose shows full criteria text
+    cleanup()
+    run([PHANTOM, "start", "verbose criteria test", "--turns", "5",
+         "--done-criteria", "all tests pass", "coverage 3/3"])
+    rc, out, err = run([PHANTOM, "status", "--verbose"])
+    check("status --verbose exits 0", rc == 0)
+    check("status --verbose shows full criterion text 1", "all tests pass" in out)
+    check("status --verbose shows full criterion text 2", "coverage 3/3" in out)
+    check("status --verbose shows [x] or [ ] marks", "[x]" in out or "[ ]" in out)
+    check("status --verbose shows met count", "/2 met" in out)
+
+    # regular status still shows mini-view (not full text for every criterion)
+    rc, out_mini, _ = run([PHANTOM, "status"])
+    check("status (non-verbose) does not expand criteria text", "all tests pass" not in out_mini)
+    check("status (non-verbose) still shows criteria count", "/2 met" in out_mini or "Criteria" in out_mini)
 
     # report scope section filters auto-save file
     cleanup()
