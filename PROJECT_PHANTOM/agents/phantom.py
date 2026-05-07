@@ -1238,7 +1238,13 @@ def cmd_drift_done(args):
         print("=" * 54)
         print(warning)
         print("=" * 54)
-        print("Re-arm after spreading changes: phantom.py drift-arm")
+        if "SCOPE_CREEP" in warning:
+            print("Fix options:")
+            print("  A) Move edits back into declared scope files")
+            print("  B) Expand scope: phantom.py scope-update --scope <files>")
+            print("  Then re-arm: phantom.py drift-arm")
+        else:
+            print("Re-arm after spreading changes: phantom.py drift-arm")
         sys.exit(1)
     else:
         print("Drift guard returned — no drift detected.")

@@ -1006,6 +1006,21 @@ def test_drift_guard():
     rc, out, _ = run([PHANTOM, "drift-done"])
     check("drift-done exits 1 when warning present", rc == 1)
     check("drift-done prints warning text", "DRIFT DETECTED" in out)
+    check("drift-done non-SCOPE_CREEP shows generic re-arm message", "Re-arm after spreading" in out)
+
+    # drift-done with SCOPE_CREEP warning shows scope-update option
+    import json as _json_dd, os as _os_dd
+    state2 = _json_dd.load(open(STATE))
+    state2["drift_guard_active"] = False
+    state2["drift_warning"] = "DRIFT DETECTED [SCOPE_CREEP] after 1 check(s): 60% outside scope"
+    with open(STATE + ".tmp", "w") as f:
+        _json_dd.dump(state2, f)
+    _os_dd.rename(STATE + ".tmp", STATE)
+    rc, out, _ = run([PHANTOM, "drift-done"])
+    check("drift-done SCOPE_CREEP exits 1", rc == 1)
+    check("drift-done SCOPE_CREEP mentions scope-update", "scope-update" in out)
+    check("drift-done SCOPE_CREEP shows option B", "Expand scope" in out or "scope-update" in out)
+    check("drift-done SCOPE_CREEP still shows re-arm instruction", "drift-arm" in out)
 
     # drift-status shows warning
     rc, out, _ = run([PHANTOM, "drift-status"])
@@ -2093,6 +2108,18 @@ def test_docs_content():
     check("CLAUDE.md troubleshooting has fabricated fire entry", "fabricated" in claude_md.lower() or "Fabricated" in claude_md)
     check("CLAUDE.md protocol step 6 mentions rounds_remaining check", "rounds_remaining" in claude_md and "fabricated" in claude_md.lower())
     check("CLAUDE.md useful commands has scope-update", "scope-update" in claude_md)
+
+    # MD files not stale
+    project_dir = _os.path.join(agents_dir, "..")
+    diff_md = open(_os.path.join(project_dir, "DIFF.md")).read()
+    plan_md = open(_os.path.join(project_dir, "PLAN.md")).read()
+    anti_md = open(_os.path.join(project_dir, "ANTI_DRIFT.md")).read()
+    check("DIFF.md covers v3.x (not just v1/v2)", "v3" in diff_md)
+    check("DIFF.md has v3.2 section", "v3.1 → v3.2" in diff_md or "v3.2" in diff_md)
+    check("PLAN.md has Known Friction section", "Known Friction" in plan_md or "Planned" in plan_md)
+    check("PLAN.md has Architecture Invariants", "Invariant" in plan_md)
+    check("ANTI_DRIFT.md covers v3.x patterns", "v3." in anti_md)
+    check("ANTI_DRIFT.md has fabrication pattern", "Fabrication" in anti_md or "fabricat" in anti_md.lower())
 
 
 # ─── Run all ─────────────────────────────────────────────────────────────────

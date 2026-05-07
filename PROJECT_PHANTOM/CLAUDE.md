@@ -120,6 +120,8 @@ Do NOT call it:
 | Drift guard agent can fabricate "clean" verdict — real drift goes undetected | `DRIFT_GUARD.md` v4: fabrication prevention section; main session reads state via `drift-done`, not agent text |
 | Heartbeat agent fabricates entire fire output using HEARTBEAT.md docs as template — state never updated | `HEARTBEAT.md` v6: fabrication prevention rules + post-flight state verification + exact HOLD/fire formats |
 | After fabricated fire, main session has no way to detect it without manual inspection | Protocol: check `rounds_remaining` decreased + `last_heartbeat_fired` set before accepting fire as real |
+| `drift-done` SCOPE_CREEP message said "spread changes" — didn't mention `scope-update` | `drift-done` now shows Option A/B with explicit `scope-update` hint for SCOPE_CREEP verdict |
+| DIFF.md / PLAN.md / ANTI_DRIFT.md stale since v1→v2 session (3+ versions behind) | Rewrote all three: DIFF.md is now full changelog v1→v3.x; PLAN.md has friction backlog + invariants; ANTI_DRIFT.md has v3.x patterns |
 
 ### Files
 

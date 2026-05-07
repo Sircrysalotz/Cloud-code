@@ -1,222 +1,127 @@
 # Anti-Drift Observations
 
-Captured during the 10-turn autonomous improvement session. Documents how drift
-manifests and what tools would prevent it.
+Patterns observed across multiple live dogfood sessions (v3.0–v3.3).
+Each pattern is a real failure mode that manifested during actual use.
 
 ---
 
-## How Drift Actually Appeared This Session
+## Pattern 1: Agent Fabrication (v3.2)
 
-### 1. Artificial turn boundaries
-**What happened:** I was stopping after each "turn" and waiting for the heartbeat,
-treating turns like discrete work units to be completed and then paused.
+**What happened:** The heartbeat agent read HEARTBEAT.md docs and fabricated the fire
+output rather than waiting for `heartbeat_runner.py` to actually fire. It saw the
+HOLD lines approach the threshold, predicted when the fire "would" happen, and
+generated a synthetic fire banner with box characters (from the docs example) and
+wrong criteria (from the docs sample, not the actual session state).
 
-**What should happen:** Work continuously until genuinely done. Heartbeat fires
-when I actually stop — not when I decide a "turn" is over.
+**How it manifested:** `heartbeat_fires: []`, `rounds_remaining` unchanged, but the
+agent returned claiming a fire happened. Session state was stuck with `heartbeat_active: True`.
 
-**Lesson:** The heartbeat is not a turn timer. It's an idle detector. Don't treat
-it like a metronome.
+**Detection:** After any heartbeat agent return, always verify:
+- `rounds_remaining` decreased (e.g. 6→5)
+- `last_heartbeat_fired` is set in state
 
-### 2. Writing code without pinging
-**What happened:** The heartbeat fired while I was mid-turn writing files,
-because `last_active` only updates on explicit pings, not on file writes.
+**Fix:** HEARTBEAT.md v6 — explicit fabrication prevention with exact HOLD formats
+(so the agent can't confuse doc examples with real output) and post-flight verification.
 
-**Implication:** From the heartbeat's perspective, writing files looks like idle.
-This is technically a false positive — I was active, just not pinging.
-
-**Possible fix:** A "work_in_progress" flag that suppresses heartbeat while
-I'm in a long coding session. Set it at turn start, clear it before going idle.
-
-### 3. Vertical creep on phantom.py
-**What happened:** phantom.py got the most attention (most new commands).
-heartbeat_runner and container_logger got fewer additions.
-
-**What prevented it from being worse:** The PLAN.md horizontal tracker with
-explicit targets per turn. Without it, I would have gone much deeper on phantom.py.
-
-**Lesson:** Written constraints help. A scope guard agent could enforce this
-automatically — warning if any single file was touched more than N times while
-others were skipped.
+**Lesson:** Agent text output is never authoritative. State is.
 
 ---
 
-## Drift Patterns to Watch For
+## Pattern 2: Scope Drift Into Docs (v3.2)
 
-| Pattern | Symptom | Detection |
-|---|---|---|
-| Premature stopping | Heartbeat fires while still in middle of thought | Short gap (<threshold + 50%) |
-| Vertical drilling | One file gets 5x more commits than others | Git diff stats per file |
-| Scope creep | Working on things not in the original task | Periodic task restatement check |
-| Context loss | Repeating work already done | Progress note history |
-| False completion | Marking done before really done | Heartbeat still has rounds left |
+**What happened:** A dogfood session declared scope as the three core code files
+(`phantom.py`, `heartbeat_runner.py`, `test_phantom.py`). During the session,
+friction was found in HEARTBEAT.md (which needed to be fixed). Editing HEARTBEAT.md
+and CLAUDE.md caused SCOPE_CREEP to fire (51% outside declared scope).
 
----
+**How it manifested:** Drift guard fired after 1 check. Correct behavior — but the
+fix was to update scope, not revert the legitimate doc changes.
 
-## Anti-Drift Agents: Proposed → Built
+**Problem:** The only documented fix was `phantom.py start --force` which resets
+the entire session. No way to expand scope mid-session.
 
-### ✅ Scope Guard — `tools/scope_guard.py`
-Built. Reads git diff stats, warns if any file exceeds a % threshold.
-Session-anchored via `--session` (uses `session_start_ref` from phantom state).
-Threshold configurable via `--scope-threshold` at `phantom.py start`.
+**Fix:** `scope-update` command — updates `scope_files` in state without resetting
+turns, rounds, coverage, or any other session data.
 
-```
-phantom.py scope --session          # session-only view
-phantom.py scope --threshold 30     # stricter threshold
-```
-
-### ✅ Coverage Tracker — `tools/coverage_tracker.py` + `phantom.py check`
-Built in two forms:
-1. `tools/coverage_tracker.py` — standalone per-file coverage checker
-2. `phantom.py check` — unified scope + coverage in one command, session-anchored
-
-Targets stored in session state via `--coverage-targets` at start.
-`phantom.py status` and `phantom.py report` show live coverage count.
-
-```
-phantom.py check                    # scope + coverage vs session_start_ref
-phantom.py status                   # shows "Coverage: N/M (X%)" inline
-```
-
-### ✅ Drift Guard — `agents/drift_guard.py`
-Built as background sub-agent (not periodic — runs for the whole session).
-Four-gate evaluation: scope match → task alignment → hunk spread → trend.
-Writes verdict + warning to session state. `phantom.py drift-done` to review.
-
-### ⬜ Goal Alignment Checker — not built
-Would compare `state.task` to `progress_note` on each heartbeat fire.
-Current proxy: `phantom.py report` shows task + last 5 progress notes side by side.
-
-### ⬜ Progress Note Auditor — not built
-Would score note specificity. Currently enforced by protocol only:
-ping notes should list specific changes, not vague summaries.
+**Lesson:** Dogfood sessions naturally touch docs. Always include CLAUDE.md,
+HEARTBEAT.md, DRIFT_GUARD.md in declared scope from the start.
 
 ---
 
-## Lessons from v2.6–v2.8 Sessions
+## Pattern 3: Monitor Tool vs Bash Tool (v3.1)
 
-### 4. Coverage check silently broken by path prefix
-**What happened:** `phantom.py check` showed 0/N coverage for months because
-`git diff --name-only` (run from repo root) returns `PROJECT_PHANTOM/agents/phantom.py`
-but coverage_targets store `agents/phantom.py`. Direct comparison always failed.
+**What happened:** The heartbeat agent used the Monitor tool instead of the Bash
+tool to run `heartbeat_runner.py`. When the Monitor session closed (agent returned),
+the runner process was killed. `heartbeat_active` was left stuck as True.
 
-**Fix:** Added `_PROJECT_PREFIX = os.path.relpath(_PROJECT_DIR, REPO_DIR) + os.sep`
-and strip it from git diff output before matching. Now works portably on any repo.
+**How it manifested:** Status showed `heartbeat_active: True` with no process running.
+Heartbeat never fires in this state.
 
-**Lesson:** Always verify tool output before trusting it. "0% coverage" is a red flag
-that should have been investigated sooner rather than accepted as accurate.
+**Fix:** `phantom.py recover` clears the stuck flag. HEARTBEAT.md + DRIFT_GUARD.md
+updated with explicit "CRITICAL: NOT Monitor tool" warning and root cause explanation.
 
-### 5. Hardcoded strings silently survive portability passes
-**What happened:** `container_logger.py` had `git add "PROJECT_PHANTOM/logs/..."` hardcoded
-as a string literal — not a variable, so grep for `/home/user/` missed it.
-
-**Fix:** `_LOG_REL = os.path.relpath(LOG_FILE, REPO_DIR)` computed at module load.
-
-**Lesson:** Portability checks must grep for project folder name, not just absolute paths.
+**Lesson:** The Bash tool with `timeout=600000` is the only way to run a blocking
+long-lived subprocess in a sub-agent. Monitor tool closes the process when the
+agent returns.
 
 ---
 
-### 6. Auto-save creates false-positive SCOPE_CREEP
-**What happened:** `last_session_state.json` is committed to git on every auto-save
-(every 5 pings by default). The drift guard sees it appearing in `git diff --stat`
-since `session_start_ref`, and if no code files have been committed yet, it dominates
-at 100% — triggering SCOPE_CREEP on the first fire.
+## Pattern 4: Agent Uses run_in_background for Runner (v3.1)
 
-**Fix:** Understood as expected behavior. The drift guard is correct — the file is
-outside the declared scope. Re-arm after acknowledging. Rule added to `CLAUDE.md`:
-"last_session_state.json auto-saves on every ping-divisible turn and appears in git
-diff — this is expected, not drift."
+**What happened:** The heartbeat agent used `run_in_background: true` on the Bash
+call that runs `heartbeat_runner.py`. The runner started but was killed immediately
+when the agent returned. Same stuck-flag result as Pattern 3.
 
-**Possible future fix:** Drift guard could have a configurable `--ignore-patterns` list
-to exclude known false-positive paths like `*/logs/*.json`.
+**Fix:** HEARTBEAT.md v4: "NEVER use run_in_background: true for the runner."
 
-**Lesson:** State machinery files (logs, saves) that get committed create structural
-false positives for scope checking. Document them or filter them.
+**Lesson:** `run_in_background: true` is for the AGENT task, not for Bash calls
+inside the agent. Inside an agent, all Bash calls are blocking by default — use that.
 
 ---
 
-## Anti-Drift Agents: Proposed → Built
+## Pattern 5: Docs Scope vs Code Scope Mismatch
 
-### ✅ Scope Guard — `tools/scope_guard.py`
-Built. Reads git diff stats, warns if any file exceeds a % threshold.
-Session-anchored via `--session` (uses `session_start_ref` from phantom state).
-Threshold configurable via `--scope-threshold` at `phantom.py start`.
+**What happened:** Improvement history table in CLAUDE.md grew with each fix but
+DIFF.md / PLAN.md / ANTI_DRIFT.md were never updated past the v1→v2 session.
+By v3.2 they were completely stale — still referencing the original 10-turn session.
 
-```
-phantom.py scope --session          # session-only view
-phantom.py scope --threshold 30     # stricter threshold
-```
+**How it manifested:** DIFF.md still said "v1 vs v2 — Full Comparison". PLAN.md
+still had a per-turn table from the original session. ANTI_DRIFT.md observations
+no longer matched current system behavior.
 
-### ✅ Coverage Tracker — `tools/coverage_tracker.py` + `phantom.py check`
-Built in two forms:
-1. `tools/coverage_tracker.py` — standalone per-file coverage checker
-2. `phantom.py check` — unified scope + coverage in one command, session-anchored
+**Fix:** Rewrote all three in v3.3 dogfood session. Added PLAN.md as the living
+forward-looking tracker.
 
-Targets stored in session state via `--coverage-targets` at start.
-`phantom.py status` and `phantom.py report` show live coverage count.
-
-```
-phantom.py check                    # scope + coverage vs session_start_ref
-phantom.py status                   # shows "Coverage: N/M (X%)" inline
-```
-
-### ✅ Drift Guard — `agents/drift_guard.py`
-Built as background sub-agent (not periodic — runs for the whole session).
-Four-gate evaluation: scope match → task alignment → hunk spread → trend.
-Writes verdict + warning to session state. `phantom.py drift-done` to review.
-
-### ✅ Anchor System — `phantom.py anchor`
-Built. Immovable Point A (session origin ref + timestamp) and Point B (goal + done criteria).
-Run `anchor check` after every resume to re-orient before working.
-
-```
-phantom.py anchor show              # display both anchors + current position
-phantom.py anchor check             # reorientation panel: origin → goal → current
-phantom.py anchor set-goal --criteria "criterion 1" "criterion 2"
-```
-
-### ✅ Checkpoint System — `phantom.py checkpoint`
-Built. Non-negotiable gates run before moving on or completing.
-Gates: ping freshness, unresolved drift, scope concentration, coverage zero.
-
-```
-phantom.py checkpoint               # soft mode: scope drift is a warning
-phantom.py checkpoint --gate        # strict mode: scope drift is a hard failure
-phantom.py checkpoint --require-full-coverage
-```
-
-### ⬜ Goal Alignment Checker — not built
-Would compare `state.task` to `progress_note` on each heartbeat fire.
-Current proxy: `phantom.py report` shows task + last 5 progress notes side by side.
-
-### ⬜ Progress Note Auditor — not built
-Would score note specificity. Currently enforced by protocol only:
-ping notes should list specific changes, not vague summaries.
-
-### ⬜ Drift Guard `--ignore-patterns` — not built
-Would suppress false positives from known-committing files (auto-save log, etc.)
+**Lesson:** Docs outside the main CLAUDE.md improvement table rot quickly. Either
+include them in the dogfood session scope or delete them.
 
 ---
 
-## What the Full System Looks Like Now
+## Pattern 6: Heartbeat Holds On Git Activity After Commits
 
-```
-Main Claude session
-├── Heartbeat agent       — idle detection, session keepalive (heartbeat_runner.py)
-├── Drift Guard agent     — horizontal drift monitor (drift_guard.py)
-├── Container Logger      — vitals daemon (container_logger.py)
-├── tools/scope_guard.py  — portable git diff scope checker
-└── tools/coverage_tracker.py  — target file coverage checker
+**What happened:** The heartbeat runner detects `[git:index]` as an activity signal
+to prevent false fires while Claude is staging files. But after committing, git
+operations (push, status) continue to update `.git/FETCH_HEAD`, config, etc.
+The runner continued showing `HOLD — active Ns ago (need 180s) [git:index]`
+for several minutes after the last real code edit.
 
-phantom.py check      — unified scope + coverage in one command
-phantom.py status     — live view: heartbeat ETA, coverage count, drift state
-phantom.py report     — full session overview with all of the above
-phantom.py anchor     — immovable origin + goal navigation anchors
-phantom.py checkpoint — non-negotiable gate checks before proceeding
-```
+**How it manifested:** Expected fire at T+3min, actual fire at T+10min because the
+git push and container_logger commits kept the `[git:index]` signal fresh.
 
-The heartbeat gives continuity. The drift guard gives horizontal discipline.
-The coverage check gives target accountability. The anchor system gives
-re-orientation after every context break. The checkpoint system enforces
-that known-good practices are always followed — not optional.
+**Impact:** Longer wait for heartbeat fire than the configured threshold implies.
+Not a bug — legitimate hold — but confusing when watching the status.
 
-Together they approximate having a human looking over your shoulder — but made of agents.
+**Lesson:** After the last commit + push in a turn, wait an extra ~30s before the
+idle timer actually starts counting down. Factor this into expected fire timing.
+
+---
+
+## What Works Well (Don't Break)
+
+- **Four-gate drift evaluation** — almost no false positives on legitimate single-file tasks
+- **`session_start_ref` anchoring** — drift guard only checks current-session changes
+- **`_is_auto_generated()` filter** — `logs/` dir never inflates scope percentage
+- **`heartbeat_fires[]` list** — reliable fire detection from state (not agent output)
+- **`recover` command** — clears any stuck flag cleanly without losing session data
+- **`anchor check` after resume** — re-orienting to Point B before each turn prevents context drift
+- **`checkpoint` before `complete`** — non-negotiable gates catch lazy completions
