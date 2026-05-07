@@ -79,7 +79,7 @@ DRIFT DETECTED [SCOPE_CREEP] after N check(s):
 ======================================================
 ACTION: Changes are drifting outside declared scope.
   Option A: Move edits back to scope files.
-  Option B: Update scope — phantom.py start --scope <files> --force
+  Option B: Update scope — phantom.py scope-update --scope <files>
   Then re-arm: phantom.py drift-arm
 ```
 

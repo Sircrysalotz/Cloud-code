@@ -116,6 +116,7 @@ Do NOT call it:
 | Agents use Monitor tool for runner — process dies when Monitor closes (stuck flag) | HEARTBEAT.md + DRIFT_GUARD.md v5: explicit "NOT Monitor tool" warning with root cause |
 | `container_vitals.log` in scope analysis (10% inflation) — only `last_session_state.json` was filtered | `_is_auto_generated()` helper filters entire `logs/` dir from all scope paths (phantom.py + drift_guard.py) |
 | `report` coverage section lists targets without ✓/✗ — `check` shows them, `report` doesn't | `report` now runs git diff and shows ✓/✗ per target, consistent with `check` |
+| Scope declared at start can't be updated mid-session — `start --force` resets everything | `scope-update` command: updates `scope_files`, `coverage_targets`, `scope_threshold` without resetting session state |
 | Heartbeat agent fabricates entire fire output using HEARTBEAT.md docs as template — state never updated | `HEARTBEAT.md` v6: fabrication prevention rules + post-flight state verification + exact HOLD/fire formats |
 | After fabricated fire, main session has no way to detect it without manual inspection | Protocol: check `rounds_remaining` decreased + `last_heartbeat_fired` set before accepting fire as real |
 
@@ -324,6 +325,12 @@ python3 PROJECT_PHANTOM/agents/phantom.py check --targets agents/phantom.py agen
 
 # Check with custom drift threshold
 python3 PROJECT_PHANTOM/agents/phantom.py check --threshold 30
+
+# Update scope mid-session (without resetting turns or state)
+python3 PROJECT_PHANTOM/agents/phantom.py scope-update --scope agents/phantom.py CLAUDE.md
+python3 PROJECT_PHANTOM/agents/phantom.py scope-update --coverage-targets agents/phantom.py agents/heartbeat_runner.py
+python3 PROJECT_PHANTOM/agents/phantom.py scope-update --scope-threshold 40
+# Then re-arm drift guard: phantom.py drift-arm
 
 # Save state to git (survives container restart)
 python3 PROJECT_PHANTOM/agents/phantom.py save

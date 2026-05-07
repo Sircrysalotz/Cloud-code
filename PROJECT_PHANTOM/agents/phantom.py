@@ -1201,6 +1201,33 @@ def cmd_drift_arm(args):
         print(f"  Scope:     {' '.join(scope)}")
 
 
+def cmd_scope_update(args):
+    """Update scope_files and/or coverage_targets mid-session without resetting state."""
+    state = require_state()
+    changed = False
+    if args.scope is not None:
+        state["scope_files"] = args.scope
+        # Clear any existing drift_warning since scope context changed
+        state["drift_warning"] = None
+        state["drift_warned_at"] = None
+        changed = True
+        print(f"Scope updated: {' '.join(args.scope) if args.scope else '(cleared)'}")
+    if args.coverage_targets is not None:
+        state["coverage_targets"] = args.coverage_targets
+        state["coverage_full"] = None
+        changed = True
+        print(f"Coverage targets updated: {' '.join(args.coverage_targets) if args.coverage_targets else '(cleared)'}")
+    if args.scope_threshold is not None:
+        state["scope_threshold"] = args.scope_threshold
+        changed = True
+        print(f"Scope threshold updated: {args.scope_threshold}%")
+    if not changed:
+        print("No changes. Use --scope, --coverage-targets, or --scope-threshold.")
+        return
+    atomic_write(state)
+    print("Re-arm drift guard to apply new scope: phantom.py drift-arm")
+
+
 def cmd_drift_done(args):
     """Call after drift guard sub-agent returns to read its findings."""
     state = require_state()
@@ -1467,6 +1494,21 @@ def cmd_checkpoint(args):
     print()
 
     all_ok = not failures
+
+    # Build brief gate summary (shown even on success so numbers are visible)
+    gate_lines = []
+    if last_active:
+        try:
+            ping_age = (datetime.now() - datetime.strptime(last_active, "%Y-%m-%d %H:%M:%S")).total_seconds()
+            gate_lines.append(f"Ping:     {ping_age:.0f}s ago")
+        except Exception:
+            pass
+    gate_lines.append(f"Drift:    {'⚠ pending' if state.get('drift_warning') else 'clean'}")
+    targets = state.get("coverage_targets") or []
+    if targets:
+        cov = _quick_coverage(state)
+        gate_lines.append(f"Coverage: {cov or '?'}")
+
     if failures:
         print(f"  BLOCKED ({len(failures)} gate(s) failed):")
         for f in failures:
@@ -1475,6 +1517,9 @@ def cmd_checkpoint(args):
         print(f"  Warnings ({len(warnings)}):")
         for w in warnings:
             print(f"    ⚠ {w}")
+    if all_ok and gate_lines:
+        for gl in gate_lines:
+            print(f"  ✓ {gl}")
     if all_ok and not warnings:
         print(f"  ✓ All gates passed — good to continue.")
     elif all_ok:
@@ -1753,6 +1798,11 @@ p.add_argument("--json", action="store_true",
 sub.add_parser("drift-arm",     help="Arm the drift guard before spawning drift_guard.py")
 sub.add_parser("drift-done",    help="Read drift guard findings after sub-agent returns")
 sub.add_parser("drift-status",  help="Show drift guard state and last warning")
+
+p = sub.add_parser("scope-update", help="Update scope/coverage targets mid-session without resetting state")
+p.add_argument("--scope",            nargs="+", default=None, help="New scope file list")
+p.add_argument("--coverage-targets", nargs="+", default=None, dest="coverage_targets", help="New coverage target list")
+p.add_argument("--scope-threshold",  type=float, default=None, dest="scope_threshold", help="New scope threshold %%")
 sub.add_parser("env",           help="Show resolved paths and environment check")
 
 p = sub.add_parser("anchor", help="Anchor-based navigation: show origin/goal, re-orient, set criteria")
@@ -1787,6 +1837,7 @@ args = parser.parse_args()
     "drift-arm":     cmd_drift_arm,
     "drift-done":    cmd_drift_done,
     "drift-status":  cmd_drift_status,
+    "scope-update":  cmd_scope_update,
     "env":           cmd_env,
     "anchor":        cmd_anchor,
     "checkpoint":    cmd_checkpoint,

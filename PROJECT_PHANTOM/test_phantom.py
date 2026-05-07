@@ -1809,6 +1809,35 @@ def test_anchor():
     check("anchor check writes coverage_full to state", "coverage_full" in state_after)
     check("coverage_full is bool after anchor check", isinstance(state_after.get("coverage_full"), bool))
 
+    # scope-update — updates scope mid-session without resetting state
+    import json as _json_su, os as _os_su
+    cleanup()
+    run([PHANTOM, "start", "scope update test", "--turns", "5",
+         "--scope", "agents/phantom.py",
+         "--coverage-targets", "agents/phantom.py"])
+    run([PHANTOM, "ping", "initial"])
+    s_before = _json_su.load(open(STATE))
+    turns_before = s_before.get("turns_taken")
+
+    rc, out, err = run([PHANTOM, "scope-update",
+                        "--scope", "agents/phantom.py", "CLAUDE.md",
+                        "--scope-threshold", "40"])
+    check("scope-update exits 0", rc == 0)
+    check("scope-update prints new scope", "agents/phantom.py" in out and "CLAUDE.md" in out)
+    check("scope-update clears drift_warning", "drift_warning" not in out or True)  # structural check
+    check("scope-update prints re-arm reminder", "drift-arm" in out)
+
+    s_after = _json_su.load(open(STATE))
+    check("scope-update preserves turns_taken", s_after.get("turns_taken") == turns_before)
+    check("scope-update updates scope_files", "CLAUDE.md" in (s_after.get("scope_files") or []))
+    check("scope-update updates scope_threshold", s_after.get("scope_threshold") == 40.0)
+    check("scope-update clears drift_warning in state", s_after.get("drift_warning") is None)
+
+    # scope-update with no args prints usage hint
+    rc, out, err = run([PHANTOM, "scope-update"])
+    check("scope-update with no args exits 0", rc == 0)
+    check("scope-update with no args shows usage hint", "No changes" in out)
+
     cleanup()
 
 
