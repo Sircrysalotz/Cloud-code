@@ -89,6 +89,36 @@ If drift fires, the main session sees it via `drift-done` and can spread changes
 
 ---
 
+## Done Criteria (auto-evaluated)
+
+Pass `--done-criteria` at session start to set goals. The system auto-marks `[x]` when it can verify them from state — no manual checking needed.
+
+```bash
+python3 agents/phantom.py start "my task" \
+  --done-criteria \
+    "CLAUDE.md updated" \
+    "README.md created" \
+    "583+ tests passing" \
+    "coverage 4/4" \
+    "observed 6+ heartbeat fires" \
+    "session elapsed 90+ minutes" \
+    "anchor check used at least once" \
+    "checkpoint before completion"
+```
+
+| Pattern | Example | Auto-verified via |
+|---|---|---|
+| File changed | `"CLAUDE.md updated"` | `git diff` since session start |
+| File created | `"README.md created"` | `git diff` since session start |
+| Tests passing | `"583+ tests passing"` | `ping --tests N` recording |
+| Coverage | `"coverage 4/4"` | `phantom.py check` |
+| Heartbeat fires | `"observed 6+ heartbeat fires"` | fire count in state |
+| Elapsed time | `"session elapsed 90+ minutes"` | wall-clock vs start time |
+| Anchor check | `"anchor check used at least once"` | anchor check call count |
+| Checkpoint | `"checkpoint before completion"` | checkpoint call count |
+
+---
+
 ## Profiles (built-in presets)
 
 ```bash
@@ -111,7 +141,7 @@ python3 agents/phantom.py start "task" --profile marathon
 | `agents/phantom.py` | Everything — session CLI, state management, all commands |
 | `agents/heartbeat_runner.py` | Background poller — fires when idle |
 | `agents/drift_guard.py` | Background watcher — fires when one file dominates |
-| `agents/criteria.py` | Shared module — evaluates done-criteria against session state |
+| `agents/criteria.py` | Shared module — auto-evaluates done-criteria against session state |
 | `agents/container_logger.py` | Logs container vitals every 60s |
 | `agents/HEARTBEAT.md` | Instructions for the heartbeat sub-agent |
 | `agents/DRIFT_GUARD.md` | Instructions for the drift guard sub-agent |
@@ -144,7 +174,7 @@ Fix: `phantom.py scope-update --scope <your files>` then `drift-arm`.
 
 ```bash
 python3 test_phantom.py
-# 583 tests — covers all commands, heartbeat runner, drift guard, criteria module
+# 588 tests — covers all commands, heartbeat runner, drift guard, criteria module
 ```
 
 ---
