@@ -1,0 +1,10 @@
+{
+  "id": "2026-05-08T00:50:21_turn-4-fire-1-confirmed-round-1-10-gap-1",
+  "timestamp": "2026-05-08T00:50:21",
+  "session": "2026-05-08",
+  "type": "observation",
+  "message": "Turn 4: Fire 1 confirmed (round 1/10, gap=189s). Resuming. Will build PHANTOM integration for CHRONICLE next.",
+  "tags": [
+    "phantom-import"
+  ]
+}
