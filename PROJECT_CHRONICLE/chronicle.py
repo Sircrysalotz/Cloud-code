@@ -470,7 +470,7 @@ def cmd_status(args):
 
 
 def cmd_save(args):
-    """Stage all memory/ files with git so they don't appear as untracked."""
+    """Stage all memory/ files with git (new and modified) so nothing appears as untracked or dirty."""
     mem = _memory_dir()
     if not mem.exists():
         print("No memory/ directory found. Run 'init' first.")
@@ -478,14 +478,22 @@ def cmd_save(args):
 
     import subprocess
 
-    # Check for untracked files in memory/ before staging
+    # Check for untracked files in memory/
     untracked = subprocess.run(
         ["git", "ls-files", "--others", "--exclude-standard", str(mem)],
         capture_output=True, text=True, cwd=_root()
     )
     new_files = [l for l in untracked.stdout.strip().splitlines() if l]
 
-    if not new_files:
+    # Check for modified tracked files in memory/
+    modified = subprocess.run(
+        ["git", "ls-files", "--modified", str(mem)],
+        capture_output=True, text=True, cwd=_root()
+    )
+    mod_files = [l for l in modified.stdout.strip().splitlines() if l]
+
+    to_stage = new_files + mod_files
+    if not to_stage:
         print("Nothing new to stage in memory/.")
         return 0
 
@@ -497,9 +505,14 @@ def cmd_save(args):
         print(f"git add failed: {result.stderr.strip()}")
         return 1
 
-    print(f"Staged {len(new_files)} file(s):")
-    for f in new_files:
-        print(f"  {f}")
+    if new_files:
+        print(f"Staged {len(new_files)} new file(s):")
+        for f in new_files:
+            print(f"  + {f}")
+    if mod_files:
+        print(f"Staged {len(mod_files)} modified file(s):")
+        for f in mod_files:
+            print(f"  M {f}")
     return 0
 
 

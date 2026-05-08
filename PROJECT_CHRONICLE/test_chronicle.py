@@ -1010,6 +1010,26 @@ def test_save():
         check("save second run exits 0", r3.returncode == 0)
         check("save second run says nothing new", "Nothing new" in r3.stdout)
 
+        # Commit the staged files so they become tracked
+        subprocess.run(["git", "add", "."], capture_output=True, cwd=tmp_str)
+        subprocess.run(["git", "commit", "-m", "initial"], capture_output=True, cwd=tmp_str)
+
+        # Modify a tracked file via tag (tag rewrites existing JSON records)
+        subprocess.run([sys.executable, chron, "tag", "save test decision", "--tags", "test-tag"],
+                       capture_output=True, cwd=tmp_str)
+
+        # save should detect the modified tracked file and stage it
+        r4 = subprocess.run([sys.executable, chron, "save"],
+                            capture_output=True, text=True, cwd=tmp_str)
+        check("save modified file exits 0", r4.returncode == 0)
+        check("save modified file says Staged", "Staged" in r4.stdout)
+
+        # Third save after commit — nothing new again
+        subprocess.run(["git", "commit", "-m", "tagged"], capture_output=True, cwd=tmp_str)
+        r5 = subprocess.run([sys.executable, chron, "save"],
+                            capture_output=True, text=True, cwd=tmp_str)
+        check("save after commit says nothing new", "Nothing new" in r5.stdout)
+
 
 # ── Runner ─────────────────────────────────────────────────────────────────────
 
