@@ -1,0 +1,157 @@
+{
+  "target": 0.6,
+  "iterations": [
+    {
+      "iter": 0,
+      "rms_z": 1.35,
+      "pass": false,
+      "thresholds": [
+        0.55,
+        0.68,
+        0.75,
+        0.78,
+        0.82
+      ],
+      "flags": [
+        "undefined:high:bad"
+      ]
+    },
+    {
+      "iter": 1,
+      "rms_z": 1.15,
+      "pass": true,
+      "thresholds": [
+        0.49000000000000005,
+        0.68,
+        0.75,
+        0.78,
+        0.82
+      ],
+      "flags": [
+        "undefined:high:warn"
+      ]
+    },
+    {
+      "iter": 2,
+      "rms_z": 1.15,
+      "pass": true,
+      "thresholds": [
+        0.4600000000000001,
+        0.68,
+        0.75,
+        0.78,
+        0.82
+      ],
+      "flags": [
+        "undefined:high:warn"
+      ]
+    },
+    {
+      "iter": 3,
+      "rms_z": 1.16,
+      "pass": true,
+      "thresholds": [
+        0.43000000000000005,
+        0.68,
+        0.75,
+        0.78,
+        0.82
+      ],
+      "flags": [
+        "undefined:high:warn",
+        "undefined:high:warn"
+      ]
+    },
+    {
+      "iter": 4,
+      "rms_z": 1.1,
+      "pass": true,
+      "thresholds": [
+        0.4,
+        0.65,
+        0.75,
+        0.78,
+        0.82
+      ],
+      "flags": [
+        "undefined:high:warn",
+        "undefined:high:warn"
+      ]
+    },
+    {
+      "iter": 5,
+      "rms_z": 1.09,
+      "pass": true,
+      "thresholds": [
+        0.37,
+        0.62,
+        0.75,
+        0.78,
+        0.82
+      ],
+      "flags": [
+        "undefined:high:warn",
+        "undefined:high:warn"
+      ]
+    },
+    {
+      "iter": 6,
+      "rms_z": 1,
+      "pass": true,
+      "thresholds": [
+        0.33999999999999997,
+        0.59,
+        0.75,
+        0.78,
+        0.82
+      ],
+      "flags": [
+        "undefined:high:warn"
+      ]
+    },
+    {
+      "iter": 7,
+      "rms_z": 1.01,
+      "pass": true,
+      "thresholds": [
+        0.30999999999999994,
+        0.59,
+        0.75,
+        0.78,
+        0.82
+      ],
+      "flags": [
+        "undefined:high:warn",
+        "undefined:high:warn"
+      ]
+    },
+    {
+      "iter": 8,
+      "rms_z": 1.18,
+      "pass": false,
+      "thresholds": [
+        0.2799999999999999,
+        0.5599999999999999,
+        0.75,
+        0.78,
+        0.82
+      ],
+      "flags": [
+        "undefined:high:bad"
+      ]
+    },
+    {
+      "iter": 9,
+      "rms_z": 0.84,
+      "pass": true,
+      "thresholds": [
+        0.2799999999999999,
+        0.49999999999999994,
+        0.75,
+        0.78,
+        0.82
+      ],
+      "flags": []
+    }
+  ]
+}

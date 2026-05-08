@@ -6,6 +6,7 @@
  */
 
 import assert from 'assert/strict';
+import { check, section } from '../helpers.js';
 import { makeGrid, cloneGrid } from '../../src/core/grid.js';
 import {
   makeKeyframe, totalDuration, assertUniformSize,
@@ -31,10 +32,10 @@ function twoFrameSeq() {
   return [makeKeyframe(g1, 100), makeKeyframe(g2, 200)];
 }
 
-let pass = 0, fail = 0;
+section('animation — keyframe');
 function test(name, fn) {
-  try { fn(); pass++; }
-  catch (e) { fail++; console.error(`  FAIL: ${name}\n    ${e.message}`); }
+  try { fn(); check(name, true); }
+  catch (e) { check(name, false, e.message); }
 }
 
 // ── makeKeyframe ──────────────────────────────────────────────────────────────
@@ -370,7 +371,4 @@ test('keyframesToPNG larger scale produces larger output', () => {
   assert.ok(large.length > small.length, 'scale=4 should be larger than scale=1');
 });
 
-// ── Results ───────────────────────────────────────────────────────────────────
-
-console.log(`\nAnimation tests: ${pass} passed, ${fail} failed`);
-if (fail > 0) process.exit(1);
+// Results are tallied by run_all.js via helpers.js
