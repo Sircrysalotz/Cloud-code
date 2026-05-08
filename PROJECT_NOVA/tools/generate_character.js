@@ -187,7 +187,7 @@ function toJSON(g, id, isPost) {
   return JSON.stringify({
     id, source: 'procedural', quality: 'reference_matched',
     tags: ['warrior', 'humanoid', 'standing', 'crimson'],
-    width: W, height: H, data: g,
+    width: W, height: H, data: g.map(row => Array.from(row)),
     metrics: {
       width: W, height: H, total_pixels: W * H,
       body_count: m.body, outline_count: m.outline,
