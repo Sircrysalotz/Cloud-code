@@ -4,5 +4,8 @@
   "session": "unknown",
   "type": "decision",
   "message": "chose JSON files over SQLite for decision storage \u2014 no dependencies, human-readable, git-diffable",
-  "tags": []
+  "tags": [
+    "architecture",
+    "storage"
+  ]
 }

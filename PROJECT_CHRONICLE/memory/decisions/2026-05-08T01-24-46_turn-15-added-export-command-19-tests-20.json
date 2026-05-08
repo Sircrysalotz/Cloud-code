@@ -1,0 +1,10 @@
+{
+  "id": "2026-05-08T01:24:46_turn-15-added-export-command-19-tests-20",
+  "timestamp": "2026-05-08T01:24:46",
+  "session": "2026-05-08",
+  "type": "observation",
+  "message": "Turn 15: Added 'export' command + 19 tests. 202/202 passing. Imported 6 new obs. save staged them cleanly.",
+  "tags": [
+    "phantom-import"
+  ]
+}

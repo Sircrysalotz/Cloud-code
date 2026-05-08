@@ -1,0 +1,10 @@
+{
+  "id": "2026-05-08T01:24:46_turn-16-fire-7-confirmed-round-7-10-gap-",
+  "timestamp": "2026-05-08T01:24:46",
+  "session": "2026-05-08",
+  "type": "observation",
+  "message": "Turn 16: Fire 7 confirmed (round 7/10, gap=192s). 7 fires. 42min elapsed. Updating CLAUDE.md with export + filters, then adding 'tag' command.",
+  "tags": [
+    "phantom-import"
+  ]
+}
