@@ -144,11 +144,18 @@ def cmd_log(args):
 
 
 def cmd_history(args):
-    records = _load_decisions(last=args.last)
+    records = _load_decisions(last=None)  # load all, filter before truncating
+    # Apply filters
+    if args.session:
+        records = [r for r in records if r.get("session") == args.session]
+    if args.type:
+        records = [r for r in records if r.get("type") == args.type]
     if not records:
         print("No decisions recorded yet.")
         return 0
-    total = len(list(_decisions_dir().glob("*.json"))) if _decisions_dir().exists() else 0
+    total = len(records)
+    if args.last:
+        records = records[:args.last]  # already sorted newest-first by _load_decisions
     shown = len(records)
     if args.last and total > shown:
         print(f"Showing last {shown} of {total} decisions\n")
@@ -165,6 +172,11 @@ def cmd_history(args):
 
 def cmd_search(args):
     records = _load_decisions()
+    # Apply session/type filters before text search
+    if args.session:
+        records = [r for r in records if r.get("session") == args.session]
+    if args.type:
+        records = [r for r in records if r.get("type") == args.type]
     query = args.query.lower()
     matches = [
         r for r in records
@@ -477,10 +489,16 @@ def main():
     # history
     p_hist = sub.add_parser("history", help="Show recent decisions")
     p_hist.add_argument("--last", type=int, help="Show only last N entries")
+    p_hist.add_argument("--session", help="Filter to a specific session ID")
+    p_hist.add_argument("--type", choices=["decision", "observation", "failure"],
+                        help="Filter to a specific record type")
 
     # search
     p_search = sub.add_parser("search", help="Search decisions by keyword")
     p_search.add_argument("query", help="Search term")
+    p_search.add_argument("--session", help="Limit search to a specific session ID")
+    p_search.add_argument("--type", choices=["decision", "observation", "failure"],
+                          help="Limit search to a specific record type")
 
     # context
     sub.add_parser("context", help="Print MEMORY.md for session startup injection")

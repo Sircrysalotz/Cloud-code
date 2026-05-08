@@ -532,6 +532,93 @@ def test_history_order():
         check("history --last 1 shows only 1 entry", r2.stdout.count("[decision]") == 1)
 
 
+def test_history_filters():
+    print("\n=== history filters ===")
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        chron = str(tmp / "chronicle.py")
+        shutil.copy(CHRONICLE, chron)
+        subprocess.run([sys.executable, chron, "init"], capture_output=True, cwd=tmp_str)
+
+        # Seed records across two sessions and types
+        subprocess.run([sys.executable, chron, "log", "sess1 decision",
+                        "--session", "s1", "--type", "decision"], capture_output=True, cwd=tmp_str)
+        subprocess.run([sys.executable, chron, "log", "sess1 observation",
+                        "--session", "s1", "--type", "observation"], capture_output=True, cwd=tmp_str)
+        subprocess.run([sys.executable, chron, "log", "sess2 decision",
+                        "--session", "s2", "--type", "decision"], capture_output=True, cwd=tmp_str)
+        subprocess.run([sys.executable, chron, "log", "sess2 failure",
+                        "--session", "s2", "--type", "failure"], capture_output=True, cwd=tmp_str)
+
+        # --session filter
+        r = subprocess.run([sys.executable, chron, "history", "--session", "s1"],
+                           capture_output=True, text=True, cwd=tmp_str)
+        check("history --session s1 exits 0", r.returncode == 0)
+        check("history --session s1 shows s1 records", "sess1 decision" in r.stdout)
+        check("history --session s1 excludes s2 records", "sess2 decision" not in r.stdout)
+
+        # --type filter
+        r2 = subprocess.run([sys.executable, chron, "history", "--type", "decision"],
+                            capture_output=True, text=True, cwd=tmp_str)
+        check("history --type decision exits 0", r2.returncode == 0)
+        check("history --type decision shows decisions", "sess1 decision" in r2.stdout)
+        check("history --type decision shows s2 decision", "sess2 decision" in r2.stdout)
+        check("history --type decision excludes observations", "sess1 observation" not in r2.stdout)
+        check("history --type decision excludes failures", "sess2 failure" not in r2.stdout)
+
+        # Combined filters
+        r3 = subprocess.run([sys.executable, chron, "history",
+                             "--session", "s2", "--type", "failure"],
+                            capture_output=True, text=True, cwd=tmp_str)
+        check("history --session s2 --type failure exits 0", r3.returncode == 0)
+        check("history combined filter shows only s2 failure", "sess2 failure" in r3.stdout)
+        check("history combined filter excludes s2 decision", "sess2 decision" not in r3.stdout)
+
+        # --session with no matches
+        r4 = subprocess.run([sys.executable, chron, "history", "--session", "nonexistent"],
+                            capture_output=True, text=True, cwd=tmp_str)
+        check("history --session nonexistent exits 0", r4.returncode == 0)
+        check("history --session nonexistent says no decisions", "No decisions" in r4.stdout)
+
+
+def test_search_filters():
+    print("\n=== search filters ===")
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        chron = str(tmp / "chronicle.py")
+        shutil.copy(CHRONICLE, chron)
+        subprocess.run([sys.executable, chron, "init"], capture_output=True, cwd=tmp_str)
+
+        subprocess.run([sys.executable, chron, "log", "auth service decision",
+                        "--session", "s1", "--type", "decision"], capture_output=True, cwd=tmp_str)
+        subprocess.run([sys.executable, chron, "log", "auth service observation",
+                        "--session", "s2", "--type", "observation"], capture_output=True, cwd=tmp_str)
+        subprocess.run([sys.executable, chron, "log", "unrelated entry",
+                        "--session", "s1"], capture_output=True, cwd=tmp_str)
+
+        # search --session narrows results
+        r = subprocess.run([sys.executable, chron, "search", "auth", "--session", "s1"],
+                           capture_output=True, text=True, cwd=tmp_str)
+        check("search --session s1 exits 0", r.returncode == 0)
+        check("search --session s1 finds auth in s1", "auth service decision" in r.stdout)
+        check("search --session s1 excludes s2", "auth service observation" not in r.stdout)
+
+        # search --type narrows results
+        r2 = subprocess.run([sys.executable, chron, "search", "auth", "--type", "observation"],
+                            capture_output=True, text=True, cwd=tmp_str)
+        check("search --type observation exits 0", r2.returncode == 0)
+        check("search --type observation finds observation", "auth service observation" in r2.stdout)
+        check("search --type observation excludes decision", "auth service decision" not in r2.stdout)
+
+        # Combined: session + type + query
+        r3 = subprocess.run([sys.executable, chron, "search", "auth",
+                             "--session", "s1", "--type", "decision"],
+                            capture_output=True, text=True, cwd=tmp_str)
+        check("search combined filter exits 0", r3.returncode == 0)
+        check("search combined filter finds s1 decision", "auth service decision" in r3.stdout)
+        check("search combined filter: 1 match", "1 match" in r3.stdout)
+
+
 def test_search_multiple_matches():
     print("\n=== search multiple matches ===")
     with tempfile.TemporaryDirectory() as tmp_str:
@@ -819,6 +906,8 @@ def main():
     test_record_integrity()
     test_log_types_exhaustive()
     test_history_order()
+    test_history_filters()
+    test_search_filters()
     test_search_multiple_matches()
     test_summarize_only_decisions_section()
     test_init_default_project_name()
