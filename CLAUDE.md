@@ -26,7 +26,10 @@ Cloud-code/
 ├── PROJECT_PHANTOM/
 │   ├── CLAUDE.md
 │   └── ...
-└── PROJECT_NOVA/
+├── PROJECT_NOVA/
+│   ├── CLAUDE.md
+│   └── ...
+└── PROJECT_CHRONICLE/
     ├── CLAUDE.md
     └── ...
 ```
@@ -38,8 +41,9 @@ Cloud-code/
 | Codename     | Folder                  | Status    |
 |--------------|-------------------------|-----------|
 | NIGHTFALL    | `PROJECT_NIGHTFALL/`    | Template  |
-| PHANTOM      | `PROJECT_PHANTOM/`      | Template  |
+| PHANTOM      | `PROJECT_PHANTOM/`      | Active    |
 | NOVA         | `PROJECT_NOVA/`         | Template  |
+| CHRONICLE    | `PROJECT_CHRONICLE/`    | Active    |
 
 ---
 
