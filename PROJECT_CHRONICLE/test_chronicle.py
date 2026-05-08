@@ -416,6 +416,166 @@ def test_record_integrity():
               "integrity test decision" in r.stdout)
 
 
+def test_log_types_exhaustive():
+    print("\n=== log types exhaustive ===")
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        chron = str(tmp / "chronicle.py")
+        shutil.copy(CHRONICLE, chron)
+        subprocess.run([sys.executable, chron, "init"], capture_output=True, cwd=tmp_str)
+
+        # All three types work and are stored correctly
+        for rtype in ("decision", "observation", "failure"):
+            r = subprocess.run([sys.executable, chron, "log", f"a {rtype} message",
+                                "--type", rtype],
+                               capture_output=True, text=True, cwd=tmp_str)
+            check(f"log --type {rtype} exits 0", r.returncode == 0)
+
+        files = list((tmp / "memory" / "decisions").glob("*.json"))
+        check("3 records created for 3 types", len(files) == 3)
+
+        types_found = {json.loads(f.read_text())["type"] for f in files}
+        check("decision type stored", "decision" in types_found)
+        check("observation type stored", "observation" in types_found)
+        check("failure type stored", "failure" in types_found)
+
+        # Default type is decision
+        subprocess.run([sys.executable, chron, "log", "no type given"],
+                       capture_output=True, cwd=tmp_str)
+        files2 = list((tmp / "memory" / "decisions").glob("*.json"))
+        recs = [json.loads(f.read_text()) for f in files2]
+        default_rec = next((r for r in recs if r["message"] == "no type given"), None)
+        check("default type is decision", default_rec is not None and default_rec["type"] == "decision")
+
+
+def test_history_order():
+    print("\n=== history order ===")
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        chron = str(tmp / "chronicle.py")
+        shutil.copy(CHRONICLE, chron)
+        subprocess.run([sys.executable, chron, "init"], capture_output=True, cwd=tmp_str)
+
+        messages = ["first entry", "second entry", "third entry"]
+        for msg in messages:
+            subprocess.run([sys.executable, chron, "log", msg],
+                           capture_output=True, cwd=tmp_str)
+
+        r = subprocess.run([sys.executable, chron, "history"],
+                           capture_output=True, text=True, cwd=tmp_str)
+        out = r.stdout
+        check("history exits 0", r.returncode == 0)
+        # All three messages appear
+        for msg in messages:
+            check(f"history shows '{msg}'", msg in out)
+
+        # With --last 1, only most recent shown (third entry)
+        r2 = subprocess.run([sys.executable, chron, "history", "--last", "1"],
+                            capture_output=True, text=True, cwd=tmp_str)
+        check("history --last 1 exits 0", r2.returncode == 0)
+        check("history --last 1 shows only 1 entry", r2.stdout.count("[decision]") == 1)
+
+
+def test_search_multiple_matches():
+    print("\n=== search multiple matches ===")
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        chron = str(tmp / "chronicle.py")
+        shutil.copy(CHRONICLE, chron)
+        subprocess.run([sys.executable, chron, "init"], capture_output=True, cwd=tmp_str)
+
+        subprocess.run([sys.executable, chron, "log", "database schema decision"],
+                       capture_output=True, cwd=tmp_str)
+        subprocess.run([sys.executable, chron, "log", "database connection pooling",
+                        "--type", "observation"], capture_output=True, cwd=tmp_str)
+        subprocess.run([sys.executable, chron, "log", "unrelated entry"],
+                       capture_output=True, cwd=tmp_str)
+
+        r = subprocess.run([sys.executable, chron, "search", "database"],
+                           capture_output=True, text=True, cwd=tmp_str)
+        check("search multiple exits 0", r.returncode == 0)
+        check("search multiple finds 2 matches", "2 match" in r.stdout)
+        check("search multiple shows schema decision", "schema" in r.stdout)
+        check("search multiple shows connection pooling", "connection" in r.stdout)
+        check("search multiple excludes unrelated", r.stdout.count("unrelated") == 0)
+
+
+def test_summarize_only_decisions_section():
+    print("\n=== summarize decisions-only session ===")
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        chron = str(tmp / "chronicle.py")
+        shutil.copy(CHRONICLE, chron)
+        subprocess.run([sys.executable, chron, "init", "--project", "OnlyDecisions"],
+                       capture_output=True, cwd=tmp_str)
+
+        # Only decisions, no observations or failures
+        for i in range(3):
+            subprocess.run([sys.executable, chron, "log", f"pure decision {i}"],
+                           capture_output=True, cwd=tmp_str)
+
+        r = subprocess.run([sys.executable, chron, "summarize", "--project", "OnlyDecisions",
+                            "--session-id", "decisions-only"],
+                           capture_output=True, text=True, cwd=tmp_str)
+        check("summarize decisions-only exits 0", r.returncode == 0)
+
+        session_file = tmp / "memory" / "sessions" / "decisions-only.md"
+        content = session_file.read_text()
+        check("session has Decisions section", "## Decisions" in content)
+        check("session shows 3 decisions", content.count("pure decision") == 3)
+        # No Observations or Failures section since none recorded
+        check("session has no Observations section when none recorded",
+              "## Observations" not in content)
+        check("session has no Failures section when none recorded",
+              "## Failures" not in content)
+
+
+def test_init_default_project_name():
+    print("\n=== init default project name ===")
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        chron = str(tmp / "chronicle.py")
+        shutil.copy(CHRONICLE, chron)
+
+        # No --project flag — should use parent folder name
+        r = subprocess.run([sys.executable, chron, "init"],
+                           capture_output=True, text=True, cwd=tmp_str)
+        check("init without --project exits 0", r.returncode == 0)
+        memory = (tmp / "memory" / "MEMORY.md").read_text()
+        # The parent folder name (tmp dir basename) should appear in MEMORY.md
+        check("MEMORY.md contains some project name", "Project Memory" in memory)
+
+
+def test_phantom_session_env():
+    print("\n=== PHANTOM_SESSION env var ===")
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        chron = str(tmp / "chronicle.py")
+        shutil.copy(CHRONICLE, chron)
+        subprocess.run([sys.executable, chron, "init"], capture_output=True, cwd=tmp_str)
+
+        env = os.environ.copy()
+        env["PHANTOM_SESSION"] = "phantom-abc123"
+        r = subprocess.run([sys.executable, chron, "log", "env session test"],
+                           capture_output=True, text=True, cwd=tmp_str, env=env)
+        check("log with PHANTOM_SESSION env exits 0", r.returncode == 0)
+
+        files = list((tmp / "memory" / "decisions").glob("*.json"))
+        rec = json.loads(files[0].read_text())
+        check("PHANTOM_SESSION stored as session", rec.get("session") == "phantom-abc123")
+
+        # --session flag overrides env var
+        r2 = subprocess.run([sys.executable, chron, "log", "override test",
+                             "--session", "override-session"],
+                            capture_output=True, text=True, cwd=tmp_str, env=env)
+        check("--session overrides PHANTOM_SESSION env", r2.returncode == 0)
+        files2 = list((tmp / "memory" / "decisions").glob("*.json"))
+        recs = [json.loads(f.read_text()) for f in files2]
+        override_rec = next((r for r in recs if r["message"] == "override test"), None)
+        check("--session value used over env var",
+              override_rec is not None and override_rec.get("session") == "override-session")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────────
 
 def main():
@@ -432,6 +592,12 @@ def main():
     test_memory_deduplication()
     test_no_init_needed_for_log()
     test_record_integrity()
+    test_log_types_exhaustive()
+    test_history_order()
+    test_search_multiple_matches()
+    test_summarize_only_decisions_section()
+    test_init_default_project_name()
+    test_phantom_session_env()
 
     print("\n" + "=" * 50)
     print(f"Results: {PASS} passed, {FAIL} failed")
