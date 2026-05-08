@@ -304,7 +304,8 @@ def test_summarize():
         check("MEMORY.md has file observation", "auth.py" in memory)
 
         # Run again — second session appends
-        subprocess.run([sys.executable, chron, "log", "second session decision"],
+        subprocess.run([sys.executable, chron, "log", "second session decision",
+                        "--session", "test-session-002"],
                        capture_output=True, cwd=tmp_str)
         r3 = subprocess.run([sys.executable, chron, "summarize",
                              "--project", "SumProj", "--session-id", "test-session-002"],
@@ -315,6 +316,61 @@ def test_summarize():
         check("MEMORY.md updated session id", "test-session-002" in memory2)
         sessions = list((tmp / "memory" / "sessions").glob("*.md"))
         check("two session files exist after two summarizes", len(sessions) == 2)
+
+        # Session scoping: session-002 file should only have session-002's decision
+        session2_file = tmp / "memory" / "sessions" / "test-session-002.md"
+        s2_content = session2_file.read_text()
+        check("session-002 file contains second session decision", "second session decision" in s2_content)
+        check("session-002 file does not contain first session decision",
+              "key architecture decision" not in s2_content)
+
+
+def test_summarize_session_scoping():
+    print("\n=== summarize session scoping ===")
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        chron = str(tmp / "chronicle.py")
+        shutil.copy(CHRONICLE, chron)
+        subprocess.run([sys.executable, chron, "init", "--project", "ScopeProj"],
+                       capture_output=True, cwd=tmp_str)
+
+        # Two distinct sessions
+        subprocess.run([sys.executable, chron, "log", "session A decision",
+                        "--session", "sess-A"], capture_output=True, cwd=tmp_str)
+        subprocess.run([sys.executable, chron, "log", "session A observation",
+                        "--type", "observation", "--session", "sess-A"],
+                       capture_output=True, cwd=tmp_str)
+        subprocess.run([sys.executable, chron, "log", "session B decision",
+                        "--session", "sess-B"], capture_output=True, cwd=tmp_str)
+        subprocess.run([sys.executable, chron, "log", "session B failure",
+                        "--type", "failure", "--session", "sess-B"],
+                       capture_output=True, cwd=tmp_str)
+
+        # Summarize session A
+        subprocess.run([sys.executable, chron, "summarize",
+                        "--project", "ScopeProj", "--session-id", "sess-A"],
+                       capture_output=True, cwd=tmp_str)
+        sa_file = tmp / "memory" / "sessions" / "sess-A.md"
+        sa = sa_file.read_text()
+        check("sess-A file has A's decision", "session A decision" in sa)
+        check("sess-A file does not have B's decision", "session B decision" not in sa)
+        check("sess-A file has A's observation", "session A observation" in sa)
+
+        # Summarize session B
+        subprocess.run([sys.executable, chron, "summarize",
+                        "--project", "ScopeProj", "--session-id", "sess-B"],
+                       capture_output=True, cwd=tmp_str)
+        sb_file = tmp / "memory" / "sessions" / "sess-B.md"
+        sb = sb_file.read_text()
+        check("sess-B file has B's decision", "session B decision" in sb)
+        check("sess-B file has B's failure", "session B failure" in sb)
+        check("sess-B file does not have A's decision", "session A decision" not in sb)
+
+        # MEMORY.md is cumulative — has both sessions
+        memory = (tmp / "memory" / "MEMORY.md").read_text()
+        check("MEMORY.md has A's decision", "session A decision" in memory)
+        check("MEMORY.md has B's decision", "session B decision" in memory)
+        check("MEMORY.md has B's failure", "session B failure" in memory)
 
 
 def test_slug_uniqueness():
@@ -756,6 +812,7 @@ def main():
     test_search()
     test_context()
     test_summarize()
+    test_summarize_session_scoping()
     test_slug_uniqueness()
     test_memory_deduplication()
     test_no_init_needed_for_log()

@@ -196,40 +196,46 @@ def cmd_context(args):
 
 def cmd_summarize(args):
     _ensure_dirs()
-    records = _load_decisions()
-    if not records:
+    all_records = _load_decisions()
+    if not all_records:
         print("No decisions to summarize.")
         return 0
 
     session_id = args.session_id or datetime.now().strftime("%Y-%m-%d")
     project = args.project or _root().name
 
-    # Partition by type
-    decisions = [r for r in records if r.get("type") == "decision"]
-    observations = [r for r in records if r.get("type") == "observation"]
-    failures = [r for r in records if r.get("type") == "failure"]
+    # Session file: only this session's records
+    session_records = [r for r in all_records if r.get("session") == session_id]
+    # Fall back to all records if session_id matching yields nothing
+    # (e.g. session_id not set on records, or first-time use)
+    if not session_records:
+        session_records = all_records
 
-    # Build session summary markdown
+    s_decisions = [r for r in session_records if r.get("type") == "decision"]
+    s_observations = [r for r in session_records if r.get("type") == "observation"]
+    s_failures = [r for r in session_records if r.get("type") == "failure"]
+
+    # Build session summary markdown (scoped to this session only)
     lines = [
         f"# Session Summary — {session_id}",
         f"\nProject: {project}",
         f"Generated: {_now_iso()}",
-        f"Total records: {len(records)} ({len(decisions)} decisions, {len(observations)} observations, {len(failures)} failures)",
+        f"This session: {len(session_records)} records ({len(s_decisions)} decisions, {len(s_observations)} observations, {len(s_failures)} failures)",
     ]
 
-    if decisions:
+    if s_decisions:
         lines.append("\n## Decisions")
-        for r in decisions:
+        for r in s_decisions:
             lines.append(f"- [{r['timestamp']}] {r['message']}")
 
-    if observations:
+    if s_observations:
         lines.append("\n## Observations")
-        for r in observations:
+        for r in s_observations:
             lines.append(f"- [{r['timestamp']}] {r['message']}")
 
-    if failures:
+    if s_failures:
         lines.append("\n## Failures / Dead Ends")
-        for r in failures:
+        for r in s_failures:
             lines.append(f"- [{r['timestamp']}] {r['message']}")
 
     session_md = "\n".join(lines) + "\n"
@@ -237,8 +243,11 @@ def cmd_summarize(args):
     session_file.write_text(session_md)
     print(f"Session summary written: {session_file.name}")
 
-    # Update MEMORY.md
-    _update_memory(project, decisions, observations, failures, session_id)
+    # MEMORY.md: cumulative across all sessions
+    all_decisions = [r for r in all_records if r.get("type") == "decision"]
+    all_observations = [r for r in all_records if r.get("type") == "observation"]
+    all_failures = [r for r in all_records if r.get("type") == "failure"]
+    _update_memory(project, all_decisions, all_observations, all_failures, session_id)
     print(f"MEMORY.md updated.")
     return 0
 
