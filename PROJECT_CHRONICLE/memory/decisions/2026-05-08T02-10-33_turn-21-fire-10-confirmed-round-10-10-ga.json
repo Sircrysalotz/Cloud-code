@@ -1,0 +1,10 @@
+{
+  "id": "2026-05-08T02:10:33_turn-21-fire-10-confirmed-round-10-10-ga",
+  "timestamp": "2026-05-08T02:10:33",
+  "session": "2026-05-08",
+  "type": "observation",
+  "message": "Turn 21: Fire 10 confirmed (round 10/10, gap=195s). All heartbeat rounds done. 61min elapsed. 29min remaining for 90min criterion. Waiting to run checkpoint + complete.",
+  "tags": [
+    "phantom-import"
+  ]
+}

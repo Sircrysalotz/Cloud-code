@@ -1,0 +1,10 @@
+{
+  "id": "2026-05-08T02:10:33_turn-20-fire-9-confirmed-round-9-10-gap-",
+  "timestamp": "2026-05-08T02:10:33",
+  "session": "2026-05-08",
+  "type": "observation",
+  "message": "Turn 20: Fire 9 confirmed (round 9/10, gap=199s). 57min elapsed. Criteria 5/7. 33min remaining for elapsed criterion.",
+  "tags": [
+    "phantom-import"
+  ]
+}
