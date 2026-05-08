@@ -807,6 +807,68 @@ def test_from_phantom():
         check("from-phantom counts empty as skipped", "Skipped" in r5.stdout)
 
 
+def test_tag():
+    print("\n=== tag ===")
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        chron = str(tmp / "chronicle.py")
+        shutil.copy(CHRONICLE, chron)
+        subprocess.run([sys.executable, chron, "init"], capture_output=True, cwd=tmp_str)
+
+        subprocess.run([sys.executable, chron, "log", "auth service refactor",
+                        "--type", "decision"], capture_output=True, cwd=tmp_str)
+        subprocess.run([sys.executable, chron, "log", "database migration step",
+                        "--type", "decision"], capture_output=True, cwd=tmp_str)
+        subprocess.run([sys.executable, chron, "log", "unrelated entry"],
+                       capture_output=True, cwd=tmp_str)
+
+        # Tag records matching "auth"
+        r = subprocess.run([sys.executable, chron, "tag", "auth", "--tags", "security", "refactor"],
+                           capture_output=True, text=True, cwd=tmp_str)
+        check("tag exits 0", r.returncode == 0)
+        check("tag reports updated count", "1 record(s) updated" in r.stdout)
+        check("tag shows tagged message", "auth service refactor" in r.stdout)
+
+        # Verify tags stored in file
+        files = list((tmp / "memory" / "decisions").glob("*.json"))
+        recs = [json.loads(f.read_text()) for f in files]
+        auth_rec = next((r for r in recs if "auth" in r.get("message", "")), None)
+        check("tags stored in auth record", auth_rec is not None and "security" in auth_rec.get("tags", []))
+        check("both tags stored", "refactor" in auth_rec.get("tags", []))
+
+        # Re-tag same record — should report "already tagged"
+        r2 = subprocess.run([sys.executable, chron, "tag", "auth", "--tags", "security"],
+                            capture_output=True, text=True, cwd=tmp_str)
+        check("re-tag exits 0", r2.returncode == 0)
+        check("re-tag reports already tagged", "already had all tags" in r2.stdout or "Already tagged" in r2.stdout)
+        check("re-tag reports 0 updated", "0 record(s) updated" in r2.stdout)
+
+        # Tag with no match
+        r3 = subprocess.run([sys.executable, chron, "tag", "nonexistent", "--tags", "foo"],
+                            capture_output=True, text=True, cwd=tmp_str)
+        check("tag no match exits 0", r3.returncode == 0)
+        check("tag no match says so", "No records" in r3.stdout)
+
+        # Tag matches multiple records
+        subprocess.run([sys.executable, chron, "log", "another decision here"],
+                       capture_output=True, cwd=tmp_str)
+        r4 = subprocess.run([sys.executable, chron, "tag", "decision", "--tags", "bulk-tag"],
+                            capture_output=True, text=True, cwd=tmp_str)
+        check("tag multiple exits 0", r4.returncode == 0)
+        # Should match "auth service refactor" (type=decision in message? no — match is in message text)
+        # "auth service refactor", "database migration step", "another decision here" all have "decision" type
+        # but "tag" searches message text, not type
+        # Only "another decision here" contains "decision" in message
+        check("tag multiple updates correct count", "1 record(s) updated" in r4.stdout)
+
+        # Tags are sorted
+        files2 = list((tmp / "memory" / "decisions").glob("*.json"))
+        recs2 = [json.loads(f.read_text()) for f in files2]
+        auth_rec2 = next((r for r in recs2 if "auth" in r.get("message", "")), None)
+        check("tags are sorted alphabetically",
+              auth_rec2 is not None and auth_rec2.get("tags") == sorted(auth_rec2.get("tags", [])))
+
+
 def test_export():
     print("\n=== export ===")
     with tempfile.TemporaryDirectory() as tmp_str:
@@ -975,6 +1037,7 @@ def main():
     test_init_default_project_name()
     test_phantom_session_env()
     test_from_phantom()
+    test_tag()
     test_export()
     test_status()
     test_save()

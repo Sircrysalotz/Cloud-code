@@ -9,6 +9,7 @@ Commands:
   history [--last N]      show recent decision records
   search <query>          find decisions by keyword
   init [--project NAME]   initialize memory/ structure for this project
+  tag <query> --tags ...  add tags to existing records matching query
   export                  full markdown report organized by session
   status                  quick overview: counts, last session, freshness
   save                    stage all memory/ files with git
@@ -327,6 +328,47 @@ def _update_memory(project, decisions, observations, failures, session_id):
     mf.write_text("\n".join(sections) + "\n")
 
 
+def cmd_tag(args):
+    """Add tags to existing records matching a search query."""
+    d = _decisions_dir()
+    if not d.exists():
+        print("No decisions directory found.")
+        return 1
+
+    query = args.query.lower()
+    new_tags = args.tags
+
+    files = sorted(d.glob("*.json"))
+    matched = []
+    for f in files:
+        try:
+            record = json.loads(f.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        if query in record.get("message", "").lower():
+            matched.append((f, record))
+
+    if not matched:
+        print(f"No records matching '{args.query}'.")
+        return 0
+
+    updated = 0
+    for f, record in matched:
+        existing_tags = set(record.get("tags", []))
+        added = [t for t in new_tags if t not in existing_tags]
+        if added:
+            record["tags"] = sorted(existing_tags | set(new_tags))
+            f.write_text(json.dumps(record, indent=2))
+            updated += 1
+            print(f"  Tagged: {record['message'][:60]}")
+            print(f"    tags now: {record['tags']}")
+        else:
+            print(f"  Already tagged: {record['message'][:60]}")
+
+    print(f"\n{updated} record(s) updated, {len(matched) - updated} already had all tags.")
+    return 0
+
+
 def cmd_export(args):
     """Generate a full markdown report of all decisions, organized by session."""
     all_records = _load_decisions()
@@ -578,6 +620,11 @@ def main():
     p_sum.add_argument("--session-id", help="Session identifier (default: today's date)")
     p_sum.add_argument("--project", help="Project name")
 
+    # tag
+    p_tag = sub.add_parser("tag", help="Add tags to existing records matching a search query")
+    p_tag.add_argument("query", help="Search term to find records to tag")
+    p_tag.add_argument("--tags", nargs="+", required=True, help="Tags to add")
+
     # export
     p_export = sub.add_parser("export", help="Generate full markdown report organized by session")
     p_export.add_argument("--project", help="Project name")
@@ -607,6 +654,8 @@ def main():
         sys.exit(cmd_context(args))
     elif args.command == "summarize":
         sys.exit(cmd_summarize(args))
+    elif args.command == "tag":
+        sys.exit(cmd_tag(args))
     elif args.command == "export":
         sys.exit(cmd_export(args))
     elif args.command == "status":

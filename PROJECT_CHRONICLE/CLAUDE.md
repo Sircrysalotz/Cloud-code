@@ -75,19 +75,26 @@ python3 chronicle.py init [--project NAME] [--force]
 # Record a decision, observation, or failure mid-session
 python3 chronicle.py log "message" [--type decision|observation|failure] [--session ID] [--tags TAG ...]
 
-# Show recent records
-python3 chronicle.py history [--last N]
+# Show recent records (filter by session, type, or limit count)
+python3 chronicle.py history [--last N] [--session ID] [--type decision|observation|failure]
 
-# Search records by keyword (matches message, type, tags)
-python3 chronicle.py search "query"
+# Search records by keyword (filter by session and/or type)
+python3 chronicle.py search "query" [--session ID] [--type decision|observation|failure]
 
 # Print MEMORY.md — paste at session start for instant context
 python3 chronicle.py context
 
 # End-of-session: extract learnings, update MEMORY.md, write session summary
+# Session file is scoped to this session only; MEMORY.md is cumulative
 python3 chronicle.py summarize [--session-id ID] [--project NAME]
 
-# Quick overview: record counts, last session, MEMORY.md freshness
+# Add tags to existing records matching a search query
+python3 chronicle.py tag "query" --tags TAG [TAG ...]
+
+# Generate full markdown report organized by session (stdout or --output FILE)
+python3 chronicle.py export [--project NAME] [--output FILE]
+
+# Quick overview: record counts by type, last session, MEMORY.md freshness
 python3 chronicle.py status
 
 # Stage all memory/ files with git (run before ending session to prevent untracked file noise)
@@ -164,11 +171,11 @@ python3 PROJECT_CHRONICLE/chronicle.py log "key insight" --type observation
 
 | File | Purpose |
 |---|---|
-| `chronicle.py` | Main CLI (init, log, history, search, context, summarize, status, save, from-phantom) |
+| `chronicle.py` | Main CLI (init, log, history, search, context, summarize, tag, export, status, save, from-phantom) |
 | `memory/MEMORY.md` | Living knowledge file — rewritten by `summarize` |
 | `memory/decisions/` | Individual records (JSON, append-only) |
 | `memory/sessions/` | Per-session summaries (Markdown) |
-| `test_chronicle.py` | Integration tests (150 tests) |
+| `test_chronicle.py` | Integration tests (215 tests) |
 
 ---
 
