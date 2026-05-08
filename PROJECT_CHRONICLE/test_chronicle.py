@@ -576,6 +576,94 @@ def test_phantom_session_env():
               override_rec is not None and override_rec.get("session") == "override-session")
 
 
+def test_from_phantom():
+    print("\n=== from-phantom ===")
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        chron = str(tmp / "chronicle.py")
+        shutil.copy(CHRONICLE, chron)
+        subprocess.run([sys.executable, chron, "init"], capture_output=True, cwd=tmp_str)
+
+        # Build a fake PHANTOM state file
+        state = {
+            "task": "test task for chronicle import",
+            "started": "2026-05-08 10:00:00",
+            "status": "complete",
+            "ping_log": [
+                {"timestamp": "2026-05-08 10:01:00", "note": "turn 1 note: started work"},
+                {"timestamp": "2026-05-08 10:05:00", "note": "turn 2 note: made progress"},
+                {"timestamp": "2026-05-08 10:10:00", "note": "turn 3 note: finished task"},
+            ],
+        }
+        state_file = tmp / "phantom_state.json"
+        state_file.write_text(json.dumps(state))
+
+        r = subprocess.run([sys.executable, chron, "from-phantom", "--state", str(state_file)],
+                           capture_output=True, text=True, cwd=tmp_str)
+        check("from-phantom exits 0", r.returncode == 0)
+        check("from-phantom shows import count", "Imported: 3" in r.stdout)
+        check("from-phantom shows task name", "test task for chronicle import" in r.stdout)
+
+        # 3 records created
+        files = list((tmp / "memory" / "decisions").glob("*.json"))
+        check("from-phantom creates 3 records", len(files) == 3)
+
+        recs = [json.loads(f.read_text()) for f in files]
+        types = {r["type"] for r in recs}
+        check("imported records are type=observation", types == {"observation"})
+
+        tags = {t for r in recs for t in r.get("tags", [])}
+        check("imported records have phantom-import tag", "phantom-import" in tags)
+
+        messages = {r["message"] for r in recs}
+        check("first note imported", "turn 1 note: started work" in messages)
+        check("second note imported", "turn 2 note: made progress" in messages)
+        check("third note imported", "turn 3 note: finished task" in messages)
+
+        sessions = {r["session"] for r in recs}
+        check("session is date portion of started", "2026-05-08" in sessions)
+
+        # Re-run — duplicates skipped
+        r2 = subprocess.run([sys.executable, chron, "from-phantom", "--state", str(state_file)],
+                            capture_output=True, text=True, cwd=tmp_str)
+        check("from-phantom re-run exits 0", r2.returncode == 0)
+        check("re-run skips all duplicates", "Skipped (duplicates/empty): 3" in r2.stdout)
+        files2 = list((tmp / "memory" / "decisions").glob("*.json"))
+        check("re-run creates no new files", len(files2) == 3)
+
+        # Empty ping log
+        state2 = {"task": "empty", "started": "2026-05-08", "ping_log": []}
+        state_file2 = tmp / "phantom_state2.json"
+        state_file2.write_text(json.dumps(state2))
+        r3 = subprocess.run([sys.executable, chron, "from-phantom", "--state", str(state_file2)],
+                            capture_output=True, text=True, cwd=tmp_str)
+        check("from-phantom with empty ping log exits 0", r3.returncode == 0)
+        check("from-phantom with empty ping log says so", "No ping log" in r3.stdout)
+
+        # Missing state file
+        r4 = subprocess.run([sys.executable, chron, "from-phantom",
+                             "--state", "/nonexistent/path.json"],
+                            capture_output=True, text=True, cwd=tmp_str)
+        check("from-phantom with missing file exits 1", r4.returncode == 1)
+
+        # Entries with empty notes are skipped
+        state3 = {
+            "task": "sparse task",
+            "started": "2026-05-08",
+            "ping_log": [
+                {"timestamp": "2026-05-08 10:00:00", "note": ""},
+                {"timestamp": "2026-05-08 10:01:00", "note": "  "},
+                {"timestamp": "2026-05-08 10:02:00", "note": "real note here"},
+            ],
+        }
+        state_file3 = tmp / "phantom_state3.json"
+        state_file3.write_text(json.dumps(state3))
+        r5 = subprocess.run([sys.executable, chron, "from-phantom", "--state", str(state_file3)],
+                            capture_output=True, text=True, cwd=tmp_str)
+        check("from-phantom skips empty notes", "Imported: 1" in r5.stdout)
+        check("from-phantom counts empty as skipped", "Skipped" in r5.stdout)
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────────
 
 def main():
@@ -598,6 +686,7 @@ def main():
     test_summarize_only_decisions_section()
     test_init_default_project_name()
     test_phantom_session_env()
+    test_from_phantom()
 
     print("\n" + "=" * 50)
     print(f"Results: {PASS} passed, {FAIL} failed")

@@ -9,6 +9,7 @@ Commands:
   history [--last N]      show recent decision records
   search <query>          find decisions by keyword
   init [--project NAME]   initialize memory/ structure for this project
+  from-phantom [--state]  import ping notes from a PHANTOM session state file
 """
 
 import argparse
@@ -302,6 +303,83 @@ def _update_memory(project, decisions, observations, failures, session_id):
     mf.write_text("\n".join(sections) + "\n")
 
 
+def cmd_from_phantom(args):
+    """Import ping notes from a PHANTOM session state file as CHRONICLE observations."""
+    _ensure_dirs()
+
+    state_path = args.state
+    if not state_path:
+        # Try common default locations
+        candidates = [
+            Path("/tmp/phantom_session.json"),
+            Path.home() / ".phantom_session.json",
+            Path("logs/last_session_state.json"),
+        ]
+        for c in candidates:
+            if c.exists():
+                state_path = str(c)
+                break
+
+    if not state_path:
+        print("No PHANTOM state file found. Use --state <path>.")
+        return 1
+
+    try:
+        state = json.loads(Path(state_path).read_text())
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"Could not read state file: {e}")
+        return 1
+
+    ping_log = state.get("ping_log", [])
+    if not ping_log:
+        print("No ping log entries found in state.")
+        return 0
+
+    session_id = state.get("started", "unknown")[:10]  # date portion
+    task = state.get("task", "unknown task")
+    imported = 0
+    skipped = 0
+
+    # Track already-imported messages to avoid duplicates on re-run
+    existing = {r.get("message", "") for r in _load_decisions()}
+
+    print(f"Importing from PHANTOM session: {task}")
+    print(f"  State file: {state_path}")
+    print(f"  Ping entries: {len(ping_log)}")
+
+    for entry in ping_log:
+        note = entry.get("note", "").strip()
+        if not note or note in existing:
+            skipped += 1
+            continue
+
+        ts_raw = entry.get("timestamp", _now_iso())
+        # Normalize timestamp format
+        ts = ts_raw.replace(" ", "T")[:19]
+
+        slug = _slug(note)
+        file_ts = ts_raw.replace(" ", "_").replace(":", "-")[:19]
+        record = {
+            "id": f"{ts}_{slug}",
+            "timestamp": ts,
+            "session": session_id,
+            "type": "observation",
+            "message": note,
+            "tags": ["phantom-import"],
+        }
+        fname = _decisions_dir() / f"{file_ts}_{slug}.json"
+        # Avoid collision if file already exists
+        if fname.exists():
+            fname = _decisions_dir() / f"{file_ts}_{slug}_{imported}.json"
+        fname.write_text(json.dumps(record, indent=2))
+        existing.add(note)
+        imported += 1
+        print(f"  [observation] {note[:70]}")
+
+    print(f"\nImported: {imported} | Skipped (duplicates/empty): {skipped}")
+    return 0
+
+
 # ── Entry point ────────────────────────────────────────────────────────────────
 
 def main():
@@ -336,6 +414,10 @@ def main():
     p_sum.add_argument("--session-id", help="Session identifier (default: today's date)")
     p_sum.add_argument("--project", help="Project name")
 
+    # from-phantom
+    p_fp = sub.add_parser("from-phantom", help="Import ping notes from a PHANTOM session state file")
+    p_fp.add_argument("--state", help="Path to phantom session state JSON (auto-detected if omitted)")
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -350,6 +432,8 @@ def main():
         sys.exit(cmd_context(args))
     elif args.command == "summarize":
         sys.exit(cmd_summarize(args))
+    elif args.command == "from-phantom":
+        sys.exit(cmd_from_phantom(args))
     else:
         parser.print_help()
         sys.exit(1)
