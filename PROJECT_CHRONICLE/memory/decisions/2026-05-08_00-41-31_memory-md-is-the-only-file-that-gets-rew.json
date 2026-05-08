@@ -1,0 +1,8 @@
+{
+  "id": "2026-05-08T00:41:31_memory-md-is-the-only-file-that-gets-rew",
+  "timestamp": "2026-05-08T00:41:31",
+  "session": "unknown",
+  "type": "decision",
+  "message": "MEMORY.md is the only file that gets rewritten \u2014 all other records are append-only",
+  "tags": []
+}

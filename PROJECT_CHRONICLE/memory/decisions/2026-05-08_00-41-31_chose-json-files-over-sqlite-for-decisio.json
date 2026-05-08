@@ -1,0 +1,8 @@
+{
+  "id": "2026-05-08T00:41:31_chose-json-files-over-sqlite-for-decisio",
+  "timestamp": "2026-05-08T00:41:31",
+  "session": "unknown",
+  "type": "decision",
+  "message": "chose JSON files over SQLite for decision storage \u2014 no dependencies, human-readable, git-diffable",
+  "tags": []
+}
