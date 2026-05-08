@@ -1,4 +1,1 @@
-# Batch frame files (large; reference.json is the derived summary)
-exports/batch/frame_*_grid.json
-exports/batch/frame_*_palette.json
 node_modules/
