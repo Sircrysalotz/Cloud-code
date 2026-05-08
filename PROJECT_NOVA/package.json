@@ -1,0 +1,12 @@
+{
+  "name": "nova-pixel-art",
+  "version": "0.1.0",
+  "description": "AI-assisted pixel art sprite pipeline",
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --testPathPattern='tests/unit' 2>/dev/null || node tests/run_all.js"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0"
+  }
+}
