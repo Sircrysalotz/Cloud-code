@@ -54,6 +54,36 @@ export function makePalette(colors = DEFAULT_PALETTE) {
   };
 }
 
+/**
+ * Build a Palette from the JSON array emitted by ingest_sprite.py.
+ *
+ * Input format: [{index: 0, rgb: [r,g,b]}, {index: 1, rgb: [r,g,b]}, ...]
+ * Index 0 is always transparent (a=0).  All others are opaque body colors.
+ *
+ * Colors are sorted by luminance (index 1 = darkest, last = brightest) and
+ * assigned sequential ASCII characters '.', '#', 'X', 'x', 'o', 'O', '*', '@', ...
+ *
+ * @param {Array} rgbArray — [{index, rgb:[r,g,b]}, ...]
+ * @returns {Palette}
+ */
+export function paletteFromRGB(rgbArray) {
+  const ASCII = '.#XxoO*@abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const colors = rgbArray.map((entry, i) => {
+    const [r, g, b] = entry.rgb ?? [0, 0, 0];
+    const idx = entry.index ?? i;
+    const isTransparent = idx === 0;
+    return {
+      index: idx,
+      name:  isTransparent ? 'transparent' : `color_${idx}`,
+      hex:   isTransparent ? null : `#${[r,g,b].map(v => v.toString(16).padStart(2,'0')).join('')}`,
+      r, g, b,
+      a:     isTransparent ? 0 : 255,
+      ascii: ASCII[Math.min(idx, ASCII.length - 1)],
+    };
+  });
+  return makePalette(colors);
+}
+
 export const PALETTE = makePalette();
 
 /**
