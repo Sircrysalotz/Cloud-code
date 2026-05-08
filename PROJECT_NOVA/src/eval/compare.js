@@ -121,53 +121,53 @@ export function adjustmentHints(flags) {
     switch (key) {
       case 'shadow_deep_ratio':
         hints.push(direction === 'low'
-          ? 'Add more shadow_deep (index 2) — expand dark shadow side of body parts'
-          : 'Reduce shadow_deep — convert some SD pixels to shadow or mid');
+          ? 'shadow_deep band is underweight — expand the dark shadow side of body parts'
+          : 'shadow_deep band is overweight — shift some pixels up to the shadow band');
         break;
       case 'shadow_ratio':
         hints.push(direction === 'low'
-          ? 'Add shadow (index 3) transition zone — widen the shadow-to-mid gradient'
-          : 'Reduce shadow — tighten transition, shift some SH to mid');
+          ? 'shadow band is thin — widen the transition zone between deep shadow and mid-tone'
+          : 'shadow band is heavy — tighten transition, shift some pixels up to mid');
         break;
       case 'mid_ratio':
         hints.push(direction === 'low'
-          ? 'Mid-tone (index 4) is sparse — body fill is too dark or too bright. Expand mid zone'
-          : 'Too much mid — consider darkening shadow zones or brightening highlight zones');
+          ? 'mid-tone band is sparse — body fill is too dark or too bright; expand the mid zone'
+          : 'mid-tone dominates — darken shadow zones or brighten highlight zones for contrast');
         break;
       case 'bright_ratio':
         hints.push(direction === 'low'
-          ? 'Add bright (index 5) lit edge — 1-2px bright sliver on light-facing surfaces'
-          : 'Reduce bright — trim the lit edge, shift to highlight');
+          ? 'bright band is missing — add a 1-2px lit edge on light-facing surfaces'
+          : 'bright band is heavy — trim the lit edge, shift some pixels to highlight');
         break;
       case 'highlight_ratio':
         hints.push(direction === 'low'
-          ? 'Add highlight (index 6) — small cluster on upper-right of prominent surfaces'
-          : 'Too much highlight — reduce highlight cluster, keep to specular spots only');
+          ? 'highlight band absent — add a small cluster on the upper-right of prominent surfaces'
+          : 'highlight band too large — reduce to specular spots only');
         break;
       case 'peak_ratio':
         hints.push(direction === 'low'
-          ? 'Add peak (index 7) — 2-8 pixels max, specular center of highlight cluster'
-          : 'Too much peak — demote outer peak ring to highlight');
+          ? 'peak band absent — add 2-8 pixels at the specular center of the highlight cluster'
+          : 'peak band too large — demote outer peak ring pixels down to highlight band');
         break;
       case 'symmetry_score':
         hints.push(direction === 'low'
-          ? 'Sprite is asymmetric — check that left/right body halves use matching palette bands'
-          : 'Sprite is too symmetric — add pose variation or shadow asymmetry');
+          ? 'sprite is asymmetric — check that left/right body halves use matching luminance bands'
+          : 'sprite is too symmetric — add pose variation or shadow asymmetry');
         break;
       case 'outline_thickness_variance':
         hints.push(direction === 'high'
-          ? 'Outline is uneven — check for 2×2 outline blocks (pass 2) or broken outline gaps (pass 3)'
-          : 'Outline is too uniform — may lack interior detail lines');
+          ? 'outline is uneven — check for 2×2 outline blocks (pass 2) or broken gaps (pass 3)'
+          : 'outline is too uniform — may lack interior detail lines');
         break;
       case 'unique_body_colors':
         hints.push(direction === 'low'
-          ? `Only ${f.actual ?? '?'} body colors used — add more palette bands for richer shading`
+          ? `only ${f.actual ?? '?'} luminance bands used — use more palette entries for richer shading`
           : '');
         break;
       case 'body_density':
         hints.push(direction === 'low'
-          ? 'Sprite is very sparse — body fills little of the bounding box'
-          : 'Sprite is very dense — consider adding more breathing room / transparency');
+          ? 'sprite is sparse — body fills little of the bounding box'
+          : 'sprite is dense — consider more transparency or breathing room');
         break;
     }
   }
