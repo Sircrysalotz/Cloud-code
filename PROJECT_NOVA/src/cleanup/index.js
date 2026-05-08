@@ -1,8 +1,8 @@
 /**
  * Cleanup pipeline runner — applies all 9 passes in order.
  *
- * Each pass is immutable (returns a new grid). Pass 8 is diagnostic-only
- * and doesn't modify the grid but returns flags.
+ * Each pass is immutable (returns a new grid). Pass 8 is diagnostic-only.
+ * All passes accept an optional palette (default: crimson 8-color).
  */
 
 import { pass1Orphan }           from './pass1_orphan.js';
@@ -14,32 +14,32 @@ import { pass6BandSkip }         from './pass6_band_skip.js';
 import { pass7HighlightArea }    from './pass7_highlight_area.js';
 import { pass8MidDiagnostic }    from './pass8_mid_diagnostic.js';
 import { pass9ContactShadow }    from './pass9_contact_shadow.js';
+import { PALETTE } from '../core/palette.js';
 
 /**
  * Run the full cleanup pipeline on a grid.
- * @param {Uint8Array[]} grid
- * @returns {{ grid: Uint8Array[], flags: string[], passResults: object[] }}
+ *
+ * @param {Array} grid
+ * @param {Palette} [palette] — defaults to the crimson 8-color palette
+ * @returns {{ grid, flags, passResults }}
  */
-export function runCleanup(grid) {
+export function runCleanup(grid, palette = PALETTE) {
   const passResults = [];
 
   function step(name, fn) {
-    const before = grid;
-    grid = fn(grid);
+    grid = fn(grid, palette);
     passResults.push({ pass: name, grid });
-    return grid;
   }
 
-  step('pass1_orphan',           pass1Orphan);
-  step('pass2_outline_thin',     pass2OutlineThin);
-  step('pass3_outline_repair',   pass3OutlineRepair);
-  step('pass4_highlight_cluster',pass4HighlightCluster);
-  step('pass5_single_pixel',     pass5SinglePixel);
-  step('pass6_band_skip',        pass6BandSkip);
-  step('pass7_highlight_area',   pass7HighlightArea);
+  step('pass1_orphan',            pass1Orphan);
+  step('pass2_outline_thin',      pass2OutlineThin);
+  step('pass3_outline_repair',    pass3OutlineRepair);
+  step('pass4_highlight_cluster', pass4HighlightCluster);
+  step('pass5_single_pixel',      pass5SinglePixel);
+  step('pass6_band_skip',         pass6BandSkip);
+  step('pass7_highlight_area',    pass7HighlightArea);
 
-  // Pass 8 is diagnostic — captures flags but grid is unchanged
-  const { grid: diagGrid, flags, ratios } = pass8MidDiagnostic(grid);
+  const { grid: diagGrid, flags, ratios } = pass8MidDiagnostic(grid, palette);
   grid = diagGrid;
   passResults.push({ pass: 'pass8_mid_diagnostic', grid, flags, ratios });
 
@@ -49,13 +49,7 @@ export function runCleanup(grid) {
 }
 
 export {
-  pass1Orphan,
-  pass2OutlineThin,
-  pass3OutlineRepair,
-  pass4HighlightCluster,
-  pass5SinglePixel,
-  pass6BandSkip,
-  pass7HighlightArea,
-  pass8MidDiagnostic,
-  pass9ContactShadow,
+  pass1Orphan, pass2OutlineThin, pass3OutlineRepair,
+  pass4HighlightCluster, pass5SinglePixel, pass6BandSkip,
+  pass7HighlightArea, pass8MidDiagnostic, pass9ContactShadow,
 };

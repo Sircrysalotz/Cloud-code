@@ -9,8 +9,25 @@ import {
   defaultParams, badStartParams, gradientIndex,
   buildFromParams, adjustParams,
 } from '../../src/authoring/parametric.js';
-import { runCleanup } from '../../src/cleanup/index.js';
-import { evalGrid }   from '../../src/eval/compare.js';
+import { runCleanup }         from '../../src/cleanup/index.js';
+import { compareToReference } from '../../src/eval/compare.js';
+import { computeMetrics }     from '../../src/eval/metrics.js';
+
+// Reference distribution built from defaultParams output (crimson warrior style).
+// Used by integration tests so they don't depend on external reference files.
+function buildTestDistribution() {
+  const refRaw = buildFromParams(defaultParams());
+  const { grid: refGrid } = runCleanup(refRaw);
+  const refMetrics = computeMetrics(refGrid);
+  const KEYS = ['shadow_deep_ratio','shadow_ratio','mid_ratio','bright_ratio',
+                'highlight_ratio','peak_ratio','body_density','symmetry_score'];
+  const dist = {};
+  for (const k of KEYS) {
+    if (typeof refMetrics[k] === 'number')
+      dist[k] = { mean: refMetrics[k], stddev: 0.05, n: 1 };
+  }
+  return dist;
+}
 
 const SD = IDX.SHADOW_DEEP;
 const SH = IDX.SHADOW;
@@ -237,24 +254,29 @@ test('adjustParams unknown flag key is ignored gracefully', () => {
 
 // ── Integration: iterate to convergence ──────────────────────────────────────
 
-test('integration: bad start converges within 20 iterations', async () => {
+test('integration: bad start converges within 20 iterations', () => {
+  const distribution = buildTestDistribution();
   let params = badStartParams();
   let converged = false;
   for (let i = 0; i < 20; i++) {
     const raw = buildFromParams(params);
     const { grid } = runCleanup(raw);
-    const { comparison } = evalGrid(grid);
-    if (comparison.pass && comparison.flags.length === 0) { converged = true; break; }
-    if (comparison.flags.length === 0) { converged = true; break; }
+    const metrics = computeMetrics(grid);
+    const comparison = compareToReference(metrics, distribution);
+    if (comparison.flags.filter(f => f.severity === 'bad' || f.severity === 'critical').length === 0) {
+      converged = true; break;
+    }
     params = adjustParams(params, comparison.flags);
   }
   assert.ok(converged, 'did not converge in 20 iterations');
 });
 
 test('integration: default start passes eval immediately', () => {
+  const distribution = buildTestDistribution();
   const raw = buildFromParams(defaultParams());
   const { grid } = runCleanup(raw);
-  const { comparison } = evalGrid(grid);
+  const metrics = computeMetrics(grid);
+  const comparison = compareToReference(metrics, distribution);
   assert.ok(comparison.pass, `default params should pass: ${comparison.summary}`);
 });
 

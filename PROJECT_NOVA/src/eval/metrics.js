@@ -1,53 +1,76 @@
 /**
  * Structural metrics for palette-index grids.
  *
- * All inputs are Grid (2D array of palette indices 0-7).
+ * All inputs are Grid (2D array of palette indices).
  * All outputs are plain numbers / plain objects — no rendering, no pixels.
+ * All functions accept an optional palette (default: crimson 8-color).
  *
- * The AI works with these numbers. The renderer translates to PNG at the end.
+ * Band ratios use a 6-bucket luminance approach that works for any palette size,
+ * consistent with tools/batch_ingest.py compute_band_ratios().
  */
 
 import { gridSize, countPixels, neighbors4 } from '../core/grid.js';
-import { IDX, BODY_INDICES, PALETTE } from '../core/palette.js';
+import { PALETTE } from '../core/palette.js';
+
+const BAND_NAMES = ['shadow_deep', 'shadow', 'mid', 'bright', 'highlight', 'peak'];
+const N_BANDS    = 6;
 
 // ── Counts ────────────────────────────────────────────────────────────────────
 
-export function countByIndex(grid) {
+export function countByIndex(grid, palette = PALETTE) {
   const [w, h] = gridSize(grid);
-  const counts = new Array(PALETTE.size).fill(0); // size = number of colors (8)
+  const counts = {};
+  for (const c of palette.colors) counts[c.index] = 0;
   for (let r = 0; r < h; r++)
-    for (let c = 0; c < w; c++)
-      counts[grid[r][c]]++;
-  return counts; // index → pixel count
+    for (let c = 0; c < w; c++) {
+      const v = grid[r][c];
+      if (v in counts) counts[v]++;
+    }
+  return counts;
 }
 
-export function bodyCount(counts) {
-  return BODY_INDICES.reduce((s, i) => s + counts[i], 0);
+export function bodyCount(counts, palette = PALETTE) {
+  return palette.bodyIndices.reduce((s, i) => s + (counts[i] ?? 0), 0);
 }
 
-export function outlineCount(counts) {
-  return counts[IDX.OUTLINE];
+export function outlineCount(counts, palette = PALETTE) {
+  return counts[palette.outlineIndex] ?? 0;
 }
 
 export function transparentCount(counts) {
-  return counts[IDX.TRANSPARENT];
+  return counts[0] ?? 0;
 }
 
 // ── Band ratios ───────────────────────────────────────────────────────────────
-// Each ratio = count[idx] / bodyCount (not total pixels).
-// These are the primary style metrics compared against references.
+// Body indices are divided into N_BANDS equal luminance groups.
+// Each group maps to a named band: shadow_deep … peak.
+// Matches tools/batch_ingest.py compute_band_ratios() exactly.
 
-export function bandRatios(counts) {
-  const body = bodyCount(counts);
-  if (body === 0) return BODY_INDICES.reduce((o, i) => { o[i] = 0; return o; }, {});
-  return BODY_INDICES.reduce((o, i) => { o[i] = counts[i] / body; return o; }, {});
+export function bandRatios(counts, palette = PALETTE) {
+  const body = bodyCount(counts, palette);
+  const zero = {};
+  for (const name of BAND_NAMES) zero[`${name}_ratio`] = 0;
+  if (body === 0) return zero;
+
+  const indices = palette.bodyIndices;
+  const n       = indices.length;
+  const bandCounts = new Array(N_BANDS).fill(0);
+
+  for (let i = 0; i < n; i++) {
+    const band = Math.min(Math.floor(i / n * N_BANDS), N_BANDS - 1);
+    bandCounts[band] += counts[indices[i]] ?? 0;
+  }
+
+  const result = {};
+  for (let i = 0; i < N_BANDS; i++) {
+    result[`${BAND_NAMES[i]}_ratio`] = bandCounts[i] / body;
+  }
+  return result;
 }
 
 // ── Symmetry score ────────────────────────────────────────────────────────────
-// Compare left/right halves of body pixels.
-// score = fraction of symmetric body pixel pairs (0 = none, 1 = perfect).
 
-export function symmetryScore(grid) {
+export function symmetryScore(grid, palette = PALETTE) {
   const [w, h] = gridSize(grid);
   const mid = Math.floor(w / 2);
   let matches = 0, comparisons = 0;
@@ -55,7 +78,7 @@ export function symmetryScore(grid) {
     for (let c = 0; c < mid; c++) {
       const lv = grid[r][c];
       const rv = grid[r][w - 1 - c];
-      if (BODY_INDICES.includes(lv) || BODY_INDICES.includes(rv)) {
+      if (palette.isBody(lv) || palette.isBody(rv)) {
         comparisons++;
         if (lv === rv) matches++;
       }
@@ -65,17 +88,16 @@ export function symmetryScore(grid) {
 }
 
 // ── Outline thickness variance ────────────────────────────────────────────────
-// For each outline pixel, count its outline 4-neighbors.
-// Low variance = consistent 1px outline; high variance = clumped/broken outlines.
 
-export function outlineThicknessVariance(grid) {
+export function outlineThicknessVariance(grid, palette = PALETTE) {
   const [w, h] = gridSize(grid);
+  const OUTLINE = palette.outlineIndex;
   const thicknesses = [];
   for (let r = 0; r < h; r++) {
     for (let c = 0; c < w; c++) {
-      if (grid[r][c] !== IDX.OUTLINE) continue;
+      if (grid[r][c] !== OUTLINE) continue;
       const outlineNbrs = neighbors4(grid, r, c)
-        .filter(n => n.value === IDX.OUTLINE).length;
+        .filter(n => n.value === OUTLINE).length;
       thicknesses.push(outlineNbrs);
     }
   }
@@ -87,40 +109,39 @@ export function outlineThicknessVariance(grid) {
 
 // ── Unique body colors ─────────────────────────────────────────────────────────
 
-export function uniqueBodyColors(counts) {
-  return BODY_INDICES.filter(i => counts[i] > 0).length;
+export function uniqueBodyColors(counts, palette = PALETTE) {
+  return palette.bodyIndices.filter(i => (counts[i] ?? 0) > 0).length;
 }
 
 // ── Body fill density ──────────────────────────────────────────────────────────
-// Fraction of total pixels (inc. transparent) that are body pixels.
-// Low density = open/airy design. High density = compact/heavy silhouette.
 
-export function bodyDensity(grid, counts) {
+export function bodyDensity(grid, counts, palette = PALETTE) {
   const [w, h] = gridSize(grid);
   const total = w * h;
-  return total === 0 ? 0 : bodyCount(counts) / total;
+  return total === 0 ? 0 : bodyCount(counts, palette) / total;
 }
 
 // ── Highlight centroid ────────────────────────────────────────────────────────
-// Normalized centroid of peak + highlight pixels within the bounding box.
+// Normalized centroid of the top-2 luminance band pixels within the bounding box.
 // Per the brief: "highlight cluster centroid should be in upper-left quadrant."
-// Returns {x, y} in [0,1] relative to bounding box (0,0=top-left 1,1=bottom-right).
 
-export function highlightCentroid(grid) {
+export function highlightCentroid(grid, palette = PALETTE) {
   const [w, h] = gridSize(grid);
-  // Find body bounding box
+  const indices   = palette.bodyIndices;
+  const n         = indices.length;
+  // Top-2 bands = highlight + peak positions
+  const topBands  = new Set(indices.slice(Math.max(0, n - 2)));
+
   let rMin = h, rMax = -1, cMin = w, cMax = -1;
   let hx = 0, hy = 0, hn = 0;
   for (let r = 0; r < h; r++) {
     for (let c = 0; c < w; c++) {
       const v = grid[r][c];
-      if (BODY_INDICES.includes(v)) {
+      if (palette.isBody(v)) {
         rMin = Math.min(rMin, r); rMax = Math.max(rMax, r);
         cMin = Math.min(cMin, c); cMax = Math.max(cMax, c);
       }
-      if (v === IDX.HIGHLIGHT || v === IDX.PEAK) {
-        hx += c; hy += r; hn++;
-      }
+      if (topBands.has(v)) { hx += c; hy += r; hn++; }
     }
   }
   if (hn === 0 || rMax < 0) return { x: 0.5, y: 0.5 };
@@ -133,36 +154,29 @@ export function highlightCentroid(grid) {
 }
 
 // ── Full metric bundle ─────────────────────────────────────────────────────────
-// Returns a plain object with all structural metrics.
-// This is the canonical AI-readable representation of a sprite's quality.
 
-export function computeMetrics(grid) {
+export function computeMetrics(grid, palette = PALETTE) {
   const [w, h] = gridSize(grid);
-  const counts = countByIndex(grid);
-  const body   = bodyCount(counts);
-  const ratios = bandRatios(counts);
+  const counts = countByIndex(grid, palette);
+  const body   = bodyCount(counts, palette);
+  const ratios = bandRatios(counts, palette);
 
   return {
     width:   w,
     height:  h,
     total_pixels:      w * h,
     body_count:        body,
-    outline_count:     outlineCount(counts),
+    outline_count:     outlineCount(counts, palette),
     transparent_count: transparentCount(counts),
 
     // Band ratios (primary style metrics)
-    shadow_deep_ratio: ratios[IDX.SHADOW_DEEP] ?? 0,
-    shadow_ratio:      ratios[IDX.SHADOW]      ?? 0,
-    mid_ratio:         ratios[IDX.MID]         ?? 0,
-    bright_ratio:      ratios[IDX.BRIGHT]      ?? 0,
-    highlight_ratio:   ratios[IDX.HIGHLIGHT]   ?? 0,
-    peak_ratio:        ratios[IDX.PEAK]        ?? 0,
+    ...ratios,
 
     // Structural quality indicators
-    symmetry_score:             symmetryScore(grid),
-    outline_thickness_variance: outlineThicknessVariance(grid),
-    unique_body_colors:         uniqueBodyColors(counts),
-    body_density:               bodyDensity(grid, counts),
-    highlight_centroid:         highlightCentroid(grid),
+    symmetry_score:             symmetryScore(grid, palette),
+    outline_thickness_variance: outlineThicknessVariance(grid, palette),
+    unique_body_colors:         uniqueBodyColors(counts, palette),
+    body_density:               bodyDensity(grid, counts, palette),
+    highlight_centroid:         highlightCentroid(grid, palette),
   };
 }

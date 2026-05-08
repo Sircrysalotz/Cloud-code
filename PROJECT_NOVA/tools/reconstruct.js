@@ -18,7 +18,7 @@ import { fileURLToPath }   from 'url';
 import { dirname, join }   from 'path';
 import { paletteFromRGB }  from '../src/core/palette.js';
 import { gridToPNG }       from '../src/export/png_writer.js';
-import { asciiDump }       from '../src/core/ascii.js';
+import { gridToAscii }     from '../src/core/ascii.js';
 import { runCleanup }      from '../src/cleanup/index.js';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
@@ -41,10 +41,7 @@ const paletteData = JSON.parse(readFileSync(paletteFile, 'utf8'));
 const palette = paletteFromRGB(paletteData);
 let   grid    = gridData.data.map(row => Array.isArray(row) ? row : Object.values(row).map(Number));
 
-const W = gridData.width;
-const H = gridData.height;
-
-console.log(`Grid: ${W}×${H}  palette: ${palette.size} colors`);
+console.log(`Grid: ${gridData.width}×${gridData.height}  palette: ${palette.size} colors`);
 if (gridData.accuracy) {
   const a = gridData.accuracy;
   console.log(`Ingest accuracy: ${a.exact_pct}%  mean Δ=${a.mean_color_error}  body=${a.body_pixels}px`);
@@ -54,30 +51,24 @@ if (gridData.accuracy) {
 
 if (cleanup) {
   console.log('\nRunning cleanup passes...');
-  const result = runCleanup(grid);
+  const result = runCleanup(grid, palette);
   grid = result.grid;
   if (result.flags.length) console.log('Cleanup flags:', result.flags);
 }
 
 // ── ASCII dump ────────────────────────────────────────────────────────────────
 
-// Use the dynamic palette's ASCII chars for the dump
-function asciiDumpDynamic(g, label) {
-  const lines = [`[${label}] ${g[0].length}×${g.length}`];
-  for (const row of g) {
-    lines.push(row.map(v => palette.ascii(v)).join(''));
-  }
-  return lines.join('\n');
-}
-
-console.log('\n' + asciiDumpDynamic(grid, name));
+const W = grid[0]?.length ?? 0;
+const H2 = grid.length;
+console.log(`\n[${name}] ${W}×${H2}`);
+console.log(gridToAscii(grid, palette));
 
 // ── Render PNG ────────────────────────────────────────────────────────────────
 
 const pngBytes = gridToPNG(grid, palette, scale);
 const outPath  = join(OUT, `${name}_recon${cleanup ? '_cleaned' : ''}.png`);
 writeFileSync(outPath, pngBytes);
-console.log(`\nPNG: ${outPath}  (${W * scale}×${H * scale}px)`);
+console.log(`\nPNG: ${outPath}  (${W * scale}×${H2 * scale}px)`);
 
 // ── Pixel diff vs original grid ───────────────────────────────────────────────
 

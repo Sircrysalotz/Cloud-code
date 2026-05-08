@@ -6,7 +6,7 @@
  * No vision, no rendering — pure metric arithmetic.
  */
 
-import { readFileSync, readdirSync } from 'fs';
+import { readFileSync, readdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { computeMetrics } from './metrics.js';
@@ -24,6 +24,10 @@ const SCALAR_METRICS = [
   'body_density',
 ];
 
+const __dir = dirname(fileURLToPath(import.meta.url));
+const PROJECT_ROOT = join(__dir, '..', '..');
+const BATCH_REF_PATH = join(PROJECT_ROOT, 'exports', 'batch', 'reference.json');
+
 // ── Load ──────────────────────────────────────────────────────────────────────
 
 /**
@@ -37,7 +41,7 @@ const SCALAR_METRICS = [
  */
 export function loadReferenceLibrary(gridsDir) {
   if (!gridsDir) {
-    const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'references', 'grids');
+    const root = join(PROJECT_ROOT, 'references', 'grids');
     gridsDir = root;
   }
 
@@ -64,6 +68,34 @@ export function loadReferenceLibrary(gridsDir) {
     }
   }
   return entries;
+}
+
+/**
+ * Load reference distribution directly from the batch ingest output.
+ * This is the Goku-calibrated distribution built by tools/batch_ingest.py.
+ *
+ * @returns {{ entries: ReferenceEntry[], distribution: MetricDistribution } | null}
+ */
+export function loadBatchReference() {
+  if (!existsSync(BATCH_REF_PATH)) return null;
+  try {
+    const raw = JSON.parse(readFileSync(BATCH_REF_PATH, 'utf8'));
+    // raw.distribution is already in {mean, stddev, n, min, max} format
+    const distribution = {};
+    for (const key of SCALAR_METRICS) {
+      if (raw.distribution[key]) distribution[key] = raw.distribution[key];
+    }
+    // Frames as lightweight reference entries (no data grid needed)
+    const entries = (raw.frames ?? []).map(f => ({
+      id:      f.id,
+      tags:    ['goku'],
+      quality: 'excellent',
+      metrics: f.metrics,
+    }));
+    return { entries, distribution };
+  } catch {
+    return null;
+  }
 }
 
 // ── Filter ────────────────────────────────────────────────────────────────────
@@ -120,12 +152,17 @@ export function computeDistribution(entries) {
 
 /**
  * Build a reference distribution from the default library.
- * This is the main entry point for compare.js.
+ * Prefers the batch-ingest Goku distribution when available.
+ * Falls back to references/grids/ JSONs.
  *
- * @param {object} [opts] — passed to filterEntries
+ * @param {object} [opts] — passed to filterEntries; set {source:'grids'} to force grids/ only
  * @returns {{ entries, distribution }}
  */
 export function buildReferenceProfile(opts = {}) {
+  if (opts.source !== 'grids') {
+    const batch = loadBatchReference();
+    if (batch) return batch;
+  }
   const all     = loadReferenceLibrary();
   const entries = filterEntries(all, opts);
   const distribution = computeDistribution(entries);

@@ -1,52 +1,40 @@
 /**
  * Pass 7 — Highlight Area Enforcement
  *
- * Count peak pixels. If >10% of body pixels, demote outer-ring peak pixels to highlight.
- * Iterates until peak ratio is within target range (2-10%).
- *
- * WHY: Peak highlight should be 2-8% of body area in well-formed sprites.
- * Specular overshoot from shaders can blow this out significantly.
+ * If peak pixels exceed 10% of body, demote outer-ring peak pixels to highlight.
  */
 
 import { cloneGrid, countPixels, neighbors4, gridSize } from '../core/grid.js';
-import { IDX, BODY_INDICES } from '../core/palette.js';
+import { PALETTE } from '../core/palette.js';
 
-const PEAK         = IDX.PEAK;
-const HIGHLIGHT    = IDX.HIGHLIGHT;
-const MAX_RATIO    = 0.10; // 10% — above this, demote outer ring
-const MAX_PASSES   = 20;   // safety valve
+const MAX_RATIO  = 0.10;
+const MAX_PASSES = 20;
 
-function isBodyPixel(v) { return BODY_INDICES.includes(v); }
-
-/**
- * @param {Uint8Array[]} grid
- * @returns {Uint8Array[]}
- */
-export function pass7HighlightArea(grid) {
+export function pass7HighlightArea(grid, palette = PALETTE) {
   let current = cloneGrid(grid);
   const [w, h] = gridSize(grid);
+  const PEAK      = palette.peakIndex;
+  const HIGHLIGHT = palette.highlightIndex;
 
   for (let iter = 0; iter < MAX_PASSES; iter++) {
-    const bodyCount = countPixels(current, isBodyPixel);
+    const bodyCount = countPixels(current, v => palette.isBody(v));
     const peakCount = countPixels(current, v => v === PEAK);
     if (bodyCount === 0 || peakCount / bodyCount <= MAX_RATIO) break;
 
-    // Demote peak pixels that have at least one non-peak body neighbor (outer ring)
     const next = cloneGrid(current);
     let demoted = 0;
     for (let r = 0; r < h; r++) {
       for (let c = 0; c < w; c++) {
         if (current[r][c] !== PEAK) continue;
         const nbrs = neighbors4(current, r, c);
-        const hasNonPeakBodyNeighbor = nbrs.some(n => isBodyPixel(n.value) && n.value !== PEAK);
-        if (hasNonPeakBodyNeighbor) {
+        if (nbrs.some(n => palette.isBody(n.value) && n.value !== PEAK)) {
           next[r][c] = HIGHLIGHT;
           demoted++;
         }
       }
     }
     current = next;
-    if (demoted === 0) break; // can't demote any more
+    if (demoted === 0) break;
   }
   return current;
 }
