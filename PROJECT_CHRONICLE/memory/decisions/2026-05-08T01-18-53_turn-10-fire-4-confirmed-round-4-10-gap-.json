@@ -1,0 +1,10 @@
+{
+  "id": "2026-05-08T01:18:53_turn-10-fire-4-confirmed-round-4-10-gap-",
+  "timestamp": "2026-05-08T01:18:53",
+  "session": "2026-05-08",
+  "type": "observation",
+  "message": "Turn 10: Fire 4 confirmed (round 4/10, gap=185s). 4/6 fires. Fixing summarize to scope session file to current session only.",
+  "tags": [
+    "phantom-import"
+  ]
+}

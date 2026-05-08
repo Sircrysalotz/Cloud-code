@@ -9,6 +9,7 @@ Commands:
   history [--last N]      show recent decision records
   search <query>          find decisions by keyword
   init [--project NAME]   initialize memory/ structure for this project
+  export                  full markdown report organized by session
   status                  quick overview: counts, last session, freshness
   save                    stage all memory/ files with git
   from-phantom [--state]  import ping notes from a PHANTOM session state file
@@ -326,6 +327,75 @@ def _update_memory(project, decisions, observations, failures, session_id):
     mf.write_text("\n".join(sections) + "\n")
 
 
+def cmd_export(args):
+    """Generate a full markdown report of all decisions, organized by session."""
+    all_records = _load_decisions()
+    sessions_dir = _sessions_dir()
+
+    project = args.project or _root().name
+    now = _now_iso()
+
+    if not all_records and not (sessions_dir.exists() and any(sessions_dir.glob("*.md"))):
+        print("No records to export.")
+        return 0
+
+    # Group records by session
+    by_session = {}
+    for r in all_records:
+        sid = r.get("session", "unknown")
+        by_session.setdefault(sid, []).append(r)
+
+    lines = [
+        f"# CHRONICLE Export — {project}",
+        f"\nGenerated: {now}",
+        f"Total records: {len(all_records)} across {len(by_session)} session(s)",
+    ]
+
+    # Sort sessions chronologically (by earliest record timestamp)
+    def session_start(sid):
+        recs = by_session[sid]
+        return min(r.get("timestamp", "0") for r in recs)
+
+    for sid in sorted(by_session.keys(), key=session_start):
+        recs = sorted(by_session[sid], key=lambda r: r.get("timestamp", ""))
+        decisions = [r for r in recs if r.get("type") == "decision"]
+        observations = [r for r in recs if r.get("type") == "observation"]
+        failures = [r for r in recs if r.get("type") == "failure"]
+
+        lines.append(f"\n---\n\n## Session: {sid}")
+        lines.append(f"Records: {len(recs)} ({len(decisions)}d / {len(observations)}o / {len(failures)}f)")
+
+        if decisions:
+            lines.append("\n### Decisions")
+            for r in decisions:
+                ts = r.get("timestamp", "")[:10]
+                tags = r.get("tags", [])
+                tag_str = f" `{'` `'.join(tags)}`" if tags else ""
+                lines.append(f"- [{ts}]{tag_str} {r['message']}")
+
+        if observations:
+            lines.append("\n### Observations")
+            for r in observations:
+                ts = r.get("timestamp", "")[:10]
+                lines.append(f"- [{ts}] {r['message']}")
+
+        if failures:
+            lines.append("\n### Failures / Dead Ends")
+            for r in failures:
+                ts = r.get("timestamp", "")[:10]
+                lines.append(f"- [{ts}] {r['message']}")
+
+    report = "\n".join(lines) + "\n"
+
+    if args.output:
+        Path(args.output).write_text(report)
+        print(f"Exported to: {args.output}")
+    else:
+        print(report)
+
+    return 0
+
+
 def cmd_status(args):
     """Quick overview: record counts, last session, MEMORY.md freshness."""
     total = len(list(_decisions_dir().glob("*.json"))) if _decisions_dir().exists() else 0
@@ -508,6 +578,11 @@ def main():
     p_sum.add_argument("--session-id", help="Session identifier (default: today's date)")
     p_sum.add_argument("--project", help="Project name")
 
+    # export
+    p_export = sub.add_parser("export", help="Generate full markdown report organized by session")
+    p_export.add_argument("--project", help="Project name")
+    p_export.add_argument("--output", help="Write to file instead of stdout")
+
     # status
     sub.add_parser("status", help="Quick overview: record counts, last session, memory freshness")
 
@@ -532,6 +607,8 @@ def main():
         sys.exit(cmd_context(args))
     elif args.command == "summarize":
         sys.exit(cmd_summarize(args))
+    elif args.command == "export":
+        sys.exit(cmd_export(args))
     elif args.command == "status":
         sys.exit(cmd_status(args))
     elif args.command == "save":

@@ -807,6 +807,68 @@ def test_from_phantom():
         check("from-phantom counts empty as skipped", "Skipped" in r5.stdout)
 
 
+def test_export():
+    print("\n=== export ===")
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        chron = str(tmp / "chronicle.py")
+        shutil.copy(CHRONICLE, chron)
+        subprocess.run([sys.executable, chron, "init", "--project", "ExportProj"],
+                       capture_output=True, cwd=tmp_str)
+
+        # Export with no records
+        r = subprocess.run([sys.executable, chron, "export", "--project", "ExportProj"],
+                           capture_output=True, text=True, cwd=tmp_str)
+        check("export with no records exits 0", r.returncode == 0)
+        check("export with no records says so", "No records" in r.stdout)
+
+        # Add records across two sessions
+        subprocess.run([sys.executable, chron, "log", "s1 decision",
+                        "--session", "session-1", "--type", "decision"],
+                       capture_output=True, cwd=tmp_str)
+        subprocess.run([sys.executable, chron, "log", "s1 observation",
+                        "--session", "session-1", "--type", "observation"],
+                       capture_output=True, cwd=tmp_str)
+        subprocess.run([sys.executable, chron, "log", "s2 failure",
+                        "--session", "session-2", "--type", "failure"],
+                       capture_output=True, cwd=tmp_str)
+        subprocess.run([sys.executable, chron, "log", "s2 tagged decision",
+                        "--session", "session-2", "--type", "decision",
+                        "--tags", "arch"],
+                       capture_output=True, cwd=tmp_str)
+
+        r2 = subprocess.run([sys.executable, chron, "export", "--project", "ExportProj"],
+                            capture_output=True, text=True, cwd=tmp_str)
+        check("export exits 0", r2.returncode == 0)
+        out = r2.stdout
+        check("export has project header", "ExportProj" in out)
+        check("export shows total record count", "4" in out)
+        check("export has session-1 section", "session-1" in out)
+        check("export has session-2 section", "session-2" in out)
+        check("export has Decisions section", "### Decisions" in out)
+        check("export has Observations section", "### Observations" in out)
+        check("export has Failures section", "### Failures" in out)
+        check("export includes s1 decision", "s1 decision" in out)
+        check("export includes s2 failure", "s2 failure" in out)
+        check("export includes tags for tagged record", "arch" in out)
+
+        # Export to file
+        out_file = tmp / "report.md"
+        r3 = subprocess.run([sys.executable, chron, "export",
+                             "--project", "ExportProj", "--output", str(out_file)],
+                            capture_output=True, text=True, cwd=tmp_str)
+        check("export --output exits 0", r3.returncode == 0)
+        check("export --output creates file", out_file.exists())
+        check("export --output says exported to file", "Exported to" in r3.stdout)
+        file_content = out_file.read_text()
+        check("exported file has project header", "ExportProj" in file_content)
+        check("exported file has all records", "s1 decision" in file_content and "s2 failure" in file_content)
+
+        # Decisions section only has decisions (not observations/failures mixed in)
+        decisions_section = file_content.split("### Decisions")[1].split("###")[0] if "### Decisions" in file_content else ""
+        check("Decisions section contains only decisions", "s1 observation" not in decisions_section)
+
+
 def test_status():
     print("\n=== status ===")
     with tempfile.TemporaryDirectory() as tmp_str:
@@ -913,6 +975,7 @@ def main():
     test_init_default_project_name()
     test_phantom_session_env()
     test_from_phantom()
+    test_export()
     test_status()
     test_save()
 

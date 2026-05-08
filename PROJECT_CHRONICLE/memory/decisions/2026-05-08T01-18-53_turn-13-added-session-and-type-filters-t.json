@@ -1,0 +1,10 @@
+{
+  "id": "2026-05-08T01:18:53_turn-13-added-session-and-type-filters-t",
+  "timestamp": "2026-05-08T01:18:53",
+  "session": "2026-05-08",
+  "type": "observation",
+  "message": "Turn 13: Added --session and --type filters to history and search. 183/183 tests. Drift guard round 3 clean.",
+  "tags": [
+    "phantom-import"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "2026-05-08T01:18:53_turn-11-fixed-summarize-session-scoping-",
+  "timestamp": "2026-05-08T01:18:53",
+  "session": "2026-05-08",
+  "type": "observation",
+  "message": "Turn 11: Fixed summarize session scoping bug. 161/161 tests passing. Session files now show only current session; MEMORY.md stays cumulative.",
+  "tags": [
+    "phantom-import"
+  ]
+}
