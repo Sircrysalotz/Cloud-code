@@ -664,6 +664,86 @@ def test_from_phantom():
         check("from-phantom counts empty as skipped", "Skipped" in r5.stdout)
 
 
+def test_status():
+    print("\n=== status ===")
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        chron = str(tmp / "chronicle.py")
+        shutil.copy(CHRONICLE, chron)
+
+        # Status before init
+        r = subprocess.run([sys.executable, chron, "status"],
+                           capture_output=True, text=True, cwd=tmp_str)
+        check("status before init exits 0", r.returncode == 0)
+        check("status shows 0 records before init", "0 total" in r.stdout)
+        check("status shows memory not initialized", "not initialized" in r.stdout)
+
+        # Init and add records
+        subprocess.run([sys.executable, chron, "init", "--project", "StatusTest"],
+                       capture_output=True, cwd=tmp_str)
+        subprocess.run([sys.executable, chron, "log", "a decision", "--type", "decision"],
+                       capture_output=True, cwd=tmp_str)
+        subprocess.run([sys.executable, chron, "log", "an observation", "--type", "observation"],
+                       capture_output=True, cwd=tmp_str)
+        subprocess.run([sys.executable, chron, "log", "a failure", "--type", "failure"],
+                       capture_output=True, cwd=tmp_str)
+
+        r2 = subprocess.run([sys.executable, chron, "status"],
+                            capture_output=True, text=True, cwd=tmp_str)
+        check("status exits 0", r2.returncode == 0)
+        check("status shows record count", "3 total" in r2.stdout)
+        check("status shows decision count", "1 decision" in r2.stdout)
+        check("status shows observation count", "1 observation" in r2.stdout)
+        check("status shows failure count", "1 failure" in r2.stdout)
+        check("status shows MEMORY.md exists", "exists" in r2.stdout)
+        check("status shows root path", str(tmp) in r2.stdout)
+
+        # After summarize, session count appears
+        subprocess.run([sys.executable, chron, "summarize", "--session-id", "s1"],
+                       capture_output=True, cwd=tmp_str)
+        r3 = subprocess.run([sys.executable, chron, "status"],
+                            capture_output=True, text=True, cwd=tmp_str)
+        check("status shows session count after summarize", "Sessions:  1" in r3.stdout)
+        check("status shows last session name", "s1.md" in r3.stdout)
+
+
+def test_save():
+    print("\n=== save ===")
+    with tempfile.TemporaryDirectory() as tmp_str:
+        tmp = Path(tmp_str)
+        chron = str(tmp / "chronicle.py")
+        shutil.copy(CHRONICLE, chron)
+
+        # save before memory/ exists
+        r = subprocess.run([sys.executable, chron, "save"],
+                           capture_output=True, text=True, cwd=tmp_str)
+        check("save before init exits 1", r.returncode == 1)
+        check("save before init says no memory dir", "memory" in r.stdout or "memory" in r.stderr)
+
+        # Init git repo in tmp so save can stage files
+        subprocess.run(["git", "init"], capture_output=True, cwd=tmp_str)
+        subprocess.run(["git", "config", "user.email", "test@test.com"],
+                       capture_output=True, cwd=tmp_str)
+        subprocess.run(["git", "config", "user.name", "Test"],
+                       capture_output=True, cwd=tmp_str)
+
+        subprocess.run([sys.executable, chron, "init"], capture_output=True, cwd=tmp_str)
+        subprocess.run([sys.executable, chron, "log", "save test decision"],
+                       capture_output=True, cwd=tmp_str)
+
+        r2 = subprocess.run([sys.executable, chron, "save"],
+                            capture_output=True, text=True, cwd=tmp_str)
+        check("save exits 0", r2.returncode == 0)
+        # Either staged files or nothing new
+        check("save reports outcome", "Staged" in r2.stdout or "Nothing new" in r2.stdout)
+
+        # Second save — nothing new
+        r3 = subprocess.run([sys.executable, chron, "save"],
+                            capture_output=True, text=True, cwd=tmp_str)
+        check("save second run exits 0", r3.returncode == 0)
+        check("save second run says nothing new", "Nothing new" in r3.stdout)
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────────
 
 def main():
@@ -687,6 +767,8 @@ def main():
     test_init_default_project_name()
     test_phantom_session_env()
     test_from_phantom()
+    test_status()
+    test_save()
 
     print("\n" + "=" * 50)
     print(f"Results: {PASS} passed, {FAIL} failed")

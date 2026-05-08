@@ -9,6 +9,8 @@ Commands:
   history [--last N]      show recent decision records
   search <query>          find decisions by keyword
   init [--project NAME]   initialize memory/ structure for this project
+  status                  quick overview: counts, last session, freshness
+  save                    stage all memory/ files with git
   from-phantom [--state]  import ping notes from a PHANTOM session state file
 """
 
@@ -303,6 +305,71 @@ def _update_memory(project, decisions, observations, failures, session_id):
     mf.write_text("\n".join(sections) + "\n")
 
 
+def cmd_status(args):
+    """Quick overview: record counts, last session, MEMORY.md freshness."""
+    total = len(list(_decisions_dir().glob("*.json"))) if _decisions_dir().exists() else 0
+    sessions = sorted(_sessions_dir().glob("*.md")) if _sessions_dir().exists() else []
+    mf = _memory_file()
+
+    records = _load_decisions()
+    by_type = {}
+    for r in records:
+        t = r.get("type", "unknown")
+        by_type[t] = by_type.get(t, 0) + 1
+
+    print("CHRONICLE STATUS")
+    print("=" * 40)
+    print(f"  Records:   {total} total", end="")
+    if by_type:
+        breakdown = ", ".join(f"{v} {k}" for k, v in sorted(by_type.items()))
+        print(f"  ({breakdown})", end="")
+    print()
+    print(f"  Sessions:  {len(sessions)}")
+    if sessions:
+        print(f"  Last session: {sessions[-1].name}")
+    print(f"  MEMORY.md: {'exists' if mf.exists() else 'not initialized'}")
+    if mf.exists():
+        import stat
+        mtime = datetime.fromtimestamp(mf.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+        print(f"  Updated:   {mtime}")
+    print(f"  Root:      {_root()}")
+    return 0
+
+
+def cmd_save(args):
+    """Stage all memory/ files with git so they don't appear as untracked."""
+    mem = _memory_dir()
+    if not mem.exists():
+        print("No memory/ directory found. Run 'init' first.")
+        return 1
+
+    import subprocess
+
+    # Check for untracked files in memory/ before staging
+    untracked = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard", str(mem)],
+        capture_output=True, text=True, cwd=_root()
+    )
+    new_files = [l for l in untracked.stdout.strip().splitlines() if l]
+
+    if not new_files:
+        print("Nothing new to stage in memory/.")
+        return 0
+
+    result = subprocess.run(
+        ["git", "add", str(mem)],
+        capture_output=True, text=True, cwd=_root()
+    )
+    if result.returncode != 0:
+        print(f"git add failed: {result.stderr.strip()}")
+        return 1
+
+    print(f"Staged {len(new_files)} file(s):")
+    for f in new_files:
+        print(f"  {f}")
+    return 0
+
+
 def cmd_from_phantom(args):
     """Import ping notes from a PHANTOM session state file as CHRONICLE observations."""
     _ensure_dirs()
@@ -414,6 +481,12 @@ def main():
     p_sum.add_argument("--session-id", help="Session identifier (default: today's date)")
     p_sum.add_argument("--project", help="Project name")
 
+    # status
+    sub.add_parser("status", help="Quick overview: record counts, last session, memory freshness")
+
+    # save
+    sub.add_parser("save", help="Stage all memory/ files with git (prevents untracked file noise)")
+
     # from-phantom
     p_fp = sub.add_parser("from-phantom", help="Import ping notes from a PHANTOM session state file")
     p_fp.add_argument("--state", help="Path to phantom session state JSON (auto-detected if omitted)")
@@ -432,6 +505,10 @@ def main():
         sys.exit(cmd_context(args))
     elif args.command == "summarize":
         sys.exit(cmd_summarize(args))
+    elif args.command == "status":
+        sys.exit(cmd_status(args))
+    elif args.command == "save":
+        sys.exit(cmd_save(args))
     elif args.command == "from-phantom":
         sys.exit(cmd_from_phantom(args))
     else:
