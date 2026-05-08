@@ -1,0 +1,10 @@
+{
+  "id": "2026-05-08T01:02:57_turn-5-from-phantom-command-built-18-new",
+  "timestamp": "2026-05-08T01:02:57",
+  "session": "2026-05-08",
+  "type": "observation",
+  "message": "Turn 5: from-phantom command built + 18 new tests. 132/132 passing. Drift guard round 1 clean (10/10). Re-armed.",
+  "tags": [
+    "phantom-import"
+  ]
+}
