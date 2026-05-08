@@ -103,8 +103,17 @@ def main():
     ap.add_argument('--colors',     type=int, default=0,   help='Palette size (0=auto: sprite unique+1)')
     ap.add_argument('--max-unique', type=int, default=40,  help='Skip sprites with more unique colors (not clean frames)')
     ap.add_argument('--max-height', type=int, default=150, help='Skip sprites taller than this (composite regions)')
+    ap.add_argument('--clean',      action='store_true',   help='Delete existing batch files before running')
     ap.add_argument('--verbose',    action='store_true')
     args = ap.parse_args()
+
+    if args.clean:
+        import glob
+        stale = glob.glob(os.path.join(BATCH_DIR, 'frame_*_grid.json')) + \
+                glob.glob(os.path.join(BATCH_DIR, 'frame_*_palette.json'))
+        for f in stale:
+            os.remove(f)
+        print(f'Cleaned {len(stale)} stale files from {BATCH_DIR}')
 
     img = Image.open(SOURCE_IMG)
     W, H = img.size
