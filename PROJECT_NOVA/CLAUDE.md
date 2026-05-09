@@ -34,7 +34,7 @@ A six-stage pipeline:
 # Install dependencies
 npm install
 
-# Run all tests (819 tests)
+# Run all tests (866 tests)
 npm test
 
 # ── Ingest ──────────────────────────────────────────────────────────────────
@@ -96,6 +96,14 @@ node tools/generate_animation.js --scale=4        # output scale (default 6)
 node tools/generate_animation.js --fps=12         # idle loop FPS (default 8)
 # Output: exports/generated_animation/idle_loop.png + pose_sequence.png + .json sidecars
 
+# ── Phase 15: Sprite variation engine ───────────────────────────────────────
+# Generate all pose × palette combinations at once
+node tools/generate_variants.js                          # all 5 poses × 5 palettes = 25 variants
+node tools/generate_variants.js --poses=idle,punch       # subset of poses
+node tools/generate_variants.js --palettes=crimson,cool  # subset of palettes
+node tools/generate_variants.js --scale=4 --max=30       # scale + iteration budget
+# Output: exports/variants/<pose>_<palette>.png + variants.json + summary.txt
+
 # ── Phase 14: Palette designer ──────────────────────────────────────────────
 # Create custom palettes from hex colors or anchor points
 node tools/palette_designer.js --hex "#000,#1c0814,...,#ffe088"   # from hex list
@@ -128,6 +136,8 @@ PROJECT_NOVA/
 │   ├── core/
 │   │   ├── palette.js          <- dynamic N-color palette, paletteFromRGB, band helpers
 │   ├── palette_designer.js <- Phase 14: paletteFromHex, paletteFromAnchors, validatePalette, paletteInfo
+│   └── authoring/
+│       ├── variant_engine.js   <- Phase 15: buildVariantLibrary, generatePoseGrid, buildVariantCell
 │   │   ├── grid.js             <- 2D grid (Uint8Array rows), cloneGrid, countPixels
 │   │   └── ascii.js            <- gridToAscii, asciiToGrid, gridToJSON
 │   ├── cleanup/                <- 9 deterministic passes (all palette-agnostic)
@@ -279,3 +289,4 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 12 | Generated animation: 4-frame breathing idle loop + 5-pose sequence + 699 tests | ✅ Done |
 | 13 | Pipeline quality report: generated vs ingested z-score comparison + grading + 744 tests | ✅ Done |
 | 14 | Palette designer: paletteFromHex, paletteFromAnchors, validatePalette + 819 tests | ✅ Done |
+| 15 | Sprite variation engine: all poses × all palettes — complete variant library + 866 tests | ✅ Done |
