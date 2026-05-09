@@ -40,7 +40,7 @@ mkdirSync(OUT, { recursive: true });
 // Each palette: [transparent, outline, shadow_deep, shadow, mid, bright, highlight, peak]
 // stored as {r,g,b} — index 0=transparent (a=0), index 1=outline, 2-7=body (dark→bright)
 
-const BUILTIN_PALETTES = {
+export const BUILTIN_PALETTES = {
   crimson: [
     { r:0,   g:0,   b:0   },  // 0: transparent
     { r:28,  g:8,   b:20  },  // 1: outline  #1c0814
