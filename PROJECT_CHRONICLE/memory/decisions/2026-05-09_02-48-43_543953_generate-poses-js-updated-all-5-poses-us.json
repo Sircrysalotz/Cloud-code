@@ -1,0 +1,8 @@
+{
+  "id": "2026-05-09T02:48:43_generate-poses-js-updated-all-5-poses-us",
+  "timestamp": "2026-05-09T02:48:43",
+  "session": "unknown",
+  "type": "decision",
+  "message": "generate_poses.js updated: all 5 poses use real frame silhouettes (idle=0, guard=9, punch=5, kick=14, power_up=18). All 5 now visually recognizable as Goku",
+  "tags": []
+}
