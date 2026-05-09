@@ -1,6 +1,6 @@
 # PROJECT: NOVA
 
-> Status: Active — Phase 8 complete
+> Status: Active — Phase 9 complete
 > Purpose: AI-native pixel art pipeline. Look at any sprite image → extract its structure as AI-readable data → reproduce it pixel-perfect → style-transfer to any palette → evaluate against reference → iterate.
 
 ---
@@ -34,7 +34,7 @@ A six-stage pipeline:
 # Install dependencies
 npm install
 
-# Run all tests (443 tests)
+# Run all tests (517 tests)
 npm test
 
 # ── Ingest ──────────────────────────────────────────────────────────────────
@@ -78,6 +78,14 @@ node tools/goku_iterate.js --target=0.40   # tighter convergence
 node tools/goku_iterate.js --scale=4,8,16  # export at multiple scales
 # Output: exports/goku_warrior.png + exports/goku_warrior.json
 
+# ── Phase 9: Multi-pose generation ──────────────────────────────────────────
+# Generate all 5 poses (idle, guard, punch, kick, power_up) calibrated to Goku
+node tools/generate_poses.js                         # all 5 poses, default settings
+node tools/generate_poses.js --poses=idle,punch      # specific poses only
+node tools/generate_poses.js --scale=4 --fps=12      # thumbnail size, 12fps timing
+node tools/generate_poses.js --max=50                # more iterations per pose
+# Output: exports/poses/<pose>.png + exports/poses/pose_sheet.png (1120×320px)
+
 # ── Legacy ──────────────────────────────────────────────────────────────────
 node tools/ascii_dump.js <grid.json>
 node tools/reconstruct.js goku_frame
@@ -114,7 +122,8 @@ PROJECT_NOVA/
 │   │   ├── timing.js           <- idleTiming, walkTiming, distributeDurations
 │   │   └── spritesheet.js      <- keyframesToPNG, buildSidecar
 │   └── authoring/
-│       ├── parametric.js       <- buildFromParams, adjustParams, badStartParams
+│       ├── parametric.js       <- buildFromParams, adjustParams, badStartParams (open part names)
+│       ├── poses.js            <- 5 pose factories: idle/guard/punch/kick/power_up
 │       └── goku_gen.js         <- generateGokuSprite(), evaluateAgainstGoku() (Phase 8 API)
 ├── tools/
 │   ├── ingest_sprite.py        <- ingest single frame: K-means palette + grid (100% accuracy)
@@ -124,9 +133,10 @@ PROJECT_NOVA/
 │   ├── style_transfer.js       <- remap frame to any palette by luminance band rank
 │   ├── animate_goku.js         <- assemble frames → spritesheet PNG + JSON sidecar
 │   ├── goku_iterate.js         <- Phase 8: Goku-calibrated iteration loop, exports goku_warrior.png
+│   ├── generate_poses.js       <- Phase 9: all 5 poses → Goku-calibrated → pose_sheet.png
 │   ├── auto_iterate.js         <- parametric convergence loop (band-only, structural informational)
 │   └── reconstruct.js          <- load grid+palette → render PNG (legacy)
-├── tests/unit/                 <- 443 tests, all passing
+├── tests/unit/                 <- 517 tests, all passing
 ├── exports/
 │   ├── batch/                  <- 171 clean Goku frame grids/palettes + reference.json
 │   ├── style_transfer/         <- style-transferred PNGs
@@ -232,4 +242,5 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 6 | Palette-agnostic pipeline + style transfer + eval CLI | ✅ Done |
 | 7 | Animation assembly + goku_report + full pipeline health | ✅ Done |
 | 8 | Goku-calibrated generative authoring — goku_iterate + goku_gen + 443 tests | ✅ Done |
-| 9 | Multi-pose parametric generation + cross-palette style gallery — next | 🔜 |
+| 9 | Multi-pose generation — 5 poses + pose_sheet + flexible buildFromParams + 517 tests | ✅ Done |
+| 10 | Style gallery — all 5 palettes × all poses, cross-palette contact sheet — next | 🔜 |

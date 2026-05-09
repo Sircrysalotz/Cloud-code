@@ -149,37 +149,45 @@ export function buildFromParams(params) {
   const { W, H, parts, accents } = params;
   let g = makeGrid(W, H, T);
 
-  const { hair, head, neck, torso, arm_left, arm_right,
-          hips, leg_left, leg_right, boot_left, boot_right } = parts;
+  const { hair, boot_left, boot_right } = parts;
 
   // Hair — special gradient
-  for (let r = hair[0]; r <= hair[1]; r++) {
-    const span = hair[3] - hair[2];
-    for (let c = hair[2]; c < hair[3]; c++) {
-      const t = span > 0 ? (c - hair[2]) / span : 0;
-      if (r < H && c < W) g[r][c] = hairIndex(t);
+  if (hair) {
+    for (let r = hair[0]; r <= hair[1]; r++) {
+      const span = hair[3] - hair[2];
+      for (let c = hair[2]; c < hair[3]; c++) {
+        const t = span > 0 ? (c - hair[2]) / span : 0;
+        if (r < H && c < W) g[r][c] = hairIndex(t);
+      }
     }
   }
 
-  // Body parts — warm gradient with per-part bias
-  for (const [part, def] of Object.entries({ head, neck, torso, arm_left, arm_right, hips, leg_left, leg_right })) {
-    const [r0, r1, c0, c1, bias] = def;
+  // Body parts — all non-special parts use the warm gradient.
+  // Special parts (hair, boot_left, boot_right) are handled separately.
+  const SPECIAL = new Set(['hair', 'boot_left', 'boot_right']);
+  for (const [name, def] of Object.entries(parts)) {
+    if (SPECIAL.has(name) || !def) continue;
+    const [r0, r1, c0, c1, bias = 0] = def;
     fillRegion(g, r0, r1, c0, c1, params, bias);
   }
 
   // Boots — special gradient
-  const [bl0, bl1, blc0, blc1] = boot_left;
-  const bspan_l = blc1 - blc0;
-  for (let r = bl0; r <= bl1; r++) {
-    for (let c = blc0; c < blc1; c++) {
-      if (r < H && c < W) g[r][c] = bootIndex((c - blc0) / Math.max(bspan_l, 1), 'left');
+  if (boot_left) {
+    const [bl0, bl1, blc0, blc1] = boot_left;
+    const bspan_l = blc1 - blc0;
+    for (let r = bl0; r <= bl1; r++) {
+      for (let c = blc0; c < blc1; c++) {
+        if (r < H && c < W) g[r][c] = bootIndex((c - blc0) / Math.max(bspan_l, 1), 'left');
+      }
     }
   }
-  const [br0, br1, brc0, brc1] = boot_right;
-  const bspan_r = brc1 - brc0;
-  for (let r = br0; r <= br1; r++) {
-    for (let c = brc0; c < brc1; c++) {
-      if (r < H && c < W) g[r][c] = bootIndex((c - brc0) / Math.max(bspan_r, 1), 'right');
+  if (boot_right) {
+    const [br0, br1, brc0, brc1] = boot_right;
+    const bspan_r = brc1 - brc0;
+    for (let r = br0; r <= br1; r++) {
+      for (let c = brc0; c < brc1; c++) {
+        if (r < H && c < W) g[r][c] = bootIndex((c - brc0) / Math.max(bspan_r, 1), 'right');
+      }
     }
   }
 
