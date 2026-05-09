@@ -34,7 +34,7 @@ A six-stage pipeline:
 # Install dependencies
 npm install
 
-# Run all tests (583 tests)
+# Run all tests (636 tests)
 npm test
 
 # ── Ingest ──────────────────────────────────────────────────────────────────
@@ -245,4 +245,4 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 8 | Goku-calibrated generative authoring — goku_iterate + goku_gen + 443 tests | ✅ Done |
 | 9 | Multi-pose generation — 5 poses + pose_sheet + flexible buildFromParams + 517 tests | ✅ Done |
 | 10 | Style gallery — 5 palettes × 5 poses → 25-cell contact sheet + 583 tests | ✅ Done |
-| 11 | Composite pipeline test: ingest → eval → iterate → export complete loop — next | 🔜 |
+| 11 | End-to-end pipeline test: all 7 stages verified — ingest → eval → iterate → export + 636 tests | ✅ Done |
