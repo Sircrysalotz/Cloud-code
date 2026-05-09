@@ -30,7 +30,7 @@ import { gridToPNG }                        from '../src/export/png_writer.js';
 import { computeMetrics }                   from '../src/eval/metrics.js';
 import { compareToReference }               from '../src/eval/compare.js';
 import { loadBatchReference }               from '../src/eval/reference_lib.js';
-import { POSE_NAMES, poseParams }           from '../src/authoring/poses.js';
+import { POSE_NAMES, POSE_FRAME, poseParams } from '../src/authoring/poses.js';
 import { buildFromParams }                  from '../src/authoring/parametric.js';
 import { runCleanup }                       from '../src/cleanup/index.js';
 import { runIteration, bandRmsZ }           from './goku_iterate.js';
@@ -48,11 +48,6 @@ const noSheet   = args.includes('--no-sheet');
 const noTemplate = args.includes('--no-template');
 const posesArg  = args.find(a => a.startsWith('--poses='))?.slice(8);
 const targetPoses = posesArg ? posesArg.split(',') : POSE_NAMES;
-
-// Default frame index per pose — picks different Goku animation frames
-// so each pose has a distinct real silhouette.
-// Frames chosen for body pixel count >900 and full-height dimensions.
-const POSE_FRAME = { idle: 0, guard: 9, punch: 5, kick: 14, power_up: 18 };
 
 const BATCH_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'exports', 'batch');
 

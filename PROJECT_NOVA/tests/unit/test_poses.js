@@ -4,7 +4,7 @@
 
 import assert from 'assert/strict';
 import { check, section } from '../helpers.js';
-import { POSES, POSE_NAMES, poseParams,
+import { POSES, POSE_NAMES, POSE_FRAME, poseParams,
          idleParams, guardParams, punchParams, kickParams, powerUpParams } from '../../src/authoring/poses.js';
 import { buildFromParams }   from '../../src/authoring/parametric.js';
 import { runCleanup }        from '../../src/cleanup/index.js';
@@ -186,4 +186,22 @@ section('poses — guard forearms');
   // Guard canvas is wider, so more body pixels even proportionally
   check('guard body_count > idle body_count (wider canvas with forearms)',
     mGuard.body_count > mIdle.body_count);
+}
+
+// ── POSE_FRAME ────────────────────────────────────────────────────────────────
+
+section('poses — POSE_FRAME');
+
+{
+  check('POSE_FRAME has entry for every pose name',
+    POSE_NAMES.every(n => n in POSE_FRAME));
+
+  check('all POSE_FRAME values are non-negative integers',
+    Object.values(POSE_FRAME).every(v => Number.isInteger(v) && v >= 0));
+
+  check('POSE_FRAME idle is frame 0 (upright walk)',  POSE_FRAME.idle     === 0);
+  check('POSE_FRAME punch uses wide fighting frame',  POSE_FRAME.punch    === 5);
+  check('POSE_FRAME guard uses arms-raised frame',    POSE_FRAME.guard    === 9);
+  check('POSE_FRAME kick uses reaching frame',        POSE_FRAME.kick     === 14);
+  check('POSE_FRAME power_up uses dramatic frame',    POSE_FRAME.power_up === 18);
 }
