@@ -213,6 +213,54 @@ export function buildFromParams(params) {
   return g;
 }
 
+// ── Silhouette-based builder ──────────────────────────────────────────────────
+
+/**
+ * Build a sprite grid by projecting the calibration gradient onto a real
+ * frame's silhouette.  Shape comes from the frame; colour comes from params.
+ *
+ * @param {object} frameData  — parsed batch frame JSON { width, height, data }
+ * @param {object} params     — gradient params; only thresholds[] is used
+ * @returns {Grid}
+ */
+export function buildFromSilhouette(frameData, params) {
+  const W   = frameData.width;
+  const H   = frameData.height;
+  const src = frameData.data;
+
+  let g = makeGrid(W, H, T);
+
+  let minR = H, maxR = 0, minC = W, maxC = 0;
+  for (let r = 0; r < H; r++) {
+    for (let c = 0; c < W; c++) {
+      if (src[r][c] !== 0) {
+        if (r < minR) minR = r;
+        if (r > maxR) maxR = r;
+        if (c < minC) minC = c;
+        if (c > maxC) maxC = c;
+      }
+    }
+  }
+
+  const spanC = Math.max(maxC - minC, 1);
+  const spanR = Math.max(maxR - minR, 1);
+
+  for (let r = 0; r < H; r++) {
+    for (let c = 0; c < W; c++) {
+      if (src[r][c] === 0) continue;
+      // Horizontal gradient (left=dark → right=bright) with slight vertical
+      // shadow bias — bottom of figure pools slightly darker.
+      const tc = (c - minC) / spanC;
+      const tv = (r - minR) / spanR;
+      const t  = Math.max(0, Math.min(1, tc - tv * 0.08));
+      g[r][c]  = gradientIndex(t, params);
+    }
+  }
+
+  g = addOutline(g, W, H);
+  return g;
+}
+
 // ── Parameter adjuster ────────────────────────────────────────────────────────
 
 /**
