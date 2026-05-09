@@ -1,6 +1,6 @@
 # PROJECT: NOVA
 
-> Status: Active — Phase 9 complete
+> Status: Active — Phase 10 complete
 > Purpose: AI-native pixel art pipeline. Look at any sprite image → extract its structure as AI-readable data → reproduce it pixel-perfect → style-transfer to any palette → evaluate against reference → iterate.
 
 ---
@@ -34,7 +34,7 @@ A six-stage pipeline:
 # Install dependencies
 npm install
 
-# Run all tests (517 tests)
+# Run all tests (583 tests)
 npm test
 
 # ── Ingest ──────────────────────────────────────────────────────────────────
@@ -134,9 +134,10 @@ PROJECT_NOVA/
 │   ├── animate_goku.js         <- assemble frames → spritesheet PNG + JSON sidecar
 │   ├── goku_iterate.js         <- Phase 8: Goku-calibrated iteration loop, exports goku_warrior.png
 │   ├── generate_poses.js       <- Phase 9: all 5 poses → Goku-calibrated → pose_sheet.png
+│   ├── style_gallery.js        <- Phase 10: 5 palettes × 5 poses → 25-cell contact sheet
 │   ├── auto_iterate.js         <- parametric convergence loop (band-only, structural informational)
 │   └── reconstruct.js          <- load grid+palette → render PNG (legacy)
-├── tests/unit/                 <- 517 tests, all passing
+├── tests/unit/                 <- 583 tests, all passing
 ├── exports/
 │   ├── batch/                  <- 171 clean Goku frame grids/palettes + reference.json
 │   ├── style_transfer/         <- style-transferred PNGs
@@ -243,4 +244,5 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 7 | Animation assembly + goku_report + full pipeline health | ✅ Done |
 | 8 | Goku-calibrated generative authoring — goku_iterate + goku_gen + 443 tests | ✅ Done |
 | 9 | Multi-pose generation — 5 poses + pose_sheet + flexible buildFromParams + 517 tests | ✅ Done |
-| 10 | Style gallery — all 5 palettes × all poses, cross-palette contact sheet — next | 🔜 |
+| 10 | Style gallery — 5 palettes × 5 poses → 25-cell contact sheet + 583 tests | ✅ Done |
+| 11 | Composite pipeline test: ingest → eval → iterate → export complete loop — next | 🔜 |
