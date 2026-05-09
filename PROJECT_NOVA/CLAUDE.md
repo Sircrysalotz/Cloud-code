@@ -1,6 +1,6 @@
 # PROJECT: NOVA
 
-> Status: Active — Phase 22 complete
+> Status: Active — Phase 23 complete
 > Purpose: AI-native pixel art pipeline. Look at any sprite image → extract its structure as AI-readable data → reproduce it pixel-perfect → style-transfer to any palette → evaluate against reference → iterate.
 
 ---
@@ -34,7 +34,7 @@ A six-stage pipeline:
 # Install dependencies
 npm install
 
-# Run all tests (1366 tests)
+# Run all tests (1460 tests)
 npm test
 
 # ── Ingest ──────────────────────────────────────────────────────────────────
@@ -142,6 +142,7 @@ PROJECT_NOVA/
 │       ├── character_spec.js   <- Phase 16: buildCharacter, validateCharacterSpec, resolvePaletteSpec
 │       └── optimizer.js        <- Phase 18: Nelder-Mead threshold optimizer, projectThresholds
 │   │   ├── grid.js             <- 2D grid (Uint8Array rows), cloneGrid, countPixels
+│   │   └── grid_ops.js         <- Phase 23: contentBounds, cropToContent, padGrid, flipH/V, rotateGrid, scaleGrid
 │   │   └── ascii.js            <- gridToAscii, asciiToGrid, gridToJSON
 │   ├── cleanup/                <- 9 deterministic passes (all palette-agnostic)
 │   │   ├── pass1_orphan.js     <- remove isolated pixels
@@ -305,3 +306,4 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 20 | Sprite atlas packer: shelf-first bin-pack, UV map, renderAtlasRGBA, libraryCells bridge + 1199 tests | ✅ Done |
 | 21 | Sprite diff engine: pixel-level diff, region density, ASCII heatmap, changeMask, diffSequence + 1287 tests | ✅ Done |
 | 22 | Palette mutation engine: tint, brighten, darken, contrast, saturate, desaturate, invert, compose + 1366 tests | ✅ Done |
+| 23 | Grid surgery: contentBounds, cropToContent, padGrid, padToSize, flipH/V, rotateGrid, scaleGrid, normalizeSize + 1460 tests | ✅ Done |
