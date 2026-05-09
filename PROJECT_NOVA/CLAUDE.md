@@ -1,6 +1,6 @@
 # PROJECT: NOVA
 
-> Status: Active — Phase 20 complete
+> Status: Active — Phase 21 complete
 > Purpose: AI-native pixel art pipeline. Look at any sprite image → extract its structure as AI-readable data → reproduce it pixel-perfect → style-transfer to any palette → evaluate against reference → iterate.
 
 ---
@@ -34,7 +34,7 @@ A six-stage pipeline:
 # Install dependencies
 npm install
 
-# Run all tests (1199 tests)
+# Run all tests (1287 tests)
 npm test
 
 # ── Ingest ──────────────────────────────────────────────────────────────────
@@ -157,7 +157,8 @@ PROJECT_NOVA/
 │   │   ├── metrics.js          <- computeMetrics(grid, palette) — 6 band ratios + structural
 │   │   ├── reference_lib.js    <- loadBatchReference(), buildReferenceProfile()
 │   │   ├── compare.js          <- compareToReference(), adjustmentHints() (palette-agnostic)
-│   │   └── similarity.js       <- Phase 17: compareGrids, findMostSimilar, computeMetricSimilarity
+│   │   ├── similarity.js       <- Phase 17: compareGrids, findMostSimilar, computeMetricSimilarity
+│   │   └── diff.js             <- Phase 21: diffGrids, heatmapToAscii, diffSequence, changeMask
 │   ├── animation/
 │   │   ├── keyframe.js         <- makeKeyframe, totalDuration, sequenceToJSON
 │   │   ├── timing.js           <- idleTiming, walkTiming, distributeDurations
@@ -301,3 +302,4 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 18 | Adaptive threshold optimizer: Nelder-Mead simplex on 5D threshold space + 1021 tests | ✅ Done |
 | 19 | Multi-character scene composition: battle layout, RGBA blit, PNG export, AI-readable JSON + 1111 tests | ✅ Done |
 | 20 | Sprite atlas packer: shelf-first bin-pack, UV map, renderAtlasRGBA, libraryCells bridge + 1199 tests | ✅ Done |
+| 21 | Sprite diff engine: pixel-level diff, region density, ASCII heatmap, changeMask, diffSequence + 1287 tests | ✅ Done |
