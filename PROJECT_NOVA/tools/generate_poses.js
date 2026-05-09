@@ -21,7 +21,7 @@
  *   exports/poses/pose_sheet.json      — spritesheet sidecar with timing
  */
 
-import { writeFileSync, mkdirSync }         from 'fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import { fileURLToPath }                    from 'url';
 import { dirname, join }                    from 'path';
 import { PALETTE }                          from '../src/core/palette.js';
@@ -45,8 +45,22 @@ const maxIter   = parseInt(args.find(a => a.startsWith('--max='))?.slice(6)  ?? 
 const scale     = parseInt(args.find(a => a.startsWith('--scale='))?.slice(8) ?? '8');
 const fps       = parseFloat(args.find(a => a.startsWith('--fps='))?.slice(6) ?? '8');
 const noSheet   = args.includes('--no-sheet');
+const noTemplate = args.includes('--no-template');
 const posesArg  = args.find(a => a.startsWith('--poses='))?.slice(8);
 const targetPoses = posesArg ? posesArg.split(',') : POSE_NAMES;
+
+// Default frame index per pose — picks different Goku animation frames
+// so each pose has a distinct real silhouette.
+// Frames chosen for body pixel count >900 and full-height dimensions.
+const POSE_FRAME = { idle: 0, guard: 9, punch: 5, kick: 14, power_up: 18 };
+
+const BATCH_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'exports', 'batch');
+
+function loadSilhouette(frameIdx) {
+  const id   = String(frameIdx).padStart(4, '0');
+  const path = join(BATCH_DIR, `frame_${id}_grid.json`);
+  return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : null;
+}
 
 // ── Load reference ────────────────────────────────────────────────────────────
 const ref = loadBatchReference();
@@ -62,6 +76,7 @@ console.log('║   PROJECT NOVA — Phase 9: Multi-Pose Generation         ║')
 console.log('╚══════════════════════════════════════════════════════════╝');
 console.log(`\n  Poses:     ${targetPoses.join(' | ')}`);
 console.log(`  Reference: ${ref.entries?.length ?? 0} Goku frames`);
+console.log(`  Shape:     ${noTemplate ? 'parametric' : 'real Goku silhouettes'}`);
 console.log(`  Budget:    ${maxIter} iters/pose  |  Scale: ${scale}×  |  FPS: ${fps}\n`);
 
 // ── Generate each pose ────────────────────────────────────────────────────────
@@ -77,8 +92,9 @@ for (const poseName of targetPoses) {
   const t0 = Date.now();
 
   const params0 = poseParams(poseName);
+  const silhouetteData = noTemplate ? null : loadSilhouette(POSE_FRAME[poseName] ?? 4);
   const { bestGrid, bestParams, bestBandRmsZ, bestIter, log, converged } =
-    runIteration(params0, distribution, { maxIter, targetRmsZ: 0.50 });
+    runIteration(params0, distribution, { maxIter, targetRmsZ: 0.50, silhouetteData });
 
   const metrics    = computeMetrics(bestGrid, PALETTE);
   const comparison = compareToReference(metrics, distribution);

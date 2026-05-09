@@ -186,10 +186,10 @@ if (!dist) {
   }
 
   {
-    // All poses have same height (40px for Goku-style warrior)
+    // All poses have non-trivial height (>= 40px; silhouette-based poses may vary)
     const { grids } = buildPoseAnimation(dist);
-    check('all pose grids have same height (40)',
-      grids.every(g => g.length === 40));
+    check('all pose grids have height >= 40',
+      grids.every(g => g.length >= 40));
   }
 
 // ── assembleAnimation ─────────────────────────────────────────────────────────
