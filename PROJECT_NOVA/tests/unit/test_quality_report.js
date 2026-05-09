@@ -188,9 +188,11 @@ if (!dist) {
     const { paletteFromRGB }           = await import('../../src/core/palette.js');
     const idlePath = new URL('../../exports/poses/idle.json', import.meta.url).pathname;
     if (existsSync(idlePath)) {
-      const raw    = JSON.parse(readFileSync(idlePath, 'utf8'));
-      const grid   = raw.data.map(row => new Uint8Array(row));
-      const result = evaluateGridAgainstRef(grid, PALETTE, dist);
+      const raw     = JSON.parse(readFileSync(idlePath, 'utf8'));
+      const grid    = raw.data.map(row => new Uint8Array(row));
+      // Use the palette embedded in the sidecar (original dynamic palette or style-transferred)
+      const palette = raw.palette_colors ? paletteFromRGB(raw.palette_colors) : PALETTE;
+      const result  = evaluateGridAgainstRef(grid, palette, dist);
       check('generated idle: bandRmsZ < 2.0', result.bandRmsZ < 2.0);
       check('generated idle: fullRmsZ is finite', isFinite(result.fullRmsZ));
     } else {

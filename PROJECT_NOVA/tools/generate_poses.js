@@ -49,7 +49,7 @@ const scale       = parseInt(args.find(a => a.startsWith('--scale='))?.slice(8) 
 const fps         = parseFloat(args.find(a => a.startsWith('--fps='))?.slice(6)   ?? '8');
 const noSheet     = args.includes('--no-sheet');
 const noCleanup   = args.includes('--no-cleanup');
-const paletteName = args.find(a => a.startsWith('--palette='))?.slice(10) ?? 'crimson';
+const paletteName = args.find(a => a.startsWith('--palette='))?.slice(10) ?? 'original';
 const posesArg    = args.find(a => a.startsWith('--poses='))?.slice(8);
 const targetPoses = posesArg ? posesArg.split(',') : POSE_NAMES;
 
@@ -94,7 +94,7 @@ console.log('║   PROJECT NOVA — Phase 9: Multi-Pose Generation         ║')
 console.log('╚══════════════════════════════════════════════════════════╝');
 console.log(`\n  Poses:    ${targetPoses.join(' | ')}`);
 console.log(`  Source:   real Goku batch frames (100% reconstruction accuracy)`);
-console.log(`  Palette:  ${paletteName}  (use --palette=original to keep source colors)`);
+console.log(`  Palette:  ${paletteName}  (use --palette=crimson for SSJ4 crimson style)`);
 console.log(`  Cleanup:  ${noCleanup ? 'off' : 'on'}  |  Scale: ${scale}×  |  FPS: ${fps}\n`);
 
 // ── Generate each pose ────────────────────────────────────────────────────────
@@ -144,17 +144,19 @@ for (const poseName of targetPoses) {
   const pngPath = join(OUT, `${poseName}.png`);
   writeFileSync(pngPath, gridToPNG(grid, renderPalette, scale));
 
-  // Save JSON sidecar
+  // Save JSON sidecar — embed palette_colors so consumers can reconstruct the palette
   const jsonPath = join(OUT, `${poseName}.json`);
+  const paletteColors = renderPalette.colors.map(c => ({ index: c.index, rgb: [c.r, c.g, c.b] }));
   writeFileSync(jsonPath, JSON.stringify({
-    id:         poseName,
-    source:     'generate_poses',
-    frame_idx:  frameIdx,
-    palette:    paletteName ?? 'original',
-    width:      frame.width,
-    height:     frame.height,
-    accuracy:   frame.accuracy,
-    data:       grid.map(row => Array.from(row)),
+    id:             poseName,
+    source:         'generate_poses',
+    frame_idx:      frameIdx,
+    palette:        paletteName,
+    palette_colors: paletteColors,
+    width:          frame.width,
+    height:         frame.height,
+    accuracy:       frame.accuracy,
+    data:           grid.map(row => Array.from(row)),
     metrics,
     comparison: {
       rms_z: comparison.rms_z,
