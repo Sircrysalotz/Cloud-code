@@ -34,7 +34,7 @@ A six-stage pipeline:
 # Install dependencies
 npm install
 
-# Run all tests (866 tests)
+# Run all tests (920 tests)
 npm test
 
 # ── Ingest ──────────────────────────────────────────────────────────────────
@@ -138,6 +138,7 @@ PROJECT_NOVA/
 │   ├── palette_designer.js <- Phase 14: paletteFromHex, paletteFromAnchors, validatePalette, paletteInfo
 │   └── authoring/
 │       ├── variant_engine.js   <- Phase 15: buildVariantLibrary, generatePoseGrid, buildVariantCell
+│       ├── character_spec.js   <- Phase 16: buildCharacter, validateCharacterSpec, resolvePaletteSpec
 │   │   ├── grid.js             <- 2D grid (Uint8Array rows), cloneGrid, countPixels
 │   │   └── ascii.js            <- gridToAscii, asciiToGrid, gridToJSON
 │   ├── cleanup/                <- 9 deterministic passes (all palette-agnostic)
@@ -290,3 +291,4 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 13 | Pipeline quality report: generated vs ingested z-score comparison + grading + 744 tests | ✅ Done |
 | 14 | Palette designer: paletteFromHex, paletteFromAnchors, validatePalette + 819 tests | ✅ Done |
 | 15 | Sprite variation engine: all poses × all palettes — complete variant library + 866 tests | ✅ Done |
+| 16 | Character specification API: JSON spec → complete sprite set (variants + animations + quality) + 920 tests | ✅ Done |
