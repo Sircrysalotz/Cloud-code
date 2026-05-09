@@ -1,6 +1,6 @@
-# Project Memory — CHRONICLE
+# Project Memory — NOVA
 
-Last updated: 2026-05-08T02:10:36 (session 2026-05-08)
+Last updated: 2026-05-09T03:01:21 (session 2026-05-09)
 
 ## What This Project Is
 
@@ -8,6 +8,9 @@ CHRONICLE — persistent living memory + decision audit trail for Claude session
 Auto-updated at end of each session by `chronicle.py summarize`.
 
 ## Key Decisions
+- [2026-05-09] generate_poses.js updated: all 5 poses use real frame silhouettes (idle=0, guard=9, punch=5, kick=14, power_up=18). All 5 now visually recognizable as Goku
+- [2026-05-09] buildFromSilhouette added to parametric.js — uses real Goku frame pixel mask as shape, applies gradient shading on top. Output now recognizable as Goku (46x69, spiky hair, fighting pose)
+- [2026-05-08] NOVA Phase 1: 117 tests passing, all 9 cleanup passes implemented, ASCII perception loop working, golden fixtures generated
 - [2026-05-08] save now stages modified tracked files in addition to untracked — catches tag-modified records
 - [2026-05-08] MEMORY.md is the only file that gets rewritten — all other records are append-only
 - [2026-05-08] chose JSON files over SQLite for decision storage — no dependencies, human-readable, git-diffable
@@ -29,5 +32,5 @@ Auto-updated at end of each session by `chronicle.py summarize`.
 
 ## Current State
 
-Last session: 2026-05-08 (3 decisions, 0 failures)
-Sessions recorded: 1
+Last session: 2026-05-09 (6 decisions, 0 failures)
+Sessions recorded: 2

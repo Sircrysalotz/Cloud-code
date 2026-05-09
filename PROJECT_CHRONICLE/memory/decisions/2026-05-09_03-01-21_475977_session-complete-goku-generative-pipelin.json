@@ -1,0 +1,8 @@
+{
+  "id": "2026-05-09T03:01:21_session-complete-goku-generative-pipelin",
+  "timestamp": "2026-05-09T03:01:21",
+  "session": "unknown",
+  "type": "observation",
+  "message": "session complete: goku generative pipeline fixed. buildFromSilhouette uses real frame silhouettes. All 5 poses recognizable. 1649 tests. Coverage 3/3. 4 HB fires.",
+  "tags": []
+}
