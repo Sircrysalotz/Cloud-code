@@ -1,6 +1,6 @@
 # PROJECT: NOVA
 
-> Status: Active — Phase 25 complete
+> Status: Active — Phase 26 complete
 > Purpose: AI-native pixel art pipeline. Look at any sprite image → extract its structure as AI-readable data → reproduce it pixel-perfect → style-transfer to any palette → evaluate against reference → iterate.
 
 ---
@@ -34,7 +34,7 @@ A six-stage pipeline:
 # Install dependencies
 npm install
 
-# Run all tests (1583 tests)
+# Run all tests (1635 tests)
 npm test
 
 # ── Ingest ──────────────────────────────────────────────────────────────────
@@ -162,7 +162,8 @@ PROJECT_NOVA/
 │   │   ├── compare.js          <- compareToReference(), adjustmentHints() (palette-agnostic)
 │   │   ├── similarity.js       <- Phase 17: compareGrids, findMostSimilar, computeMetricSimilarity
 │   │   ├── diff.js             <- Phase 21: diffGrids, heatmapToAscii, diffSequence, changeMask
-│   │   └── batch_eval.js       <- Phase 24: batchEval, rankBatch, filterBatch, batchSummary, topN
+│   │   ├── batch_eval.js       <- Phase 24: batchEval, rankBatch, filterBatch, batchSummary, topN
+│   │   └── counterfactual.js   <- Phase 26: computeSensitivity, prescribe, rmsZGradient, gradientStep
 │   ├── animation/
 │   │   ├── keyframe.js         <- makeKeyframe, totalDuration, sequenceToJSON
 │   │   ├── timing.js           <- idleTiming, walkTiming, distributeDurations
@@ -311,3 +312,4 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 23 | Grid surgery: contentBounds, cropToContent, padGrid, padToSize, flipH/V, rotateGrid, scaleGrid, normalizeSize + 1460 tests | ✅ Done |
 | 24 | Batch evaluation engine: batchEval, rankBatch, filterBatch, batchSummary, topN + 1514 tests | ✅ Done |
 | 25 | Search strategy engine: randomRestart, hillClimb, beamSearch, multiStart + 1583 tests | ✅ Done |
+| 26 | Counterfactual analysis: Jacobian sensitivity, rmsZ gradient, prescribe, gradientStep + 1635 tests | ✅ Done |
