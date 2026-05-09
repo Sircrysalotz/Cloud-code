@@ -1,6 +1,6 @@
 # PROJECT: NOVA
 
-> Status: Active — Phase 26 complete
+> Status: Active — Phase 29 complete
 > Purpose: AI-native pixel art pipeline. Look at any sprite image → extract its structure as AI-readable data → reproduce it pixel-perfect → style-transfer to any palette → evaluate against reference → iterate.
 
 ---
@@ -34,7 +34,7 @@ A six-stage pipeline:
 # Install dependencies
 npm install
 
-# Run all tests (1635 tests)
+# Run all tests (1799 tests)
 npm test
 
 # ── Ingest ──────────────────────────────────────────────────────────────────
@@ -121,6 +121,39 @@ node tools/quality_report.js --verbose        # per-metric z-score table
 node tools/quality_report.js --ascii          # ASCII side-by-side comparison
 # Output: exports/quality_report.json
 
+# ── Phase 28: Style extraction ──────────────────────────────────────────────
+# Extract a style profile from any batch of *_grid.json files
+node tools/extract_style.js                        # Goku batch (default)
+node tools/extract_style.js --source goku          # explicit source name
+node tools/extract_style.js --dir path/to/grids/  # any custom directory
+node tools/extract_style.js --output custom.json   # save to specific path
+node tools/extract_style.js --verbose              # per-band spatial bias detail
+# Output: exports/style_profiles/<source>.json
+
+# ── Phase 29: AI-native authoring workflow ───────────────────────────────────
+# Print the ASCII character legend (what each char means)
+node tools/ai_draw.js --legend
+
+# Dump a reference Goku frame as ASCII for study/editing
+node tools/ai_draw.js --from frame_0004
+node tools/ai_draw.js --from frame_0004 --verbose  # + band ratios
+
+# Generate a scaffold from a saved style profile
+node tools/ai_draw.js --scaffold --style goku
+node tools/ai_draw.js --scaffold --style goku --export  # + PNG
+
+# Author from an ASCII file (the main draw→edit→eval loop)
+node tools/ai_draw.js --ascii-file my_sprite.txt
+node tools/ai_draw.js --ascii-file my_sprite.txt --cleanup
+node tools/ai_draw.js --ascii-file my_sprite.txt --cleanup --eval --style goku
+node tools/ai_draw.js --ascii-file my_sprite.txt --cleanup --eval --style goku --export
+node tools/ai_draw.js --ascii-file my_sprite.txt --export --out my_out.png --scale 8
+node tools/ai_draw.js --ascii-file my_sprite.txt --save-grid my_sprite.json
+
+# Author from an inline ASCII string
+node tools/ai_draw.js --ascii-string ".#.\n#o#\n.#." --cleanup --eval --style goku
+# Output: exports/ai_draw/<name>.png
+
 # ── Legacy ──────────────────────────────────────────────────────────────────
 node tools/ascii_dump.js <grid.json>
 node tools/reconstruct.js goku_frame
@@ -135,16 +168,12 @@ PROJECT_NOVA/
 ├── src/
 │   ├── core/
 │   │   ├── palette.js          <- dynamic N-color palette, paletteFromRGB, band helpers
-│   ├── palette_designer.js  <- Phase 14: paletteFromHex, paletteFromAnchors, validatePalette, paletteInfo
-│   │   └── palette_mutator.js <- Phase 22: tint, brighten, darken, contrast, saturate, desaturate, invert, compose
-│   └── authoring/
-│       ├── variant_engine.js   <- Phase 15: buildVariantLibrary, generatePoseGrid, buildVariantCell
-│       ├── character_spec.js   <- Phase 16: buildCharacter, validateCharacterSpec, resolvePaletteSpec
-│       ├── optimizer.js        <- Phase 18: Nelder-Mead threshold optimizer, projectThresholds
-│       └── search.js           <- Phase 25: randomRestart, hillClimb, beamSearch, multiStart
+│   │   ├── palette_designer.js <- Phase 14: paletteFromHex, paletteFromAnchors, validatePalette, paletteInfo
+│   │   ├── palette_mutator.js  <- Phase 22: tint, brighten, darken, contrast, saturate, desaturate, invert, compose
 │   │   ├── grid.js             <- 2D grid (Uint8Array rows), cloneGrid, countPixels
-│   │   └── grid_ops.js         <- Phase 23: contentBounds, cropToContent, padGrid, flipH/V, rotateGrid, scaleGrid
-│   │   └── ascii.js            <- gridToAscii, asciiToGrid, gridToJSON
+│   │   ├── grid_ops.js         <- Phase 23: contentBounds, cropToContent, padGrid, flipH/V, rotateGrid, scaleGrid
+│   │   ├── ascii.js            <- gridToAscii, asciiToGrid, gridToJSON
+│   │   └── grid_author.js      <- Phase 27: AI drawing API — canvas, fromASCII, paintCell/Cells/Fill, drawLine/Rect/Ellipse, stamp, mirror, outlineBody, gradientFill
 │   ├── cleanup/                <- 9 deterministic passes (all palette-agnostic)
 │   │   ├── pass1_orphan.js     <- remove isolated pixels
 │   │   ├── pass2_outline_thin.js <- break 2×2 outline blocks
@@ -163,7 +192,8 @@ PROJECT_NOVA/
 │   │   ├── similarity.js       <- Phase 17: compareGrids, findMostSimilar, computeMetricSimilarity
 │   │   ├── diff.js             <- Phase 21: diffGrids, heatmapToAscii, diffSequence, changeMask
 │   │   ├── batch_eval.js       <- Phase 24: batchEval, rankBatch, filterBatch, batchSummary, topN
-│   │   └── counterfactual.js   <- Phase 26: computeSensitivity, prescribe, rmsZGradient, gradientStep
+│   │   ├── counterfactual.js   <- Phase 26: computeSensitivity, prescribe, rmsZGradient, gradientStep
+│   │   └── style_profile.js    <- Phase 28: buildStyleProfile, scaffoldFromProfile, scoreAgainstProfile, JSON I/O
 │   ├── animation/
 │   │   ├── keyframe.js         <- makeKeyframe, totalDuration, sequenceToJSON
 │   │   ├── timing.js           <- idleTiming, walkTiming, distributeDurations
@@ -188,12 +218,16 @@ PROJECT_NOVA/
 │   ├── generate_animation.js   <- Phase 12: idle breathing loop + pose sequence animation
 │   ├── quality_report.js       <- Phase 13: generated vs ingested quality scoring + grading
 │   ├── auto_iterate.js         <- parametric convergence loop (band-only, structural informational)
-│   └── reconstruct.js          <- load grid+palette → render PNG (legacy)
-├── tests/unit/                 <- 583 tests, all passing
+│   ├── reconstruct.js          <- load grid+palette → render PNG (legacy)
+│   ├── extract_style.js        <- Phase 28: extract style profile from any *_grid.json directory
+│   └── ai_draw.js              <- Phase 29: AI authoring workflow — scaffold, ASCII load, cleanup, eval, export
+├── tests/unit/                 <- 1799 tests, all passing
 ├── exports/
 │   ├── batch/                  <- 171 clean Goku frame grids/palettes + reference.json
 │   ├── style_transfer/         <- style-transferred PNGs
-│   └── animations/             <- spritesheet PNGs + JSON sidecars
+│   ├── animations/             <- spritesheet PNGs + JSON sidecars
+│   ├── style_profiles/         <- Phase 28: saved style profiles (<source>.json)
+│   └── ai_draw/                <- Phase 29: PNG exports from AI authoring sessions
 └── references/grids/           <- legacy reference library (empty — use batch/ instead)
 ```
 
@@ -313,3 +347,6 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 24 | Batch evaluation engine: batchEval, rankBatch, filterBatch, batchSummary, topN + 1514 tests | ✅ Done |
 | 25 | Search strategy engine: randomRestart, hillClimb, beamSearch, multiStart + 1583 tests | ✅ Done |
 | 26 | Counterfactual analysis: Jacobian sensitivity, rmsZ gradient, prescribe, gradientStep + 1635 tests | ✅ Done |
+| 27 | AI-native drawing primitives: grid_author.js — canvas, fromASCII, paint, line, rect, ellipse, stamp, mirror, gradient + 1711 tests | ✅ Done |
+| 28 | Style extraction engine: style_profile.js + extract_style.js — buildStyleProfile, scaffoldFromProfile, scoreAgainstProfile, dynamic palette support + 1799 tests | ✅ Done |
+| 29 | AI authoring workflow: ai_draw.js — scaffold→ASCII→cleanup→eval→export loop, legend, --from frame dump | ✅ Done |
