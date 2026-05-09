@@ -1,6 +1,6 @@
 # PROJECT: NOVA
 
-> Status: Active — Phase 10 complete
+> Status: Active — Phase 19 complete
 > Purpose: AI-native pixel art pipeline. Look at any sprite image → extract its structure as AI-readable data → reproduce it pixel-perfect → style-transfer to any palette → evaluate against reference → iterate.
 
 ---
@@ -34,7 +34,7 @@ A six-stage pipeline:
 # Install dependencies
 npm install
 
-# Run all tests (1021 tests)
+# Run all tests (1111 tests)
 npm test
 
 # ── Ingest ──────────────────────────────────────────────────────────────────
@@ -162,6 +162,8 @@ PROJECT_NOVA/
 │   │   ├── keyframe.js         <- makeKeyframe, totalDuration, sequenceToJSON
 │   │   ├── timing.js           <- idleTiming, walkTiming, distributeDurations
 │   │   └── spritesheet.js      <- keyframesToPNG, buildSidecar
+│   ├── export/
+│   │   └── scene_composer.js   <- Phase 19: createScene, addCharacter, addBattleLayout, renderScenePNG, sceneToJSON
 │   └── authoring/
 │       ├── parametric.js       <- buildFromParams, adjustParams, badStartParams (open part names)
 │       ├── poses.js            <- 5 pose factories: idle/guard/punch/kick/power_up
@@ -296,3 +298,4 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 16 | Character specification API: JSON spec → complete sprite set (variants + animations + quality) + 920 tests | ✅ Done |
 | 17 | Sprite similarity engine: metric-space comparison (band cosine + L2 + composite grade S-D) + 980 tests | ✅ Done |
 | 18 | Adaptive threshold optimizer: Nelder-Mead simplex on 5D threshold space + 1021 tests | ✅ Done |
+| 19 | Multi-character scene composition: battle layout, RGBA blit, PNG export, AI-readable JSON + 1111 tests | ✅ Done |
