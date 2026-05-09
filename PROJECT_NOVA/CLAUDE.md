@@ -1,6 +1,6 @@
 # PROJECT: NOVA
 
-> Status: Active — Phase 24 complete
+> Status: Active — Phase 25 complete
 > Purpose: AI-native pixel art pipeline. Look at any sprite image → extract its structure as AI-readable data → reproduce it pixel-perfect → style-transfer to any palette → evaluate against reference → iterate.
 
 ---
@@ -34,7 +34,7 @@ A six-stage pipeline:
 # Install dependencies
 npm install
 
-# Run all tests (1514 tests)
+# Run all tests (1583 tests)
 npm test
 
 # ── Ingest ──────────────────────────────────────────────────────────────────
@@ -140,7 +140,8 @@ PROJECT_NOVA/
 │   └── authoring/
 │       ├── variant_engine.js   <- Phase 15: buildVariantLibrary, generatePoseGrid, buildVariantCell
 │       ├── character_spec.js   <- Phase 16: buildCharacter, validateCharacterSpec, resolvePaletteSpec
-│       └── optimizer.js        <- Phase 18: Nelder-Mead threshold optimizer, projectThresholds
+│       ├── optimizer.js        <- Phase 18: Nelder-Mead threshold optimizer, projectThresholds
+│       └── search.js           <- Phase 25: randomRestart, hillClimb, beamSearch, multiStart
 │   │   ├── grid.js             <- 2D grid (Uint8Array rows), cloneGrid, countPixels
 │   │   └── grid_ops.js         <- Phase 23: contentBounds, cropToContent, padGrid, flipH/V, rotateGrid, scaleGrid
 │   │   └── ascii.js            <- gridToAscii, asciiToGrid, gridToJSON
@@ -309,3 +310,4 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 22 | Palette mutation engine: tint, brighten, darken, contrast, saturate, desaturate, invert, compose + 1366 tests | ✅ Done |
 | 23 | Grid surgery: contentBounds, cropToContent, padGrid, padToSize, flipH/V, rotateGrid, scaleGrid, normalizeSize + 1460 tests | ✅ Done |
 | 24 | Batch evaluation engine: batchEval, rankBatch, filterBatch, batchSummary, topN + 1514 tests | ✅ Done |
+| 25 | Search strategy engine: randomRestart, hillClimb, beamSearch, multiStart + 1583 tests | ✅ Done |
