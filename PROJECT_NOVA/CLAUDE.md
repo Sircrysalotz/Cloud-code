@@ -34,7 +34,7 @@ A six-stage pipeline:
 # Install dependencies
 npm install
 
-# Run all tests (636 tests)
+# Run all tests (699 tests)
 npm test
 
 # ── Ingest ──────────────────────────────────────────────────────────────────
@@ -86,6 +86,16 @@ node tools/generate_poses.js --scale=4 --fps=12      # thumbnail size, 12fps tim
 node tools/generate_poses.js --max=50                # more iterations per pose
 # Output: exports/poses/<pose>.png + exports/poses/pose_sheet.png (1120×320px)
 
+# ── Phase 12: Generated animation ───────────────────────────────────────────
+# Generate animated sprite sheets from the generative pipeline
+node tools/generate_animation.js                  # idle loop + pose sequence
+node tools/generate_animation.js --anim=idle      # 4-frame breathing idle only
+node tools/generate_animation.js --anim=poses     # 5-pose sequence only
+node tools/generate_animation.js --palette=cool   # style-transfer output
+node tools/generate_animation.js --scale=4        # output scale (default 6)
+node tools/generate_animation.js --fps=12         # idle loop FPS (default 8)
+# Output: exports/generated_animation/idle_loop.png + pose_sequence.png + .json sidecars
+
 # ── Legacy ──────────────────────────────────────────────────────────────────
 node tools/ascii_dump.js <grid.json>
 node tools/reconstruct.js goku_frame
@@ -135,6 +145,7 @@ PROJECT_NOVA/
 │   ├── goku_iterate.js         <- Phase 8: Goku-calibrated iteration loop, exports goku_warrior.png
 │   ├── generate_poses.js       <- Phase 9: all 5 poses → Goku-calibrated → pose_sheet.png
 │   ├── style_gallery.js        <- Phase 10: 5 palettes × 5 poses → 25-cell contact sheet
+│   ├── generate_animation.js   <- Phase 12: idle breathing loop + pose sequence animation
 │   ├── auto_iterate.js         <- parametric convergence loop (band-only, structural informational)
 │   └── reconstruct.js          <- load grid+palette → render PNG (legacy)
 ├── tests/unit/                 <- 583 tests, all passing
@@ -246,3 +257,4 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 9 | Multi-pose generation — 5 poses + pose_sheet + flexible buildFromParams + 517 tests | ✅ Done |
 | 10 | Style gallery — 5 palettes × 5 poses → 25-cell contact sheet + 583 tests | ✅ Done |
 | 11 | End-to-end pipeline test: all 7 stages verified — ingest → eval → iterate → export + 636 tests | ✅ Done |
+| 12 | Generated animation: 4-frame breathing idle loop + 5-pose sequence + 699 tests | ✅ Done |
