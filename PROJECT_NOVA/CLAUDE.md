@@ -34,7 +34,7 @@ A six-stage pipeline:
 # Install dependencies
 npm install
 
-# Run all tests (980 tests)
+# Run all tests (1021 tests)
 npm test
 
 # ── Ingest ──────────────────────────────────────────────────────────────────
@@ -139,6 +139,7 @@ PROJECT_NOVA/
 │   └── authoring/
 │       ├── variant_engine.js   <- Phase 15: buildVariantLibrary, generatePoseGrid, buildVariantCell
 │       ├── character_spec.js   <- Phase 16: buildCharacter, validateCharacterSpec, resolvePaletteSpec
+│       └── optimizer.js        <- Phase 18: Nelder-Mead threshold optimizer, projectThresholds
 │   │   ├── grid.js             <- 2D grid (Uint8Array rows), cloneGrid, countPixels
 │   │   └── ascii.js            <- gridToAscii, asciiToGrid, gridToJSON
 │   ├── cleanup/                <- 9 deterministic passes (all palette-agnostic)
@@ -294,3 +295,4 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 15 | Sprite variation engine: all poses × all palettes — complete variant library + 866 tests | ✅ Done |
 | 16 | Character specification API: JSON spec → complete sprite set (variants + animations + quality) + 920 tests | ✅ Done |
 | 17 | Sprite similarity engine: metric-space comparison (band cosine + L2 + composite grade S-D) + 980 tests | ✅ Done |
+| 18 | Adaptive threshold optimizer: Nelder-Mead simplex on 5D threshold space + 1021 tests | ✅ Done |
