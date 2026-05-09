@@ -1,6 +1,6 @@
 # PROJECT: NOVA
 
-> Status: Active — Phase 23 complete
+> Status: Active — Phase 24 complete
 > Purpose: AI-native pixel art pipeline. Look at any sprite image → extract its structure as AI-readable data → reproduce it pixel-perfect → style-transfer to any palette → evaluate against reference → iterate.
 
 ---
@@ -34,7 +34,7 @@ A six-stage pipeline:
 # Install dependencies
 npm install
 
-# Run all tests (1460 tests)
+# Run all tests (1514 tests)
 npm test
 
 # ── Ingest ──────────────────────────────────────────────────────────────────
@@ -160,7 +160,8 @@ PROJECT_NOVA/
 │   │   ├── reference_lib.js    <- loadBatchReference(), buildReferenceProfile()
 │   │   ├── compare.js          <- compareToReference(), adjustmentHints() (palette-agnostic)
 │   │   ├── similarity.js       <- Phase 17: compareGrids, findMostSimilar, computeMetricSimilarity
-│   │   └── diff.js             <- Phase 21: diffGrids, heatmapToAscii, diffSequence, changeMask
+│   │   ├── diff.js             <- Phase 21: diffGrids, heatmapToAscii, diffSequence, changeMask
+│   │   └── batch_eval.js       <- Phase 24: batchEval, rankBatch, filterBatch, batchSummary, topN
 │   ├── animation/
 │   │   ├── keyframe.js         <- makeKeyframe, totalDuration, sequenceToJSON
 │   │   ├── timing.js           <- idleTiming, walkTiming, distributeDurations
@@ -307,3 +308,4 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 21 | Sprite diff engine: pixel-level diff, region density, ASCII heatmap, changeMask, diffSequence + 1287 tests | ✅ Done |
 | 22 | Palette mutation engine: tint, brighten, darken, contrast, saturate, desaturate, invert, compose + 1366 tests | ✅ Done |
 | 23 | Grid surgery: contentBounds, cropToContent, padGrid, padToSize, flipH/V, rotateGrid, scaleGrid, normalizeSize + 1460 tests | ✅ Done |
+| 24 | Batch evaluation engine: batchEval, rankBatch, filterBatch, batchSummary, topN + 1514 tests | ✅ Done |
