@@ -22,14 +22,26 @@ import { gridToPNG }                from '../src/export/png_writer.js';
 import { evalGrid }                 from '../src/eval/compare.js';
 import { defaultParams, badStartParams, buildFromParams, adjustParams } from '../src/authoring/parametric.js';
 
+const __isMain = process.argv[1] === fileURLToPath(import.meta.url);
+
 const __dir = dirname(fileURLToPath(import.meta.url));
-const OUT   = join(__dir, '..', 'exports');
+
+// Band metrics only — structural metrics (symmetry, body_density) are
+// determined by pose geometry, not by band thresholds, so they're excluded
+// from the iteration target.
+const BAND_METRICS = new Set([
+  'shadow_deep_ratio', 'shadow_ratio', 'mid_ratio',
+  'bright_ratio', 'highlight_ratio', 'peak_ratio',
+]);
+
+if (__isMain) {
+const OUT = join(__dir, '..', 'exports');
 mkdirSync(OUT, { recursive: true });
 
-// ── Config ────────────────────────────────────────────────────────────────────
+// ── Config ───────────────────────────────────────────────────────────────────
 
 const MAX_ITER    = 20;
-const TARGET_RMS  = 0.60;   // stop when rmsZ falls below this
+const TARGET_RMS  = 0.60;
 const SCALE       = 8;
 
 // ── Iteration loop ────────────────────────────────────────────────────────────
@@ -46,47 +58,51 @@ let bestRmsZ  = Infinity;
 let bestIter  = 0;
 
 for (let iter = 0; iter < MAX_ITER; iter++) {
-  // Generate + cleanup
-  const rawGrid              = buildFromParams(params);
-  const { grid: cleanGrid }  = runCleanup(rawGrid);
+  const rawGrid             = buildFromParams(params);
+  const { grid: cleanGrid } = runCleanup(rawGrid);
 
-  // Evaluate
   const { metrics, comparison } = evalGrid(cleanGrid);
-  const { rms_z, flags, pass: passed, summary } = comparison;
+  const { rms_z, flags, summary } = comparison;
+
+  // Only iterate on band metrics; structural flags are informational
+  const bandFlags       = flags.filter(f => BAND_METRICS.has(f.key));
+  const structuralFlags = flags.filter(f => !BAND_METRICS.has(f.key));
+  const bandRmsZ        = computeBandRmsZ(metrics, comparison.results);
+  const passed          = bandFlags.filter(f => f.severity === 'bad' || f.severity === 'critical').length === 0;
 
   log.push({
     iter,
     rms_z,
+    band_rms_z: bandRmsZ,
     pass: passed,
     thresholds: [...params.thresholds],
-    flags: flags.map(f => `${f.metric}:${f.direction}:${f.severity}`),
+    flags: flags.map(f => `${f.key}:${f.direction}:${f.severity}`),
   });
 
   const icon = passed ? '✓' : '✗';
-  console.log(`iter ${String(iter).padStart(2)} ${icon}  rmsZ=${rms_z.toFixed(3)}  flags=${flags.length}  ${summary}`);
+  const sInfo = structuralFlags.length ? `  [struct: ${structuralFlags.map(f=>f.key.replace('_ratio','')).join(',')}]` : '';
+  console.log(`iter ${String(iter).padStart(2)} ${icon}  rmsZ=${rms_z.toFixed(3)}  band=${bandRmsZ.toFixed(3)}  bandFlags=${bandFlags.length}${sInfo}`);
 
-  if (rms_z < bestRmsZ) {
-    bestRmsZ  = rms_z;
+  if (bandRmsZ < bestRmsZ) {
+    bestRmsZ  = bandRmsZ;
     bestGrid  = cleanGrid;
     bestIter  = iter;
   }
 
-  if (passed && rms_z < TARGET_RMS) {
+  if (passed && bandRmsZ < TARGET_RMS) {
     console.log(`\n  Converged at iter ${iter}.`);
     break;
   }
 
-  if (flags.length === 0) {
-    // Pass but above TARGET_RMS — nothing to adjust, stop early
-    console.log(`\n  No flags at iter ${iter} (rmsZ=${rms_z.toFixed(3)}). Stopping.`);
+  if (bandFlags.length === 0) {
+    console.log(`\n  No band flags at iter ${iter}. Stopping.`);
     break;
   }
 
-  // Adjust params for next iteration
-  params = adjustParams(params, flags);
+  params = adjustParams(params, bandFlags);
 }
 
-console.log(`\nBest: iter=${bestIter}  rmsZ=${bestRmsZ.toFixed(3)}`);
+console.log(`\nBest: iter=${bestIter}  band_rmsZ=${bestRmsZ.toFixed(3)}`);
 
 // ── ASCII dump of best result ─────────────────────────────────────────────────
 
@@ -122,3 +138,15 @@ console.log('JSON: exports/warrior_tuned.json');
 
 writeFileSync(join(OUT, 'tune_log.json'), JSON.stringify({ target: TARGET_RMS, iterations: log }, null, 2));
 console.log('Log:  exports/tune_log.json');
+
+} // end __isMain
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function computeBandRmsZ(metrics, results) {
+  let sumZ2 = 0; let n = 0;
+  for (const [k, r] of Object.entries(results)) {
+    if (BAND_METRICS.has(k)) { sumZ2 += r.z * r.z; n++; }
+  }
+  return n > 0 ? Math.sqrt(sumZ2 / n) : 0;
+}

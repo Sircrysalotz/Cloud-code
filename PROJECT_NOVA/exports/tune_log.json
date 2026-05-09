@@ -3,155 +3,343 @@
   "iterations": [
     {
       "iter": 0,
-      "rms_z": 1.35,
-      "pass": false,
+      "rms_z": 1.18,
+      "band_rms_z": 1.290180865873722,
+      "pass": true,
       "thresholds": [
-        0.55,
-        0.68,
-        0.75,
-        0.78,
-        0.82
+        0.28,
+        0.46,
+        0.82,
+        0.86,
+        0.93
       ],
       "flags": [
-        "undefined:high:bad"
+        "mid_ratio:high:warn",
+        "peak_ratio:low:warn"
       ]
     },
     {
       "iter": 1,
-      "rms_z": 1.15,
+      "rms_z": 1.09,
+      "band_rms_z": 1.174386364589326,
       "pass": true,
       "thresholds": [
-        0.49000000000000005,
-        0.68,
-        0.75,
-        0.78,
-        0.82
+        0.28,
+        0.49,
+        0.7899999999999999,
+        0.86,
+        0.9
       ],
       "flags": [
-        "undefined:high:warn"
+        "mid_ratio:high:warn",
+        "peak_ratio:low:warn"
       ]
     },
     {
       "iter": 2,
-      "rms_z": 1.15,
+      "rms_z": 1.62,
+      "band_rms_z": 1.0631478417103302,
       "pass": true,
       "thresholds": [
-        0.4600000000000001,
-        0.68,
-        0.75,
-        0.78,
-        0.82
+        0.28,
+        0.52,
+        0.7599999999999999,
+        0.86,
+        0.88
       ],
       "flags": [
-        "undefined:high:warn"
+        "symmetry_score:high:critical",
+        "peak_ratio:low:warn"
       ]
     },
     {
       "iter": 3,
-      "rms_z": 1.16,
+      "rms_z": 1.62,
+      "band_rms_z": 1.0631478417103302,
       "pass": true,
       "thresholds": [
-        0.43000000000000005,
-        0.68,
-        0.75,
-        0.78,
-        0.82
+        0.28,
+        0.52,
+        0.7599999999999999,
+        0.86,
+        0.88
       ],
       "flags": [
-        "undefined:high:warn",
-        "undefined:high:warn"
+        "symmetry_score:high:critical",
+        "peak_ratio:low:warn"
       ]
     },
     {
       "iter": 4,
-      "rms_z": 1.1,
+      "rms_z": 1.62,
+      "band_rms_z": 1.0631478417103302,
       "pass": true,
       "thresholds": [
-        0.4,
-        0.65,
-        0.75,
-        0.78,
-        0.82
+        0.28,
+        0.52,
+        0.7599999999999999,
+        0.86,
+        0.88
       ],
       "flags": [
-        "undefined:high:warn",
-        "undefined:high:warn"
+        "symmetry_score:high:critical",
+        "peak_ratio:low:warn"
       ]
     },
     {
       "iter": 5,
-      "rms_z": 1.09,
+      "rms_z": 1.62,
+      "band_rms_z": 1.0631478417103302,
       "pass": true,
       "thresholds": [
-        0.37,
-        0.62,
-        0.75,
-        0.78,
-        0.82
+        0.28,
+        0.52,
+        0.7599999999999999,
+        0.86,
+        0.88
       ],
       "flags": [
-        "undefined:high:warn",
-        "undefined:high:warn"
+        "symmetry_score:high:critical",
+        "peak_ratio:low:warn"
       ]
     },
     {
       "iter": 6,
-      "rms_z": 1,
+      "rms_z": 1.62,
+      "band_rms_z": 1.0631478417103302,
       "pass": true,
       "thresholds": [
-        0.33999999999999997,
-        0.59,
-        0.75,
-        0.78,
-        0.82
+        0.28,
+        0.52,
+        0.7599999999999999,
+        0.86,
+        0.88
       ],
       "flags": [
-        "undefined:high:warn"
+        "symmetry_score:high:critical",
+        "peak_ratio:low:warn"
       ]
     },
     {
       "iter": 7,
-      "rms_z": 1.01,
+      "rms_z": 1.62,
+      "band_rms_z": 1.0631478417103302,
       "pass": true,
       "thresholds": [
-        0.30999999999999994,
-        0.59,
-        0.75,
-        0.78,
-        0.82
+        0.28,
+        0.52,
+        0.7599999999999999,
+        0.86,
+        0.88
       ],
       "flags": [
-        "undefined:high:warn",
-        "undefined:high:warn"
+        "symmetry_score:high:critical",
+        "peak_ratio:low:warn"
       ]
     },
     {
       "iter": 8,
-      "rms_z": 1.18,
-      "pass": false,
+      "rms_z": 1.62,
+      "band_rms_z": 1.0631478417103302,
+      "pass": true,
       "thresholds": [
-        0.2799999999999999,
-        0.5599999999999999,
-        0.75,
-        0.78,
-        0.82
+        0.28,
+        0.52,
+        0.7599999999999999,
+        0.86,
+        0.88
       ],
       "flags": [
-        "undefined:high:bad"
+        "symmetry_score:high:critical",
+        "peak_ratio:low:warn"
       ]
     },
     {
       "iter": 9,
-      "rms_z": 0.84,
+      "rms_z": 1.62,
+      "band_rms_z": 1.0631478417103302,
       "pass": true,
       "thresholds": [
-        0.2799999999999999,
-        0.49999999999999994,
-        0.75,
-        0.78,
-        0.82
+        0.28,
+        0.52,
+        0.7599999999999999,
+        0.86,
+        0.88
       ],
-      "flags": []
+      "flags": [
+        "symmetry_score:high:critical",
+        "peak_ratio:low:warn"
+      ]
+    },
+    {
+      "iter": 10,
+      "rms_z": 1.62,
+      "band_rms_z": 1.0631478417103302,
+      "pass": true,
+      "thresholds": [
+        0.28,
+        0.52,
+        0.7599999999999999,
+        0.86,
+        0.88
+      ],
+      "flags": [
+        "symmetry_score:high:critical",
+        "peak_ratio:low:warn"
+      ]
+    },
+    {
+      "iter": 11,
+      "rms_z": 1.62,
+      "band_rms_z": 1.0631478417103302,
+      "pass": true,
+      "thresholds": [
+        0.28,
+        0.52,
+        0.7599999999999999,
+        0.86,
+        0.88
+      ],
+      "flags": [
+        "symmetry_score:high:critical",
+        "peak_ratio:low:warn"
+      ]
+    },
+    {
+      "iter": 12,
+      "rms_z": 1.62,
+      "band_rms_z": 1.0631478417103302,
+      "pass": true,
+      "thresholds": [
+        0.28,
+        0.52,
+        0.7599999999999999,
+        0.86,
+        0.88
+      ],
+      "flags": [
+        "symmetry_score:high:critical",
+        "peak_ratio:low:warn"
+      ]
+    },
+    {
+      "iter": 13,
+      "rms_z": 1.62,
+      "band_rms_z": 1.0631478417103302,
+      "pass": true,
+      "thresholds": [
+        0.28,
+        0.52,
+        0.7599999999999999,
+        0.86,
+        0.88
+      ],
+      "flags": [
+        "symmetry_score:high:critical",
+        "peak_ratio:low:warn"
+      ]
+    },
+    {
+      "iter": 14,
+      "rms_z": 1.62,
+      "band_rms_z": 1.0631478417103302,
+      "pass": true,
+      "thresholds": [
+        0.28,
+        0.52,
+        0.7599999999999999,
+        0.86,
+        0.88
+      ],
+      "flags": [
+        "symmetry_score:high:critical",
+        "peak_ratio:low:warn"
+      ]
+    },
+    {
+      "iter": 15,
+      "rms_z": 1.62,
+      "band_rms_z": 1.0631478417103302,
+      "pass": true,
+      "thresholds": [
+        0.28,
+        0.52,
+        0.7599999999999999,
+        0.86,
+        0.88
+      ],
+      "flags": [
+        "symmetry_score:high:critical",
+        "peak_ratio:low:warn"
+      ]
+    },
+    {
+      "iter": 16,
+      "rms_z": 1.62,
+      "band_rms_z": 1.0631478417103302,
+      "pass": true,
+      "thresholds": [
+        0.28,
+        0.52,
+        0.7599999999999999,
+        0.86,
+        0.88
+      ],
+      "flags": [
+        "symmetry_score:high:critical",
+        "peak_ratio:low:warn"
+      ]
+    },
+    {
+      "iter": 17,
+      "rms_z": 1.62,
+      "band_rms_z": 1.0631478417103302,
+      "pass": true,
+      "thresholds": [
+        0.28,
+        0.52,
+        0.7599999999999999,
+        0.86,
+        0.88
+      ],
+      "flags": [
+        "symmetry_score:high:critical",
+        "peak_ratio:low:warn"
+      ]
+    },
+    {
+      "iter": 18,
+      "rms_z": 1.62,
+      "band_rms_z": 1.0631478417103302,
+      "pass": true,
+      "thresholds": [
+        0.28,
+        0.52,
+        0.7599999999999999,
+        0.86,
+        0.88
+      ],
+      "flags": [
+        "symmetry_score:high:critical",
+        "peak_ratio:low:warn"
+      ]
+    },
+    {
+      "iter": 19,
+      "rms_z": 1.62,
+      "band_rms_z": 1.0631478417103302,
+      "pass": true,
+      "thresholds": [
+        0.28,
+        0.52,
+        0.7599999999999999,
+        0.86,
+        0.88
+      ],
+      "flags": [
+        "symmetry_score:high:critical",
+        "peak_ratio:low:warn"
+      ]
     }
   ]
 }

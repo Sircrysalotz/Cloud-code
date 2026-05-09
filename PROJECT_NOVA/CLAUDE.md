@@ -1,6 +1,6 @@
 # PROJECT: NOVA
 
-> Status: Active — Phase 7 complete
+> Status: Active — Phase 8 complete
 > Purpose: AI-native pixel art pipeline. Look at any sprite image → extract its structure as AI-readable data → reproduce it pixel-perfect → style-transfer to any palette → evaluate against reference → iterate.
 
 ---
@@ -34,7 +34,7 @@ A six-stage pipeline:
 # Install dependencies
 npm install
 
-# Run all tests (385 tests)
+# Run all tests (443 tests)
 npm test
 
 # ── Ingest ──────────────────────────────────────────────────────────────────
@@ -68,6 +68,15 @@ node tools/style_transfer.js frame_0004 crimson
 node tools/animate_goku.js --range 0-7
 node tools/animate_goku.js --range 0-7 --palette cool --fps 12
 node tools/animate_goku.js --sequence walk  # named sequences: walk/idle/kick/run/punch
+
+# ── Phase 8: Goku-calibrated generative authoring ───────────────────────────
+# Generate a new sprite calibrated to the Goku reference distribution
+node tools/goku_iterate.js                  # default params, target band rmsZ < 0.5
+node tools/goku_iterate.js --bad            # start from imbalanced params (harder test)
+node tools/goku_iterate.js --max=50         # larger iteration budget
+node tools/goku_iterate.js --target=0.40   # tighter convergence
+node tools/goku_iterate.js --scale=4,8,16  # export at multiple scales
+# Output: exports/goku_warrior.png + exports/goku_warrior.json
 
 # ── Legacy ──────────────────────────────────────────────────────────────────
 node tools/ascii_dump.js <grid.json>
@@ -105,7 +114,8 @@ PROJECT_NOVA/
 │   │   ├── timing.js           <- idleTiming, walkTiming, distributeDurations
 │   │   └── spritesheet.js      <- keyframesToPNG, buildSidecar
 │   └── authoring/
-│       └── parametric.js       <- buildFromParams, adjustParams, badStartParams
+│       ├── parametric.js       <- buildFromParams, adjustParams, badStartParams
+│       └── goku_gen.js         <- generateGokuSprite(), evaluateAgainstGoku() (Phase 8 API)
 ├── tools/
 │   ├── ingest_sprite.py        <- ingest single frame: K-means palette + grid (100% accuracy)
 │   ├── batch_ingest.py         <- ingest all 165 Goku frames → exports/batch/ + reference.json
@@ -113,9 +123,10 @@ PROJECT_NOVA/
 │   ├── goku_report.js          <- full pipeline health report (pass rate, per-metric breakdown)
 │   ├── style_transfer.js       <- remap frame to any palette by luminance band rank
 │   ├── animate_goku.js         <- assemble frames → spritesheet PNG + JSON sidecar
-│   ├── reconstruct.js          <- load grid+palette → render PNG (legacy)
-│   └── auto_iterate.js         <- parametric generation convergence loop
-├── tests/unit/                 <- 385 tests, all passing
+│   ├── goku_iterate.js         <- Phase 8: Goku-calibrated iteration loop, exports goku_warrior.png
+│   ├── auto_iterate.js         <- parametric convergence loop (band-only, structural informational)
+│   └── reconstruct.js          <- load grid+palette → render PNG (legacy)
+├── tests/unit/                 <- 443 tests, all passing
 ├── exports/
 │   ├── batch/                  <- 171 clean Goku frame grids/palettes + reference.json
 │   ├── style_transfer/         <- style-transferred PNGs
@@ -220,4 +231,5 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 5 | Batch ingest + Goku reference distribution + 385 tests | ✅ Done |
 | 6 | Palette-agnostic pipeline + style transfer + eval CLI | ✅ Done |
 | 7 | Animation assembly + goku_report + full pipeline health | ✅ Done |
-| 8 | Goku-calibrated generative authoring — next | 🔜 |
+| 8 | Goku-calibrated generative authoring — goku_iterate + goku_gen + 443 tests | ✅ Done |
+| 9 | Multi-pose parametric generation + cross-palette style gallery — next | 🔜 |

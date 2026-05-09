@@ -183,8 +183,20 @@ export function buildFromParams(params) {
     }
   }
 
-  // Accents
+  // Accents — peak pixels get a highlight halo first so pass6 (band_skip)
+  // doesn't demote them (peak adj to mid = diff 3 triggers the pass;
+  // peak adj to highlight = diff 1 is fine). Halo doesn't overwrite PK sites.
+  const pkSites = new Set(accents.filter(([,,i]) => i === PK).map(([r,c]) => `${r},${c}`));
   for (const [r, c, idx] of accents) {
+    if (idx === PK) {
+      for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+        const nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < H && nc >= 0 && nc < W
+            && g[nr][nc] >= 2 && !pkSites.has(`${nr},${nc}`)) {
+          g[nr][nc] = HI;
+        }
+      }
+    }
     if (r < H && c < W) g[r][c] = idx;
   }
 
