@@ -34,7 +34,7 @@ A six-stage pipeline:
 # Install dependencies
 npm install
 
-# Run all tests (744 tests)
+# Run all tests (819 tests)
 npm test
 
 # ── Ingest ──────────────────────────────────────────────────────────────────
@@ -96,6 +96,16 @@ node tools/generate_animation.js --scale=4        # output scale (default 6)
 node tools/generate_animation.js --fps=12         # idle loop FPS (default 8)
 # Output: exports/generated_animation/idle_loop.png + pose_sequence.png + .json sidecars
 
+# ── Phase 14: Palette designer ──────────────────────────────────────────────
+# Create custom palettes from hex colors or anchor points
+node tools/palette_designer.js --hex "#000,#1c0814,...,#ffe088"   # from hex list
+node tools/palette_designer.js --anchors "#0d0020,#e8c8ff"        # dark→light interpolation
+node tools/palette_designer.js --anchors "#0d0020,#e8c8ff" --n=6  # 6 colors
+node tools/palette_designer.js --preset crimson                   # show built-in
+node tools/palette_designer.js --hex "..." --ascii                # ASCII preview
+node tools/palette_designer.js --hex "..." --png                  # PNG preview
+# Output: exports/palettes/<name>.json
+
 # ── Phase 13: Pipeline quality report ───────────────────────────────────────
 # Compare generated sprites vs ingested Goku frames (grades S-D)
 node tools/quality_report.js                  # all 5 poses, grade report
@@ -117,6 +127,7 @@ PROJECT_NOVA/
 ├── src/
 │   ├── core/
 │   │   ├── palette.js          <- dynamic N-color palette, paletteFromRGB, band helpers
+│   ├── palette_designer.js <- Phase 14: paletteFromHex, paletteFromAnchors, validatePalette, paletteInfo
 │   │   ├── grid.js             <- 2D grid (Uint8Array rows), cloneGrid, countPixels
 │   │   └── ascii.js            <- gridToAscii, asciiToGrid, gridToJSON
 │   ├── cleanup/                <- 9 deterministic passes (all palette-agnostic)
@@ -267,3 +278,4 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 11 | End-to-end pipeline test: all 7 stages verified — ingest → eval → iterate → export + 636 tests | ✅ Done |
 | 12 | Generated animation: 4-frame breathing idle loop + 5-pose sequence + 699 tests | ✅ Done |
 | 13 | Pipeline quality report: generated vs ingested z-score comparison + grading + 744 tests | ✅ Done |
+| 14 | Palette designer: paletteFromHex, paletteFromAnchors, validatePalette + 819 tests | ✅ Done |
