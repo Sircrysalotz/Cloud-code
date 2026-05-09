@@ -34,7 +34,7 @@ A six-stage pipeline:
 # Install dependencies
 npm install
 
-# Run all tests (699 tests)
+# Run all tests (744 tests)
 npm test
 
 # ── Ingest ──────────────────────────────────────────────────────────────────
@@ -96,6 +96,13 @@ node tools/generate_animation.js --scale=4        # output scale (default 6)
 node tools/generate_animation.js --fps=12         # idle loop FPS (default 8)
 # Output: exports/generated_animation/idle_loop.png + pose_sequence.png + .json sidecars
 
+# ── Phase 13: Pipeline quality report ───────────────────────────────────────
+# Compare generated sprites vs ingested Goku frames (grades S-D)
+node tools/quality_report.js                  # all 5 poses, grade report
+node tools/quality_report.js --verbose        # per-metric z-score table
+node tools/quality_report.js --ascii          # ASCII side-by-side comparison
+# Output: exports/quality_report.json
+
 # ── Legacy ──────────────────────────────────────────────────────────────────
 node tools/ascii_dump.js <grid.json>
 node tools/reconstruct.js goku_frame
@@ -146,6 +153,7 @@ PROJECT_NOVA/
 │   ├── generate_poses.js       <- Phase 9: all 5 poses → Goku-calibrated → pose_sheet.png
 │   ├── style_gallery.js        <- Phase 10: 5 palettes × 5 poses → 25-cell contact sheet
 │   ├── generate_animation.js   <- Phase 12: idle breathing loop + pose sequence animation
+│   ├── quality_report.js       <- Phase 13: generated vs ingested quality scoring + grading
 │   ├── auto_iterate.js         <- parametric convergence loop (band-only, structural informational)
 │   └── reconstruct.js          <- load grid+palette → render PNG (legacy)
 ├── tests/unit/                 <- 583 tests, all passing
@@ -258,3 +266,4 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 10 | Style gallery — 5 palettes × 5 poses → 25-cell contact sheet + 583 tests | ✅ Done |
 | 11 | End-to-end pipeline test: all 7 stages verified — ingest → eval → iterate → export + 636 tests | ✅ Done |
 | 12 | Generated animation: 4-frame breathing idle loop + 5-pose sequence + 699 tests | ✅ Done |
+| 13 | Pipeline quality report: generated vs ingested z-score comparison + grading + 744 tests | ✅ Done |
