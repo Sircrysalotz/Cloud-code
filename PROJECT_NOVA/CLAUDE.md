@@ -34,7 +34,7 @@ A six-stage pipeline:
 # Install dependencies
 npm install
 
-# Run all tests (920 tests)
+# Run all tests (980 tests)
 npm test
 
 # ── Ingest ──────────────────────────────────────────────────────────────────
@@ -155,7 +155,8 @@ PROJECT_NOVA/
 │   ├── eval/
 │   │   ├── metrics.js          <- computeMetrics(grid, palette) — 6 band ratios + structural
 │   │   ├── reference_lib.js    <- loadBatchReference(), buildReferenceProfile()
-│   │   └── compare.js          <- compareToReference(), adjustmentHints() (palette-agnostic)
+│   │   ├── compare.js          <- compareToReference(), adjustmentHints() (palette-agnostic)
+│   │   └── similarity.js       <- Phase 17: compareGrids, findMostSimilar, computeMetricSimilarity
 │   ├── animation/
 │   │   ├── keyframe.js         <- makeKeyframe, totalDuration, sequenceToJSON
 │   │   ├── timing.js           <- idleTiming, walkTiming, distributeDurations
@@ -292,3 +293,4 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 14 | Palette designer: paletteFromHex, paletteFromAnchors, validatePalette + 819 tests | ✅ Done |
 | 15 | Sprite variation engine: all poses × all palettes — complete variant library + 866 tests | ✅ Done |
 | 16 | Character specification API: JSON spec → complete sprite set (variants + animations + quality) + 920 tests | ✅ Done |
+| 17 | Sprite similarity engine: metric-space comparison (band cosine + L2 + composite grade S-D) + 980 tests | ✅ Done |
