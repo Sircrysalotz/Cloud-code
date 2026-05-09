@@ -1,6 +1,6 @@
 # PROJECT: NOVA
 
-> Status: Active — Phase 21 complete
+> Status: Active — Phase 22 complete
 > Purpose: AI-native pixel art pipeline. Look at any sprite image → extract its structure as AI-readable data → reproduce it pixel-perfect → style-transfer to any palette → evaluate against reference → iterate.
 
 ---
@@ -34,7 +34,7 @@ A six-stage pipeline:
 # Install dependencies
 npm install
 
-# Run all tests (1287 tests)
+# Run all tests (1366 tests)
 npm test
 
 # ── Ingest ──────────────────────────────────────────────────────────────────
@@ -135,7 +135,8 @@ PROJECT_NOVA/
 ├── src/
 │   ├── core/
 │   │   ├── palette.js          <- dynamic N-color palette, paletteFromRGB, band helpers
-│   ├── palette_designer.js <- Phase 14: paletteFromHex, paletteFromAnchors, validatePalette, paletteInfo
+│   ├── palette_designer.js  <- Phase 14: paletteFromHex, paletteFromAnchors, validatePalette, paletteInfo
+│   │   └── palette_mutator.js <- Phase 22: tint, brighten, darken, contrast, saturate, desaturate, invert, compose
 │   └── authoring/
 │       ├── variant_engine.js   <- Phase 15: buildVariantLibrary, generatePoseGrid, buildVariantCell
 │       ├── character_spec.js   <- Phase 16: buildCharacter, validateCharacterSpec, resolvePaletteSpec
@@ -303,3 +304,4 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 19 | Multi-character scene composition: battle layout, RGBA blit, PNG export, AI-readable JSON + 1111 tests | ✅ Done |
 | 20 | Sprite atlas packer: shelf-first bin-pack, UV map, renderAtlasRGBA, libraryCells bridge + 1199 tests | ✅ Done |
 | 21 | Sprite diff engine: pixel-level diff, region density, ASCII heatmap, changeMask, diffSequence + 1287 tests | ✅ Done |
+| 22 | Palette mutation engine: tint, brighten, darken, contrast, saturate, desaturate, invert, compose + 1366 tests | ✅ Done |
