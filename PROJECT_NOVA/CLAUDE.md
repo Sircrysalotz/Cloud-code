@@ -93,6 +93,12 @@ node tools/recolor_character.js --frame=4 --map="red:#3060ff" --name=blue_fur
 node tools/recolor_character.js --frame=4 --map="red:#208040,orange:#c08850"
 # Regions on frame 4: red=fur(543px) neutral=hair orange=skin purple/magenta=shading
 
+# ── Create (Phase 31: full character from one spec) ─────────────────────────
+# Chains fuse + animate + recolor — complete character in one command
+node tools/create_character.js --name=azure --head=4 --range=0-7 --map="red:#3060ff"
+node tools/create_character.js --spec=characters/emerald.json
+# Output: exports/characters/<name>.png + <name>_sheet.png + <name>.json
+
 # ── Evaluate ────────────────────────────────────────────────────────────────
 # Evaluate any frame against the Goku reference distribution
 node tools/eval_goku.js frame_0004
@@ -375,4 +381,5 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 28 | Part compositor: data-driven seam detection (neck/hip from row-width profile), splitParts/compositeParts/assembleCharacter — fuse head/torso/legs from different real frames with band-rank palette unification + 1693 tests | ✅ Done |
 | 29 | Composed-character animation (animate_character.js: pin parts, animate body over real frame ranges, bottom-aligned sheets) + reconstruction integrity tests in CI (golden render byte-compare, batch sample integrity, pose pixel-fidelity) + 1732 tests | ✅ Done |
 | 30 | Region-aware recoloring: classifyRegions (hue-family clustering, circular mean), recolorRegions (retarget fur/skin/hair independently, luminance preserved, GRID UNTOUCHED), regionPixelCounts + recolor_character.js CLI + 1776 tests | ✅ Done |
-| 31 | Character pipeline composition: chain fuse + recolor + animate in one spec — a full new-character definition from real data | 🔄 Next |
+| 31 | Character creation pipeline: create_character.js chains fuse (28) + animate (29) + recolor (30) from one JSON spec or inline flags — complete new character (portrait + animated sheet + AI-readable JSON) in one command + 1776 tests | ✅ Done |
+| 32 | Cross-sheet ingest: ingest a second character's sprite sheet to prove the pipeline is character-agnostic, then fuse/recolor across characters | 🔄 Next |
