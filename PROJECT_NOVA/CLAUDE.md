@@ -87,6 +87,12 @@ node tools/animate_character.js --range=0-7 --head=4 --name=fused_walk
 node tools/animate_character.js --range=0-7 --fps=12   # pure reassembly
 # Output: exports/composed/<name>_sheet.png + .json (bottom-aligned strip)
 
+# Region-aware recoloring: new character variants, grid never modified
+node tools/recolor_character.js --frame=4 --list              # show hue regions
+node tools/recolor_character.js --frame=4 --map="red:#3060ff" --name=blue_fur
+node tools/recolor_character.js --frame=4 --map="red:#208040,orange:#c08850"
+# Regions on frame 4: red=fur(543px) neutral=hair orange=skin purple/magenta=shading
+
 # ── Evaluate ────────────────────────────────────────────────────────────────
 # Evaluate any frame against the Goku reference distribution
 node tools/eval_goku.js frame_0004
@@ -368,4 +374,5 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 27 | Pipeline accuracy overhaul: delete gradient-based outputs, verify 183 frames at 100%, fix generate_poses to use real pixel data with no cleanup corruption, build verify_reconstruction + frame_anatomy tools + 1649 tests | ✅ Done |
 | 28 | Part compositor: data-driven seam detection (neck/hip from row-width profile), splitParts/compositeParts/assembleCharacter — fuse head/torso/legs from different real frames with band-rank palette unification + 1693 tests | ✅ Done |
 | 29 | Composed-character animation (animate_character.js: pin parts, animate body over real frame ranges, bottom-aligned sheets) + reconstruction integrity tests in CI (golden render byte-compare, batch sample integrity, pose pixel-fidelity) + 1732 tests | ✅ Done |
-| 30 | Style identity: extract per-region color signatures from batch frames so new characters can be recolored region-aware (hair vs gi vs skin), not just by global luminance rank | 🔄 Next |
+| 30 | Region-aware recoloring: classifyRegions (hue-family clustering, circular mean), recolorRegions (retarget fur/skin/hair independently, luminance preserved, GRID UNTOUCHED), regionPixelCounts + recolor_character.js CLI + 1776 tests | ✅ Done |
+| 31 | Character pipeline composition: chain fuse + recolor + animate in one spec — a full new-character definition from real data | 🔄 Next |
