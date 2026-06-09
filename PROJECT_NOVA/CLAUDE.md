@@ -82,6 +82,11 @@ node tools/build_character.js --head=4 --torso=9 --legs=14 --name=fusion_a
 node tools/build_character.js --head=18 --torso=5 --legs=0 --target=5
 # Output: exports/composed/<name>.png + .json (every pixel from real frames)
 
+# Animate a fused character: body walks through real frames, pinned parts stay
+node tools/animate_character.js --range=0-7 --head=4 --name=fused_walk
+node tools/animate_character.js --range=0-7 --fps=12   # pure reassembly
+# Output: exports/composed/<name>_sheet.png + .json (bottom-aligned strip)
+
 # ── Evaluate ────────────────────────────────────────────────────────────────
 # Evaluate any frame against the Goku reference distribution
 node tools/eval_goku.js frame_0004
@@ -362,4 +367,5 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 26 | Counterfactual analysis: Jacobian sensitivity, rmsZ gradient, prescribe, gradientStep + 1635 tests | ✅ Done |
 | 27 | Pipeline accuracy overhaul: delete gradient-based outputs, verify 183 frames at 100%, fix generate_poses to use real pixel data with no cleanup corruption, build verify_reconstruction + frame_anatomy tools + 1649 tests | ✅ Done |
 | 28 | Part compositor: data-driven seam detection (neck/hip from row-width profile), splitParts/compositeParts/assembleCharacter — fuse head/torso/legs from different real frames with band-rank palette unification + 1693 tests | ✅ Done |
-| 29 | Multi-frame animation of composed characters: apply one part spec across a frame range to animate a fused character | 🔄 Next |
+| 29 | Composed-character animation (animate_character.js: pin parts, animate body over real frame ranges, bottom-aligned sheets) + reconstruction integrity tests in CI (golden render byte-compare, batch sample integrity, pose pixel-fidelity) + 1732 tests | ✅ Done |
+| 30 | Style identity: extract per-region color signatures from batch frames so new characters can be recolored region-aware (hair vs gi vs skin), not just by global luminance rank | 🔄 Next |
