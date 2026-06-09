@@ -69,6 +69,19 @@ node tools/generate_poses.js --poses=idle,punch       # specific poses
 node tools/generate_poses.js --no-sheet               # skip spritesheet
 # Output: exports/poses/<pose>.png + exports/poses/pose_sheet.png
 
+# ── Compose (Phase 28: new characters from real frame parts) ────────────────
+# Transform a single frame (float scale, flip, zone crop, palette)
+node tools/compose_character.js --frame=4 --flipH --palette=cool
+node tools/compose_character.js --frame=5 --scale=1.5 --zone=head
+
+# Inspect data-driven seam detection (neck/hip) for any frame
+node tools/build_character.js --frame=4 --show-seams
+
+# Fuse head/torso/legs from DIFFERENT real frames into a new character
+node tools/build_character.js --head=4 --torso=9 --legs=14 --name=fusion_a
+node tools/build_character.js --head=18 --torso=5 --legs=0 --target=5
+# Output: exports/composed/<name>.png + .json (every pixel from real frames)
+
 # ── Evaluate ────────────────────────────────────────────────────────────────
 # Evaluate any frame against the Goku reference distribution
 node tools/eval_goku.js frame_0004
@@ -195,26 +208,29 @@ PROJECT_NOVA/
 │   │   └── atlas_packer.js     <- Phase 20: packRects, buildAtlas, buildUVMap, libraryCells, atlasInfo
 │   └── authoring/
 │       ├── parametric.js       <- buildFromParams, adjustParams, badStartParams (open part names)
-│       ├── poses.js            <- 5 pose factories: idle/guard/punch/kick/power_up
-│       └── goku_gen.js         <- generateGokuSprite(), evaluateAgainstGoku() (Phase 8 API)
+│       ├── poses.js            <- 5 pose factories + POSE_FRAME real-frame mapping
+│       ├── goku_gen.js         <- generateGokuSprite(), evaluateAgainstGoku() (Phase 8 API)
+│       └── part_compositor.js  <- Phase 28: rowProfile, findSeams, splitParts, compositeParts, assembleCharacter
 ├── tools/
 │   ├── ingest_sprite.py        <- ingest single frame: K-means palette + grid (100% accuracy)
-│   ├── batch_ingest.py         <- ingest all 165 Goku frames → exports/batch/ + reference.json
+│   ├── batch_ingest.py         <- ingest all Goku frames → exports/batch/ + reference.json
 │   ├── eval_goku.js            <- evaluate any frame: ASCII + z-score table + hints
 │   ├── goku_report.js          <- full pipeline health report (pass rate, per-metric breakdown)
-│   ├── style_transfer.js       <- remap frame to any palette by luminance band rank
+│   ├── style_transfer.js       <- remap frame to any palette by luminance band rank [exports transferStyle, BUILTIN_PALETTES]
 │   ├── animate_goku.js         <- assemble frames → spritesheet PNG + JSON sidecar
 │   ├── generate_poses.js       <- Phase 9: 5 real frames → pixel-perfect pose PNGs + sheet
 │   ├── generate_animation.js   <- Phase 12: idle breathing loop + pose sequence animation
 │   ├── quality_report.js       <- Phase 13: generated vs ingested quality scoring + grading
 │   ├── verify_reconstruction.js <- Phase 27: 100% accuracy verification across all batch frames
 │   ├── frame_anatomy.js        <- Phase 27: pixel anatomy map — zone distribution + stability
-│   ├── reconstruct.js          <- load grid+palette → render PNG
-│   └── style_transfer.js       <- remap frame to any palette by luminance band rank [BUILTIN_PALETTES exported]
-├── tests/unit/                 <- 1649 tests, all passing
+│   ├── compose_character.js    <- Phase 28: single-frame transforms (scale/flip/zone/palette)
+│   ├── build_character.js      <- Phase 28: fuse head/torso/legs from different real frames
+│   └── reconstruct.js          <- load grid+palette → render PNG
+├── tests/unit/                 <- 1693 tests, all passing
 ├── exports/
 │   ├── batch/                  <- 183 Goku frame grids/palettes (100% accuracy) + reference.json
 │   ├── poses/                  <- 5 pixel-perfect pose PNGs + pose_sheet.png
+│   ├── composed/               <- Phase 28: fused characters + transformed frames
 │   ├── style_transfer/         <- real frames style-transferred to 5 palettes
 │   ├── animations/             <- spritesheet PNGs from real batch frames
 │   ├── anatomy.json            <- pixel anatomy map (zone distributions + stability)
@@ -345,4 +361,5 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 25 | Search strategy engine: randomRestart, hillClimb, beamSearch, multiStart + 1583 tests | ✅ Done |
 | 26 | Counterfactual analysis: Jacobian sensitivity, rmsZ gradient, prescribe, gradientStep + 1635 tests | ✅ Done |
 | 27 | Pipeline accuracy overhaul: delete gradient-based outputs, verify 183 frames at 100%, fix generate_poses to use real pixel data with no cleanup corruption, build verify_reconstruction + frame_anatomy tools + 1649 tests | ✅ Done |
-| 28 | Character composition: build compose_character.js — transform/recolor real batch frames to produce new characters while preserving exact pixel structure | 🔄 Next |
+| 28 | Part compositor: data-driven seam detection (neck/hip from row-width profile), splitParts/compositeParts/assembleCharacter — fuse head/torso/legs from different real frames with band-rank palette unification + 1693 tests | ✅ Done |
+| 29 | Multi-frame animation of composed characters: apply one part spec across a frame range to animate a fused character | 🔄 Next |
