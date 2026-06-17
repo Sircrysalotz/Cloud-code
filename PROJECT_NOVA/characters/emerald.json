@@ -1,0 +1,7 @@
+{
+  "name": "emerald",
+  "parts": { "head": 18, "torso": null, "legs": null },
+  "recolor": { "red": "#208040", "orange": "#d4a070" },
+  "animation": { "range": [0, 7], "fps": 10 },
+  "target_frame": 18
+}

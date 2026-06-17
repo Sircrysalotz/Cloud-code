@@ -26,7 +26,7 @@
  *   exports/goku_warrior.json       — metrics + iteration log
  */
 
-import { writeFileSync, mkdirSync }  from 'fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import { fileURLToPath }             from 'url';
 import { dirname, join }             from 'path';
 import { PALETTE }                   from '../src/core/palette.js';
@@ -36,7 +36,7 @@ import { gridToPNG }                 from '../src/export/png_writer.js';
 import { computeMetrics }            from '../src/eval/metrics.js';
 import { compareToReference, adjustmentHints } from '../src/eval/compare.js';
 import { loadBatchReference }        from '../src/eval/reference_lib.js';
-import { defaultParams, badStartParams, buildFromParams, adjustParams } from '../src/authoring/parametric.js';
+import { defaultParams, badStartParams, buildFromParams, buildFromSilhouette, adjustParams } from '../src/authoring/parametric.js';
 
 const __isMain = process.argv[1] === fileURLToPath(import.meta.url);
 
@@ -70,7 +70,7 @@ export function bandRmsZ(results) {
  * @returns {{ bestGrid, bestParams, bestBandRmsZ, log, converged }}
  */
 export function runIteration(params0, distribution, opts = {}) {
-  const { maxIter = 30, targetRmsZ = 0.50, verbose = false } = opts;
+  const { maxIter = 30, targetRmsZ = 0.50, verbose = false, silhouetteData = null } = opts;
 
   // Restrict distribution to converging bands
   const bandDist = {};
@@ -87,7 +87,9 @@ export function runIteration(params0, distribution, opts = {}) {
   const log = [];
 
   for (let iter = 0; iter < maxIter; iter++) {
-    const rawGrid             = buildFromParams(params);
+    const rawGrid             = silhouetteData
+      ? buildFromSilhouette(silhouetteData, params)
+      : buildFromParams(params);
     const { grid: cleanGrid } = runCleanup(rawGrid);
     const metrics             = computeMetrics(cleanGrid, PALETTE);
 
@@ -156,6 +158,9 @@ if (__isMain) {
   const scales     = scaleArg.split(',').map(Number).filter(Boolean);
   const badStart   = args.includes('--bad');
   const verbose    = args.includes('--verbose');
+  const noTemplate = args.includes('--no-template');
+  const templateArg = args.find(a => a.startsWith('--template='));
+  const templateFrame = templateArg ? parseInt(templateArg.slice(11)) : 4;
 
   const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'exports');
   mkdirSync(OUT, { recursive: true });
@@ -171,18 +176,29 @@ if (__isMain) {
   const startParams = badStart ? badStartParams() : defaultParams();
   const startLabel  = badStart ? 'imbalanced start' : 'default start';
 
+  // Load silhouette template from a real Goku frame (default: frame 4)
+  let silhouetteData = null;
+  if (!noTemplate) {
+    const frameId   = String(templateFrame).padStart(4, '0');
+    const framePath = join(dirname(fileURLToPath(import.meta.url)), '..', 'exports', 'batch', `frame_${frameId}_grid.json`);
+    if (existsSync(framePath)) {
+      silhouetteData = JSON.parse(readFileSync(framePath, 'utf8'));
+    }
+  }
+
   console.log('╔══════════════════════════════════════════════════════╗');
   console.log('║   PROJECT NOVA — Goku-Calibrated Iteration (Ph.8)   ║');
   console.log('╚══════════════════════════════════════════════════════╝');
   console.log(`\n  Reference: ${ref.entries?.length ?? 0} Goku frames`);
   console.log(`  Start:     ${startLabel}`);
+  console.log(`  Shape:     ${silhouetteData ? `frame_${String(templateFrame).padStart(4,'0')} silhouette (${silhouetteData.width}×${silhouetteData.height})` : 'parametric'}`);
   console.log(`  Target:    band rmsZ < ${targetRmsZ}`);
   console.log(`  Budget:    ${maxIter} iterations\n`);
   console.log('  Converging on: shadow_deep | shadow | mid | bright | highlight');
   console.log('  Structural (informational): peak | symmetry | body_density\n');
 
   const t0 = Date.now();
-  const result = runIteration(startParams, distribution, { maxIter, targetRmsZ, verbose: true });
+  const result = runIteration(startParams, distribution, { maxIter, targetRmsZ, verbose: true, silhouetteData });
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
 
   const { bestGrid, bestParams, bestBandRmsZ, bestIter, log, converged } = result;
@@ -221,7 +237,7 @@ if (__isMain) {
     const suffix = scale === scales[0] ? '' : `_${scale}x`;
     const path = join(OUT, `goku_warrior${suffix}.png`);
     writeFileSync(path, gridToPNG(bestGrid, PALETTE, scale));
-    const W = bestGrid[0].length, H = bestGrid.length;
+    const W = bestGrid[0]?.length ?? 0, H = bestGrid.length;
     console.log(`  PNG: exports/goku_warrior${suffix}.png  (${W*scale}×${H*scale}px)`);
   }
 

@@ -1,0 +1,8 @@
+{
+  "id": "2026-05-09T02:43:29_buildfromsilhouette-added-to-parametric-",
+  "timestamp": "2026-05-09T02:43:29",
+  "session": "unknown",
+  "type": "decision",
+  "message": "buildFromSilhouette added to parametric.js \u2014 uses real Goku frame pixel mask as shape, applies gradient shading on top. Output now recognizable as Goku (46x69, spiky hair, fighting pose)",
+  "tags": []
+}

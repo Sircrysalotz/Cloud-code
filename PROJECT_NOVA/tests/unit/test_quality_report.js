@@ -186,11 +186,18 @@ if (!dist) {
     const { existsSync, readFileSync } = await import('fs');
     const { join }                     = await import('path');
     const { paletteFromRGB }           = await import('../../src/core/palette.js');
-    const idlePath = new URL('../../exports/poses/idle.json', import.meta.url).pathname;
+    const idlePath  = new URL('../../exports/poses/idle.json', import.meta.url).pathname;
+    const batchBase = new URL('../../exports/batch', import.meta.url).pathname;
     if (existsSync(idlePath)) {
-      const raw    = JSON.parse(readFileSync(idlePath, 'utf8'));
-      const grid   = raw.data.map(row => new Uint8Array(row));
-      const result = evaluateGridAgainstRef(grid, PALETTE, dist);
+      const raw      = JSON.parse(readFileSync(idlePath, 'utf8'));
+      const grid     = raw.data.map(row => new Uint8Array(row));
+      // Load palette dynamically from batch using frame_idx
+      const frameId  = String(raw.frame_idx ?? 0).padStart(4, '0');
+      const palPath  = join(batchBase, `frame_${frameId}_palette.json`);
+      const palette  = existsSync(palPath)
+        ? paletteFromRGB(JSON.parse(readFileSync(palPath, 'utf8')))
+        : PALETTE;
+      const result   = evaluateGridAgainstRef(grid, palette, dist);
       check('generated idle: bandRmsZ < 2.0', result.bandRmsZ < 2.0);
       check('generated idle: fullRmsZ is finite', isFinite(result.fullRmsZ));
     } else {

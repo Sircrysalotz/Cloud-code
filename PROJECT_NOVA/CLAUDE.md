@@ -1,30 +1,36 @@
 # PROJECT: NOVA
 
-> Status: Active — Phase 26 complete
-> Purpose: AI-native pixel art pipeline. Look at any sprite image → extract its structure as AI-readable data → reproduce it pixel-perfect → style-transfer to any palette → evaluate against reference → iterate.
+> Status: Active — Phase 27 in progress
+> Purpose: AI-native pixel art pipeline. Ingest any sprite → extract every pixel as readable data → reconstruct pixel-perfect → style-transfer, compose, and generate new characters from that data foundation.
 
 ---
 
 ## What is this project?
 
-A six-stage pipeline:
-1. **Authoring** — 3D model (procedural or loaded GLB/glTF)
-2. **Rendering** — cel-shaded at native low resolution (no downsampling)
-3. **Cleanup** — 9 deterministic passes on palette index grid
-4. **Aesthetic Evaluation** — structural metrics + reference library comparison
-5. **Animation** — keyframe sprite sheets with per-frame timing
-6. **Export** — PNG sprite sheet + JSON metadata
+An AI-native pipeline where **every pixel is data**. Because LLMs can read structured data (grid arrays, palette indices, JSON metrics), they can understand, reconstruct, and generate pixel art with full accuracy — not as images, but as data structures.
 
-**The core insight**: LLMs can't see pixels but CAN read data. Every stage emits text-readable structures (ASCII grids, palette index arrays, JSON metrics). This isn't a workaround — it's the correct architecture.
+The correct pipeline, in order:
+1. **Ingest** — real sprite image → palette-indexed grid (100% accuracy, zero approximation)
+2. **Reconstruct** — grid + palette → pixel-perfect PNG (no cleanup on ingested frames)
+3. **Verify** — pixel-by-pixel confirmation that output matches source
+4. **Style Transfer** — remap pixel luminance bands to any target palette (structure preserved)
+5. **Compose** — combine/transform frames using grid operations (scale, flip, crop, recolor)
+6. **Export** — PNG + JSON sidecar with full metadata
+
+**The core insight**: Every pixel is stored as a palette index. Every palette index has a known luminance rank. An LLM can read these arrays, understand where hair is, where the torso is, what color each region is — and from that data, construct new content accurately.
+
+**What does NOT work (and must never be used):**
+- Parametric rectangle fills with gradient shading → produces blobs, not characters
+- Running cleanup passes on ingested frames → corrupts 20% of real pixel data
+- Embedding palette in JSON when batch already has it → duplicates data needlessly
 
 ---
 
 ## Stack
 
 - **Node.js** — core pipeline (palette, grid, cleanup passes, metrics, export)
-- **Three.js** — 3D rendering + cel shaders (runs in browser via HTML harness)
-- **Python (optional)** — FID computation, discriminator training (Phase 4+)
-- No frameworks, no bundlers for Phase 1 — plain Node.js modules
+- **Python** — sprite ingest (K-means palette extraction, 100% reconstruction)
+- No frameworks, no bundlers — plain Node.js modules
 
 ---
 
@@ -34,30 +40,76 @@ A six-stage pipeline:
 # Install dependencies
 npm install
 
-# Run all tests (1635 tests)
+# Run all tests
 npm test
 
 # ── Ingest ──────────────────────────────────────────────────────────────────
-# Ingest a single sprite from the Goku sheet
+# Ingest a single sprite frame → exports/batch/frame_XXXX_grid.json + palette
 python3 tools/ingest_sprite.py --frame 4
 
-# Batch-ingest all Goku frames (builds exports/batch/ + reference.json)
+# Batch-ingest all Goku frames → exports/batch/ + reference.json
 python3 tools/batch_ingest.py
 python3 tools/batch_ingest.py --clean   # delete stale files first
 
+# ── Reconstruct & Verify ────────────────────────────────────────────────────
+# Reconstruct any ingested frame to PNG (no modifications)
+node tools/reconstruct.js goku_frame            # exports/goku_frame_recon.png
+node tools/reconstruct.js goku_frame --scale 4  # smaller scale
+
+# Verify ALL batch frames reconstruct at 100% accuracy
+node tools/verify_reconstruction.js              # all frames
+node tools/verify_reconstruction.js --frame=4   # single frame
+node tools/verify_reconstruction.js --verbose   # per-frame detail
+
+# ── Poses (5 real Goku frames, pixel-perfect) ───────────────────────────────
+# Reconstruct 5 key animation frames as named poses
+node tools/generate_poses.js                          # all 5 poses, original palette
+node tools/generate_poses.js --palette=crimson        # style-transfer to crimson
+node tools/generate_poses.js --poses=idle,punch       # specific poses
+node tools/generate_poses.js --no-sheet               # skip spritesheet
+# Output: exports/poses/<pose>.png + exports/poses/pose_sheet.png
+
+# ── Compose (Phase 28: new characters from real frame parts) ────────────────
+# Transform a single frame (float scale, flip, zone crop, palette)
+node tools/compose_character.js --frame=4 --flipH --palette=cool
+node tools/compose_character.js --frame=5 --scale=1.5 --zone=head
+
+# Inspect data-driven seam detection (neck/hip) for any frame
+node tools/build_character.js --frame=4 --show-seams
+
+# Fuse head/torso/legs from DIFFERENT real frames into a new character
+node tools/build_character.js --head=4 --torso=9 --legs=14 --name=fusion_a
+node tools/build_character.js --head=18 --torso=5 --legs=0 --target=5
+# Output: exports/composed/<name>.png + .json (every pixel from real frames)
+
+# Animate a fused character: body walks through real frames, pinned parts stay
+node tools/animate_character.js --range=0-7 --head=4 --name=fused_walk
+node tools/animate_character.js --range=0-7 --fps=12   # pure reassembly
+# Output: exports/composed/<name>_sheet.png + .json (bottom-aligned strip)
+
+# Region-aware recoloring: new character variants, grid never modified
+node tools/recolor_character.js --frame=4 --list              # show hue regions
+node tools/recolor_character.js --frame=4 --map="red:#3060ff" --name=blue_fur
+node tools/recolor_character.js --frame=4 --map="red:#208040,orange:#c08850"
+# Regions on frame 4: red=fur(543px) neutral=hair orange=skin purple/magenta=shading
+
+# ── Create (Phase 31: full character from one spec) ─────────────────────────
+# Chains fuse + animate + recolor — complete character in one command
+node tools/create_character.js --name=azure --head=4 --range=0-7 --map="red:#3060ff"
+node tools/create_character.js --spec=characters/emerald.json
+# Output: exports/characters/<name>.png + <name>_sheet.png + <name>.json
+
 # ── Evaluate ────────────────────────────────────────────────────────────────
-# Evaluate one frame against the Goku reference distribution
+# Evaluate any frame against the Goku reference distribution
 node tools/eval_goku.js frame_0004
-node tools/eval_goku.js              # random frame
-node tools/eval_goku.js --all        # all frames, summary
-node tools/eval_goku.js --worst 10   # 10 worst-scoring
+node tools/eval_goku.js --all        # all frames
+node tools/eval_goku.js --worst 10   # worst-scoring frames
 
 # Full pipeline health report
 node tools/goku_report.js
 node tools/goku_report.js --verbose  # per-frame rows
 
 # ── Style transfer ──────────────────────────────────────────────────────────
-# Remap a frame to any color palette
 node tools/style_transfer.js frame_0004 cool
 node tools/style_transfer.js frame_0004 warm
 node tools/style_transfer.js frame_0004 crimson
@@ -173,28 +225,37 @@ PROJECT_NOVA/
 │   │   └── atlas_packer.js     <- Phase 20: packRects, buildAtlas, buildUVMap, libraryCells, atlasInfo
 │   └── authoring/
 │       ├── parametric.js       <- buildFromParams, adjustParams, badStartParams (open part names)
-│       ├── poses.js            <- 5 pose factories: idle/guard/punch/kick/power_up
-│       └── goku_gen.js         <- generateGokuSprite(), evaluateAgainstGoku() (Phase 8 API)
+│       ├── poses.js            <- 5 pose factories + POSE_FRAME real-frame mapping
+│       ├── goku_gen.js         <- generateGokuSprite(), evaluateAgainstGoku() (Phase 8 API)
+│       └── part_compositor.js  <- Phase 28: rowProfile, findSeams, splitParts, compositeParts, assembleCharacter
 ├── tools/
 │   ├── ingest_sprite.py        <- ingest single frame: K-means palette + grid (100% accuracy)
-│   ├── batch_ingest.py         <- ingest all 165 Goku frames → exports/batch/ + reference.json
+│   ├── batch_ingest.py         <- ingest all Goku frames → exports/batch/ + reference.json
 │   ├── eval_goku.js            <- evaluate any frame: ASCII + z-score table + hints
 │   ├── goku_report.js          <- full pipeline health report (pass rate, per-metric breakdown)
-│   ├── style_transfer.js       <- remap frame to any palette by luminance band rank
+│   ├── style_transfer.js       <- remap frame to any palette by luminance band rank [exports transferStyle, BUILTIN_PALETTES]
 │   ├── animate_goku.js         <- assemble frames → spritesheet PNG + JSON sidecar
-│   ├── goku_iterate.js         <- Phase 8: Goku-calibrated iteration loop, exports goku_warrior.png
-│   ├── generate_poses.js       <- Phase 9: all 5 poses → Goku-calibrated → pose_sheet.png
-│   ├── style_gallery.js        <- Phase 10: 5 palettes × 5 poses → 25-cell contact sheet
+│   ├── generate_poses.js       <- Phase 9: 5 real frames → pixel-perfect pose PNGs + sheet
 │   ├── generate_animation.js   <- Phase 12: idle breathing loop + pose sequence animation
 │   ├── quality_report.js       <- Phase 13: generated vs ingested quality scoring + grading
-│   ├── auto_iterate.js         <- parametric convergence loop (band-only, structural informational)
-│   └── reconstruct.js          <- load grid+palette → render PNG (legacy)
-├── tests/unit/                 <- 583 tests, all passing
+│   ├── verify_reconstruction.js <- Phase 27: 100% accuracy verification across all batch frames
+│   ├── frame_anatomy.js        <- Phase 27: pixel anatomy map — zone distribution + stability
+│   ├── compose_character.js    <- Phase 28: single-frame transforms (scale/flip/zone/palette)
+│   ├── build_character.js      <- Phase 28: fuse head/torso/legs from different real frames
+│   └── reconstruct.js          <- load grid+palette → render PNG
+├── tests/unit/                 <- 1693 tests, all passing
 ├── exports/
-│   ├── batch/                  <- 171 clean Goku frame grids/palettes + reference.json
-│   ├── style_transfer/         <- style-transferred PNGs
-│   └── animations/             <- spritesheet PNGs + JSON sidecars
-└── references/grids/           <- legacy reference library (empty — use batch/ instead)
+│   ├── batch/                  <- 183 Goku frame grids/palettes (100% accuracy) + reference.json
+│   ├── poses/                  <- 5 pixel-perfect pose PNGs + pose_sheet.png
+│   ├── composed/               <- Phase 28: fused characters + transformed frames
+│   ├── style_transfer/         <- real frames style-transferred to 5 palettes
+│   ├── animations/             <- spritesheet PNGs from real batch frames
+│   ├── anatomy.json            <- pixel anatomy map (zone distributions + stability)
+│   ├── goku_frame_grid.json    <- single frame grid (frame 4)
+│   ├── goku_frame_palette.json <- single frame palette
+│   ├── goku_frame_orig.png     <- original ingested image
+│   └── goku_frame_recon.png    <- 100% accurate reconstruction of frame 4
+└── references/grids/           <- legacy (empty — use batch/ instead)
 ```
 
 ---
@@ -267,19 +328,22 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 - Transparency = index 0, outline = index 1, body = indices 2..N-1
 - All cleanup passes take `(grid, palette)` → return new `Grid` (immutable)
 - Exports committed to `exports/` so results are viewable from GitHub
-- `exports/batch/` is the canonical data source for eval — 171 clean Goku frames
+- `exports/batch/` is the canonical data source — 183 Goku frames at 100% accuracy
 
 ---
 
 ## Rules
 
-- **Never downsample from high resolution** — render at native sprite resolution only
-- **Never anti-alias** — no MSAA, FXAA, TAA, or any smoothing
+- **Never use gradients for pixel art** — gradient shading produces blobs, not characters. All shading must come from real pixel data
+- **Never run cleanup on ingested frames** — cleanup is for generated sprites only. On real frames it corrupts ~20% of pixels. Use `--cleanup` as opt-in only
+- **Never embed palette in JSON when batch has it** — always reference `frame_idx`, load palette from `exports/batch/frame_XXXX_palette.json` at runtime
+- **100% reconstruction is non-negotiable** — verify with `node tools/verify_reconstruction.js` after any pipeline change
+- **Every pixel is data** — `data[row][col]` = palette index, palette[index] = RGB. An LLM can read this and understand the character structure
+- **Never downsample** — render at native sprite resolution only
+- **Never anti-alias** — no smoothing of any kind
 - **Every stage emits data** — always have an ASCII dump or JSON metric for any output
-- **Cleanup passes are immutable** — each pass returns a new grid, original unchanged
 - **Palette is always dynamic** — never hardcode color indices; use palette band helpers
 - **Per-frame timing always** — never uniform sampling; always explicit per-keyframe duration
-- **100% reconstruction is the floor** — ingest with N = unique_colors+1 → zero error
 
 ---
 
@@ -288,7 +352,7 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | Phase | What | Status |
 |-------|------|--------|
 | 1 | Core data structures + ASCII perception loop + 9 cleanup passes + tests | ✅ Done |
-| 2 | Three.js cel shader + depth pass + Roberts Cross outline | Scaffold only |
+| 2 | Three.js cel shader + depth pass + Roberts Cross outline | Scaffold only (deprioritized) |
 | 3 | Animation keyframes + sprite sheet export + PNG commits | ✅ Done |
 | 4 | Reference library + structural metrics + z-score comparison | ✅ Done |
 | 5 | Batch ingest + Goku reference distribution + 385 tests | ✅ Done |
@@ -313,3 +377,9 @@ Pipeline pass rate: 77.2% (132/171 frames). Structural metrics (symmetry, outlin
 | 24 | Batch evaluation engine: batchEval, rankBatch, filterBatch, batchSummary, topN + 1514 tests | ✅ Done |
 | 25 | Search strategy engine: randomRestart, hillClimb, beamSearch, multiStart + 1583 tests | ✅ Done |
 | 26 | Counterfactual analysis: Jacobian sensitivity, rmsZ gradient, prescribe, gradientStep + 1635 tests | ✅ Done |
+| 27 | Pipeline accuracy overhaul: delete gradient-based outputs, verify 183 frames at 100%, fix generate_poses to use real pixel data with no cleanup corruption, build verify_reconstruction + frame_anatomy tools + 1649 tests | ✅ Done |
+| 28 | Part compositor: data-driven seam detection (neck/hip from row-width profile), splitParts/compositeParts/assembleCharacter — fuse head/torso/legs from different real frames with band-rank palette unification + 1693 tests | ✅ Done |
+| 29 | Composed-character animation (animate_character.js: pin parts, animate body over real frame ranges, bottom-aligned sheets) + reconstruction integrity tests in CI (golden render byte-compare, batch sample integrity, pose pixel-fidelity) + 1732 tests | ✅ Done |
+| 30 | Region-aware recoloring: classifyRegions (hue-family clustering, circular mean), recolorRegions (retarget fur/skin/hair independently, luminance preserved, GRID UNTOUCHED), regionPixelCounts + recolor_character.js CLI + 1776 tests | ✅ Done |
+| 31 | Character creation pipeline: create_character.js chains fuse (28) + animate (29) + recolor (30) from one JSON spec or inline flags — complete new character (portrait + animated sheet + AI-readable JSON) in one command + 1776 tests | ✅ Done |
+| 32 | Cross-sheet ingest: ingest a second character's sprite sheet to prove the pipeline is character-agnostic, then fuse/recolor across characters | 🔄 Next |

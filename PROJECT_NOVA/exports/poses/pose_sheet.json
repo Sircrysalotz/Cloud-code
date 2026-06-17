@@ -1,49 +1,50 @@
 {
   "id": "pose_sheet",
   "source": "generate_poses",
-  "total_width": 1120,
-  "frame_height": 320,
+  "palette": "original",
+  "total_width": 1744,
+  "frame_height": 552,
   "fps": 8,
   "frames": [
     {
       "id": "idle",
+      "frame_idx": 0,
       "x": 0,
-      "width": 192,
-      "height": 320,
-      "duration_ms": 125,
-      "band_rms_z": 0.28541198292993936
+      "width": 288,
+      "height": 552,
+      "duration_ms": 125
     },
     {
       "id": "guard",
-      "x": 192,
-      "width": 208,
-      "height": 320,
-      "duration_ms": 125,
-      "band_rms_z": 0.579361717754979
+      "frame_idx": 9,
+      "x": 288,
+      "width": 352,
+      "height": 552,
+      "duration_ms": 125
     },
     {
       "id": "punch",
-      "x": 400,
-      "width": 240,
-      "height": 320,
-      "duration_ms": 125,
-      "band_rms_z": 0.5475399528801529
+      "frame_idx": 5,
+      "x": 640,
+      "width": 368,
+      "height": 552,
+      "duration_ms": 125
     },
     {
       "id": "kick",
-      "x": 640,
-      "width": 224,
-      "height": 320,
-      "duration_ms": 125,
-      "band_rms_z": 0.6118659984016108
+      "frame_idx": 14,
+      "x": 1008,
+      "width": 312,
+      "height": 552,
+      "duration_ms": 125
     },
     {
       "id": "power_up",
-      "x": 864,
-      "width": 256,
-      "height": 320,
-      "duration_ms": 125,
-      "band_rms_z": 0.6919103988234314
+      "frame_idx": 18,
+      "x": 1320,
+      "width": 424,
+      "height": 504,
+      "duration_ms": 125
     }
   ]
 }

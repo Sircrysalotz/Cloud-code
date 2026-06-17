@@ -7,7 +7,7 @@ import { check, section } from '../helpers.js';
 import { IDX } from '../../src/core/palette.js';
 import {
   defaultParams, badStartParams, gradientIndex,
-  buildFromParams, adjustParams,
+  buildFromParams, buildFromSilhouette, adjustParams,
 } from '../../src/authoring/parametric.js';
 import { runCleanup }         from '../../src/cleanup/index.js';
 import { compareToReference } from '../../src/eval/compare.js';
@@ -278,6 +278,88 @@ test('integration: default start passes eval immediately', () => {
   const metrics = computeMetrics(grid);
   const comparison = compareToReference(metrics, distribution);
   assert.ok(comparison.pass, `default params should pass: ${comparison.summary}`);
+});
+
+// ── buildFromSilhouette ───────────────────────────────────────────────────────
+
+function makeFakeFrame(w, h) {
+  // Solid block of body pixels with transparent border
+  const data = Array.from({ length: h }, (_, r) =>
+    Array.from({ length: w }, (_, c) =>
+      (r > 0 && r < h - 1 && c > 0 && c < w - 1) ? 5 : 0
+    )
+  );
+  return { width: w, height: h, data };
+}
+
+test('buildFromSilhouette preserves dimensions', () => {
+  const frame = makeFakeFrame(30, 50);
+  const g = buildFromSilhouette(frame, defaultParams());
+  assert.equal(g.length, 50);
+  assert.equal(g[0].length, 30);
+});
+
+test('buildFromSilhouette has transparent border (from frame)', () => {
+  const frame = makeFakeFrame(20, 30);
+  const g = buildFromSilhouette(frame, defaultParams());
+  assert.equal(g[0][0], IDX.TRANSPARENT, 'corner should be transparent');
+});
+
+test('buildFromSilhouette fills body pixels with gradient indices', () => {
+  const frame = makeFakeFrame(20, 30);
+  const g = buildFromSilhouette(frame, defaultParams());
+  const allVals = g.flatMap(row => Array.from(row));
+  const bodyVals = allVals.filter(v => v >= IDX.SHADOW_DEEP);
+  assert.ok(bodyVals.length > 0, 'should have body pixels');
+});
+
+test('buildFromSilhouette adds outline at silhouette boundary', () => {
+  const frame = makeFakeFrame(20, 30);
+  const g = buildFromSilhouette(frame, defaultParams());
+  const allVals = g.flatMap(row => Array.from(row));
+  const outlinePixels = allVals.filter(v => v === IDX.OUTLINE);
+  assert.ok(outlinePixels.length > 0, 'should have outline pixels');
+});
+
+test('buildFromSilhouette all pixel values are valid palette indices', () => {
+  const frame = makeFakeFrame(20, 30);
+  const g = buildFromSilhouette(frame, defaultParams());
+  const allVals = g.flatMap(row => Array.from(row));
+  const invalid = allVals.filter(v => v < 0 || v > 7);
+  assert.equal(invalid.length, 0, `invalid indices: ${invalid}`);
+});
+
+test('buildFromSilhouette fully transparent frame produces all-transparent grid', () => {
+  const frame = { width: 10, height: 10, data: Array.from({ length: 10 }, () => new Array(10).fill(0)) };
+  const g = buildFromSilhouette(frame, defaultParams());
+  const allVals = g.flatMap(row => Array.from(row));
+  const nonTransparent = allVals.filter(v => v !== IDX.TRANSPARENT);
+  assert.equal(nonTransparent.length, 0, 'all-transparent frame should produce all-transparent grid');
+});
+
+test('buildFromSilhouette iteration reduces band rmsZ vs starting params', () => {
+  const distribution = buildTestDistribution();
+  const frame = makeFakeFrame(24, 40);
+  const raw0 = buildFromSilhouette(frame, defaultParams());
+  const { grid: g0 } = runCleanup(raw0);
+  const m0 = computeMetrics(g0);
+  const c0 = compareToReference(m0, distribution);
+  const rmsZ0 = c0.rms_z;
+
+  let params = defaultParams();
+  for (let i = 0; i < 10; i++) {
+    const raw = buildFromSilhouette(frame, params);
+    const { grid } = runCleanup(raw);
+    const metrics = computeMetrics(grid);
+    const comparison = compareToReference(metrics, distribution);
+    if (comparison.flags.length === 0) break;
+    params = adjustParams(params, comparison.flags);
+  }
+  const rawFinal = buildFromSilhouette(frame, params);
+  const { grid: gFinal } = runCleanup(rawFinal);
+  const mFinal = computeMetrics(gFinal);
+  const cFinal = compareToReference(mFinal, distribution);
+  assert.ok(cFinal.rms_z <= rmsZ0 + 0.01, `rmsZ should not increase: ${cFinal.rms_z} vs ${rmsZ0}`);
 });
 
 // Results are tallied by run_all.js via helpers.js

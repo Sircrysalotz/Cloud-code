@@ -14,12 +14,12 @@ import { runCleanup }                    from '../cleanup/index.js';
 import { computeMetrics }                from '../eval/metrics.js';
 import { compareToReference }            from '../eval/compare.js';
 import { loadBatchReference }            from '../eval/reference_lib.js';
-import { defaultParams, badStartParams, buildFromParams, adjustParams } from './parametric.js';
+import { defaultParams, badStartParams, buildFromParams, buildFromSilhouette, adjustParams } from './parametric.js';
 import { runIteration, bandRmsZ }        from '../../tools/goku_iterate.js';
 
 // ── Exports ───────────────────────────────────────────────────────────────────
 
-export { defaultParams, badStartParams, buildFromParams, adjustParams };
+export { defaultParams, badStartParams, buildFromParams, buildFromSilhouette, adjustParams };
 
 /**
  * Generate a Goku-calibrated warrior sprite.
@@ -28,18 +28,20 @@ export { defaultParams, badStartParams, buildFromParams, adjustParams };
  * match the Goku reference distribution within the given tolerance.
  *
  * @param {object} [opts]
- * @param {object} [opts.params]        — starting params (default: defaultParams())
- * @param {number} [opts.maxIter=30]    — max iterations
+ * @param {object} [opts.params]          — starting params (default: defaultParams())
+ * @param {number} [opts.maxIter=30]      — max iterations
  * @param {number} [opts.targetRmsZ=0.50] — convergence threshold
- * @param {object} [opts.distribution]  — reference distribution (default: Goku batch)
+ * @param {object} [opts.distribution]    — reference distribution (default: Goku batch)
+ * @param {object} [opts.silhouetteData]  — batch frame JSON to use as shape template
  * @returns {{ grid, metrics, comparison, converged, bandRmsZ, iterations }}
  */
 export function generateGokuSprite(opts = {}) {
   const {
-    params:       startParams  = defaultParams(),
-    maxIter       = 30,
-    targetRmsZ    = 0.50,
-    distribution  = null,
+    params:         startParams    = defaultParams(),
+    maxIter         = 30,
+    targetRmsZ      = 0.50,
+    distribution    = null,
+    silhouetteData  = null,
   } = opts;
 
   // Load reference distribution
@@ -51,7 +53,7 @@ export function generateGokuSprite(opts = {}) {
   }
 
   const { bestGrid, bestBandRmsZ, bestIter, log, converged } = runIteration(
-    startParams, dist, { maxIter, targetRmsZ }
+    startParams, dist, { maxIter, targetRmsZ, silhouetteData }
   );
 
   const metrics    = computeMetrics(bestGrid, PALETTE);

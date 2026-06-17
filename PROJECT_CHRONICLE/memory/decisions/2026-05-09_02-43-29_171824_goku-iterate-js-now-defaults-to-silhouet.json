@@ -1,0 +1,8 @@
+{
+  "id": "2026-05-09T02:43:29_goku-iterate-js-now-defaults-to-silhouet",
+  "timestamp": "2026-05-09T02:43:29",
+  "session": "unknown",
+  "type": "observation",
+  "message": "goku_iterate.js now defaults to silhouette-based generation using frame_0004. --no-template flag restores old parametric path. --template=N picks different frame",
+  "tags": []
+}

@@ -215,6 +215,17 @@ export const POSES = {
 
 export const POSE_NAMES = Object.keys(POSES);
 
+// Default batch frame index per pose for silhouette-based generation.
+// Each index points to a real Goku animation frame with a full body
+// pixel count (>900px) and stable full-height dimensions.
+export const POSE_FRAME = {
+  idle:     0,   // upright walking frame  (36×69, 1071 body px)
+  guard:    9,   // arms-raised frame      (44×69, 1066 body px)
+  punch:    5,   // wide fighting stance   (46×69, 1119 body px)
+  kick:     14,  // reaching/charging      (39×69, 1130 body px)
+  power_up: 18,  // leaping/dramatic pose  (53×63,  953 body px)
+};
+
 /**
  * Build params for a named pose with optional threshold override.
  *

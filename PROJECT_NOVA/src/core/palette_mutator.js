@@ -31,7 +31,7 @@ function lum(r, g, b) { return 0.2126 * r + 0.7152 * g + 0.0722 * b; }
  * Convert RGB to HSL.
  * @returns {{ h: number, s: number, l: number }}  h∈[0,360), s∈[0,1], l∈[0,1]
  */
-function rgbToHsl(r, g, b) {
+export function rgbToHsl(r, g, b) {
   r /= 255; g /= 255; b /= 255;
   const max = Math.max(r, g, b), min = Math.min(r, g, b);
   const l = (max + min) / 2;
@@ -48,7 +48,7 @@ function rgbToHsl(r, g, b) {
 /**
  * Convert HSL back to RGB (integers 0-255).
  */
-function hslToRgb(h, s, l) {
+export function hslToRgb(h, s, l) {
   if (s === 0) { const v = clamp(l * 255); return [v, v, v]; }
   const hue2rgb = (p, q, t) => {
     if (t < 0) t += 1; if (t > 1) t -= 1;
